@@ -86,7 +86,7 @@ install_packages()
     PKGLIST="${PKGLIST} libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev"
 
     # Wifi
-    PKGLIST="${PKGLIST} network-manager python3-gi"
+    PKGLIST="${PKGLIST} python3-gi"
     # Usb Stick Automounting
     PKGLIST="${PKGLIST} usbmount"
 
@@ -106,6 +106,22 @@ install_packages()
     git checkout ee5b009
     make
     sudo make install
+
+    # Check if network-manager is installed
+    status="$(dpkg-query -W --showformat='${db:Status-Status}' network-manager 2>/dev/null)"
+    if [ ! $? = 0 ] || [ ! "$status" = installed ]; then
+        # Make sure no config files are left if it's not installed but also not fully purged
+        if [ ! "" = "$status" ]; then
+            sudo apt-get -qq --yes purge network-manager
+        fi
+        # Mask NetworkManager.service during installation to avoid it
+        # getting started already which interrupts WiFi connection
+        sudo systemctl -q mask NetworkManager.service 2>/dev/null
+        sudo apt-get -qq --yes install network-manager
+        sudo systemctl -q unmask NetworkManager.service
+        # enable to start on next reboot
+        sudo systemctl -q enable NetworkManager.service
+    fi
 
     report_status "Adjusting configurations..."
     # Networking
