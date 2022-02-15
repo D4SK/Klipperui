@@ -150,52 +150,57 @@ class FilamentManager:
             ns = {'m': 'http://www.ultimaker.com/material'}
             return tree.findtext(xpath, default, ns)
 
-    def has_matching_material(self, printjob):
-        if self.material_condition == "any":
-            return True
-        loaded = self.get_status()["loaded"]
-        md = printjob.md
-
-        # Make sure the print job doesn't expect more extruders than we have
-        if md.get_extruder_count() > len(loaded):
-            return False
-
-        for extruder in range(md.get_extruder_count()):
-            l_guid = loaded[extruder]["guid"]
-            guid = md.get_material_guid(extruder)
-
-            if guid is not None and guid == l_guid:
-                continue
-            elif self.material_condition == "exact":
-                # If exact match is wanted, require guids to match
-                return False
-
-            p_type = md.get_material_type(extruder)
-            l_type = self.get_info(l_guid, "./m:metadata/m:name/m:material")
-            if (p_type is None or l_type is None or
-                p_type.lower() != l_type.lower()):
-                return False
-
-        return True
-
-    def has_enough_material(self, printjob, tolerance=None):
+    def get_material_match(self, printjob):
         md = printjob.md
         loaded = self.get_status()["loaded"]
 
-        # Make sure the print job doesn't expect more extruders than we have
-        if md.get_extruder_count() > len(loaded):
-            return False
+        loaded_materials = []
+        needed_materials = []
+        problems_per_extruder = []
+        encountered_problems = False
+        for extruder in range(md.get_extruder_count() or 1):
+            n_mat = Material(self, md.get_material_guid(extruder),
+                             md.get_material_type(extruder),
+                             md.get_material_brand(extruder),
+                             md.get_material_color(extruder),
+                             md.get_material(extruder, "weight"))
+            needed_materials.append(n_mat)
 
-        if tolerance is None:
-            tolerance = self.material_tolerance
+            if extruder >= len(loaded):
+                loaded_materials.append(None)
+                problems_per_extruder.append(["extruder_count"])
 
-        for extruder in range(md.get_extruder_count()):
-            needed = md.get_filament(extruder, "weight")
-            available = loaded[extruder]["amount"] * 1000  # kg -> g
+            l_mat = Material(self, loaded[extruder]["guid"],
+                             amount=loaded[extruder]["amount"] * 1000)
+            loaded_materials.append(l_mat)
+
+            problems = []
+
             # Ignore if printjob does not specify needed material
-            if needed is not None and (available - needed) < tolerance:
-                return False
-        return True
+            if (n_mat.amount is not None and
+                (l_mat.amount - n_mat.amount) < self.material_tolerance):
+                problems.append("amount")
+
+            if self.material_condition != "any" and (
+                n_mat.guid is None or l_mat.guid != n_mat.guid):
+
+                if (n_mat.type is None or l_mat.type is None or
+                    n_mat.type.lower() != l_mat.type.lower()):
+                    problems.append("type")
+
+                if self.material_condition != "type":
+                    if (n_mat.brand is None or l_mat.brand is None or
+                        n_mat.brand.lower() != l_mat.brand.lower()):
+                        problems.append("brand")
+                    if (n_mat.color is None or l_mat.color is None or
+                        n_mat.color != n_mat.color):
+                        problems.append("color")
+
+            encountered_problems += len(problems)
+            problems_per_extruder.append(problems)
+
+        if encountered_problems:
+            return loaded_materials, needed_materials, problems_per_extruder
 
 
 ######################################################################
@@ -348,6 +353,21 @@ class FilamentManager:
                 extruded_weight = extruded_length*area*density/1e6 # convert from mm^2 to m^2
                 mat['amount'] -= extruded_weight
                 mat['all_time_extruded_length'] += extruded_length
+
+class Material:
+
+    def __init__(self, fm=None, guid=None,
+        type=None, brand=None, color=None, amount=None):
+        self.guid = guid
+        if isinstance(fm, FilamentManager) and guid in fm.guid_to_path:
+            self.type  = fm.get_info(guid, './m:metadata/m:name/m:material')
+            self.brand = fm.get_info(guid, './m:metadata/m:name/m:brand')
+            self.color = fm.get_info(guid, './m:metadata/m:color_code')
+        else:
+            self.type = type
+            self.brand = brand
+            self.color = color # Hex color-code like "#1188ff"
+        self.amount = amount  # In g
 
 
 def load_config(config):
