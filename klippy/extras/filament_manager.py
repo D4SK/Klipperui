@@ -16,13 +16,23 @@ from xml.etree import ElementTree
 class FilamentManager:
 
     # Contains xml files for each material
-    material_dir = os.path.expanduser('~/materials')
-    loaded_material_path = os.path.join(material_dir, "loaded_material.json")
+    _default_material_dir = os.path.expanduser('~/materials')
 
     def __init__(self, config):
         self.printer = config.get_printer()
         self.reactor = self.printer.get_reactor()
+
+        self.material_condition = config.getchoice("material_condition",
+                {"exact": "exact", "type": "type", "any": "any"}, "any")
+        self.material_tolerance = config.getfloat("material_tolerance", 50)
         self.config_diameter = config.getsection("extruder").getfloat("filament_diameter", 1.75)
+        self.material_dir = config.get("material_dir", self._default_material_dir)
+        self.loaded_material_path = config.get("loaded_material_path",
+                os.path.join(self.material_dir, "loaded_material.json"))
+
+        if not os.path.exists(self.material_dir):
+            os.mkdir(self.material_dir)
+
         self.filament_switch_sensor = bool(config.get_prefix_sections("filament_switch_sensor"))
         self.preselected_material = {}
         for i in range(1, 10):
@@ -33,9 +43,6 @@ class FilamentManager:
         self.printer.register_event_handler("klippy:ready", self.handle_ready)
         self.printer.register_event_handler("klippy:shutdown", self.handle_shutdown)
         self.printer.register_event_handler("filament_switch_sensor:runout", self.unload)
-
-        if not os.path.exists(self.material_dir):
-            os.mkdir(self.material_dir)
 
         # [Type][Brand][Color] = guid, a dict tree for choosing filaments
         self.tbc_to_guid = {}
@@ -74,6 +81,13 @@ class FilamentManager:
     def handle_shutdown(self):
         self.update_loaded_material_amount()
         self.write_loaded_material_json()
+
+    def set_config(self, material_condition):
+        configfile = self.printer.lookup_object('configfile')
+        if material_condition in {"exact", "type", "any"}:
+            self.material_condition = material_condition
+            configfile.set("filament_manager", "material_condition", material_condition)
+            configfile.save_config(restart=False)
 
 ######################################################################
 # manage cura-material xml files
@@ -135,6 +149,54 @@ class FilamentManager:
         else:
             ns = {'m': 'http://www.ultimaker.com/material'}
             return tree.findtext(xpath, default, ns)
+
+    def has_matching_material(self, printjob):
+        if self.material_condition == "any":
+            return True
+        loaded = self.get_status()["loaded"]
+        md = printjob.md
+
+        # Make sure the print job doesn't expect more extruders than we have
+        if md.get_extruder_count() > len(loaded):
+            return False
+
+        for extruder in range(md.get_extruder_count()):
+            l_guid = loaded[extruder]["guid"]
+            guid = md.get_material_guid(extruder)
+
+            if guid is not None and guid == l_guid:
+                continue
+            elif self.material_condition == "exact":
+                # If exact match is wanted, require guids to match
+                return False
+
+            p_type = md.get_material_type(extruder)
+            l_type = self.get_info(l_guid, "./m:metadata/m:name/m:material")
+            if (p_type is None or l_type is None or
+                p_type.lower() != l_type.lower()):
+                return False
+
+        return True
+
+    def has_enough_material(self, printjob, tolerance=None):
+        md = printjob.md
+        loaded = self.get_status()["loaded"]
+
+        # Make sure the print job doesn't expect more extruders than we have
+        if md.get_extruder_count() > len(loaded):
+            return False
+
+        if tolerance is None:
+            tolerance = self.material_tolerance
+
+        for extruder in range(md.get_extruder_count()):
+            needed = md.get_filament(extruder, "weight")
+            available = loaded[extruder]["amount"] * 1000  # kg -> g
+            # Ignore if printjob does not specify needed material
+            if needed is not None and (available - needed) < tolerance:
+                return False
+        return True
+
 
 ######################################################################
 # loading and unloading api
