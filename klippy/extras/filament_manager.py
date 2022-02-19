@@ -4,6 +4,7 @@
 # Copyright (C) 2020  Konstantin Vogel <konstantin.vogel@gmx.net>
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
+from enum import Flag, auto
 import functools
 import os
 import json
@@ -26,12 +27,17 @@ class FilamentManager:
                 {"exact": "exact", "type": "type", "any": "any"}, "any")
         self.material_tolerance = config.getfloat("material_tolerance", 50)
         self.config_diameter = config.getsection("extruder").getfloat("filament_diameter", 1.75)
+
+        # Configure paths
         self.material_dir = config.get("material_dir", self._default_material_dir)
+        try:
+            os.makedirs(os.path.expanduser(self.material_dir), exist_ok=True)
+        except OSError:
+            logging.exception(f"Could not create material directory {self.material_dir}")
+            logging.error(f"Falling back to {self._default_material_dir}")
+            self.material_dir = self._default_material_dir
         self.loaded_material_path = config.get("loaded_material_path",
                 os.path.join(self.material_dir, "loaded_material.json"))
-
-        if not os.path.exists(self.material_dir):
-            os.mkdir(self.material_dir)
 
         self.filament_switch_sensor = bool(config.get_prefix_sections("filament_switch_sensor"))
         self.preselected_material = {}
@@ -157,50 +163,46 @@ class FilamentManager:
         loaded_materials = []
         needed_materials = []
         problems_per_extruder = []
-        encountered_problems = False
         for extruder in range(md.get_extruder_count() or 1):
+            problems = Problem.OK
+
             n_mat = Material(self, md.get_material_guid(extruder),
                              md.get_material_type(extruder),
                              md.get_material_brand(extruder),
                              md.get_material_color(extruder),
                              md.get_material(extruder, "weight"))
-            needed_materials.append(n_mat)
 
             if extruder >= len(loaded):
-                loaded_materials.append(None)
-                problems_per_extruder.append(["extruder_count"])
+                problems |= Problem.EXTRUDER_COUNT
+                l_mat = None
+            else:
+                l_mat = Material(self, loaded[extruder]["guid"],
+                                 amount=loaded[extruder]["amount"] * 1000)
 
-            l_mat = Material(self, loaded[extruder]["guid"],
-                             amount=loaded[extruder]["amount"] * 1000)
+                # Ignore if printjob does not specify needed material
+                if (n_mat.amount is not None and
+                    (l_mat.amount - n_mat.amount) < self.material_tolerance):
+                    problems |= Problem.AMOUNT
+
+                if self.material_condition != "any" and (
+                    n_mat.guid is None or l_mat.guid != n_mat.guid):
+                    if (n_mat.type is None or l_mat.type is None or
+                        n_mat.type.lower() != l_mat.type.lower()):
+                        problems |= Problem.TYPE
+
+                    if self.material_condition != "type":
+                        if (n_mat.brand is None or l_mat.brand is None or
+                            n_mat.brand.lower() != l_mat.brand.lower()):
+                            problems |= Problem.BRAND
+                        if (n_mat.color is None or l_mat.color is None or
+                            n_mat.color != n_mat.color):
+                            problems |= Problem.COLOR
+
             loaded_materials.append(l_mat)
-
-            problems = []
-
-            # Ignore if printjob does not specify needed material
-            if (n_mat.amount is not None and
-                (l_mat.amount - n_mat.amount) < self.material_tolerance):
-                problems.append("amount")
-
-            if self.material_condition != "any" and (
-                n_mat.guid is None or l_mat.guid != n_mat.guid):
-
-                if (n_mat.type is None or l_mat.type is None or
-                    n_mat.type.lower() != l_mat.type.lower()):
-                    problems.append("type")
-
-                if self.material_condition != "type":
-                    if (n_mat.brand is None or l_mat.brand is None or
-                        n_mat.brand.lower() != l_mat.brand.lower()):
-                        problems.append("brand")
-                    if (n_mat.color is None or l_mat.color is None or
-                        n_mat.color != n_mat.color):
-                        problems.append("color")
-
-            encountered_problems += len(problems)
+            needed_materials.append(n_mat)
             problems_per_extruder.append(problems)
 
-        if encountered_problems:
-            return loaded_materials, needed_materials, problems_per_extruder
+        return loaded_materials, needed_materials, problems_per_extruder
 
 
 ######################################################################
@@ -368,6 +370,15 @@ class Material:
             self.brand = brand
             self.color = color # Hex color-code like "#1188ff"
         self.amount = amount  # In g
+
+
+class Problem(Flag):
+    OK = 0
+    TYPE = auto()
+    BRAND = auto()
+    COLOR = auto()
+    AMOUNT = auto()
+    EXTRUDER_COUNT = auto()
 
 
 def load_config(config):

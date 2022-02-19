@@ -3,6 +3,7 @@
 
 #:import p parameters
 #:import printer_cmd parallel_extras.kgui.printer_cmd
+#:import Problem extras.filament_manager.Problem
 
 <HomeTab@TabbedPanelItem>:
     background_down: ''
@@ -843,7 +844,7 @@
 
 <Material>:
     size: dp(450), dp(80)
-    text: "<" if "amount" in self.problems else "≠" if self.problems else ""
+    text: "<" if self.problems & Problem.AMOUNT else "≠" if self.problems else ""
     text_size: self.size
     font_size: p.large_font + 6
     valign: 'middle'
@@ -851,11 +852,14 @@
     size_hint: None, None
     canvas.before:
         Color:
-            rgba: printer_cmd.calculate_filament_color(printer_cmd.hex_to_rgba(self.material['hex_color']))
+            rgba: printer_cmd.calculate_filament_color(printer_cmd.hex_to_rgba(self.material.color))
         RoundedRectangle:
-            size: dp(160)*self.material['amount'], self.height
+            size: dp(160)*self.material.amount, self.height
             pos: self.x, self.y
-            radius: [p.radius] + ([0, 0] if dp(160)*self.material['amount'] < dp(160) - p.radius else [p.radius, p.radius]) + [p.radius]
+            radius:
+                ([p.radius] +
+                ([0, 0] if dp(160)*self.material.amount < dp(160) - p.radius else [p.radius, p.radius]) +
+                [p.radius])
         Color:
             rgba: p.btn_outline
         Line:
@@ -865,7 +869,10 @@
         size: root.size
         y: root.y
         center_x: root.right - dp(160/2)
-        text: f"{root.needed_material['amount']*1000:.0f}g {root.needed_material['type']}"
+        text:
+            # needed_material can be None if extruder count doesn't match
+            (f"{root.needed_material.amount*1000:.0f}g {root.needed_material.type}"
+            if root.needed_material else "")
         font_size: p.normal_font
         valign: 'middle'
         halign: 'center'
@@ -877,7 +884,7 @@
         valign: 'middle'
         halign: 'center'
         font_size: p.normal_font
-        text: f"{root.material['amount']*1000:.0f}g {root.material['type']}"
+        text: f"{root.material.amount*1000:.0f}g {root.material.type}"
         color: (1,1,1,1) if root.problems else p.light_gray
 
 <ExtTempPopup@BasePopup>:

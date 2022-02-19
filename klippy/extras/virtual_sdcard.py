@@ -52,15 +52,14 @@ class PrintJob:
 
     def start(self):
         if self.state == 'queued':
-            # TODO check_material()
-            materials =        [{'amount': 0.4, 'type': "PLA", 'brand': "Generic", 'hex_color': "#ff4433"}, {'amount': 0.4, 'type': "PLA", 'brand': "Generic", "hex_color": "#ffffff"}]
-            needed_materials = [{'amount': 0.8, 'type': "PLA", 'brand': "Generic", 'hex_color': "#ff4433"}, {'amount': 0.6, 'type': "PVA", 'brand': "Generic", "hex_color": "#ffffff"}]
-            mismatch = True
-            if mismatch and not self.no_material_check:
+            fm = self.manager.printer.lookup_object("filament_manager")
+            materials, needed_materials, problems = fm.get_material_match(self)
+            if any(problems) and not self.no_material_check:
                 self.gcode.run_script_from_command("SAVE_GCODE_STATE NAME=PAUSE_STATE")
                 self.set_state('paused')
                 self.reactor.send_event("virtual_sdcard:print_start", self.manager.jobs, self)
-                self.reactor.send_event("virtual_sdcard:material_mismatch", materials, needed_materials)
+                self.reactor.send_event("virtual_sdcard:material_mismatch",
+                        materials, needed_materials, problems)
             else:
                 self.last_start_time = self.toolhead.mcu.estimated_print_time(self.reactor.monotonic())
                 self.set_state('printing') # set_state only after last_start_time is set but before entering work handler
@@ -206,9 +205,12 @@ class PrintJobManager:
                 if (self.jobs[0].print_end_time is not None and
                     (now - self.jobs[0].print_end_time) > assume_clear_after):
                     self.clear_buildplate()
-        no_material_check = (not len(self.jobs) or len(self.jobs) == 1 and self.jobs[0].state in ('finished', 'aborted')) and no_material_check_when_first
+        no_material_check = (not self.jobs or
+            (len(self.jobs) == 1 and self.jobs[0].state in ('finished', 'aborted'))
+            and no_material_check_when_first)
         job = PrintJob(path, self, no_material_check)
-        job.continuous = not self.jobs or (len(self.jobs) == 1 and self.jobs[0].state in ('finished', 'aborted'))
+        job.continuous = not self.jobs or (
+            len(self.jobs) == 1 and self.jobs[0].state in ('finished', 'aborted'))
         self.jobs.append(job)
         self.check_queue()
         self.printer.send_event("virtual_sdcard:print_added", self.jobs, job)
