@@ -1,4 +1,3 @@
-from multiprocessing.dummy import active_children
 import shutil
 from os.path import join, basename
 from os import remove
