@@ -11,19 +11,46 @@
         Rectangle:
             source: p.kgui_dir+'/logos/settings.png'
             size: dp(60*p.disp_vertical_stretch), dp(60)
-            pos: dp(525 - 30 * p.disp_vertical_stretch), dp(20)
-    BoxLayout:
-        orientation: 'vertical'
+            pos: dp(525 - 30*p.disp_vertical_stretch), dp(20)
+    FloatLayout:
+        pos: 0, p.tab_height
+        size: p.screen_width, p.screen_height - p.tab_height - p.status_bar_height
+        size_hint: None, None
+        canvas:
+            Color:
+                rgba: p.background
+            Rectangle:
+                size: p.screen_width, p.screen_height - p.tab_height - p.status_bar_height
+                pos: 0, p.tab_height
         TitleBar:
+            id: title_bar
             title:
-                {'SettingScreen': "Settings", 'ConsoleScreen':"Gcode Console",
-                'WifiScreen': "Wifi", 'UpdateScreen': "System Update", "ContinuousPrintingScreen": "Continuous Printing", "MoveScreen": "Move Printhead", "SetupScreen": "Setup"}[screen_man.current]
+                {'SettingScreen': "Settings",
+                'ConsoleScreen': "Gcode Console",
+                'WifiScreen': "Wifi",
+                'UpdateScreen': "System Update",
+                "ContinuousPrintingScreen": "Continuous Printing",
+                "MoveScreen": "Move Printhead",
+                "SetupScreen": "Setup"}[screen_man.current]
+            pos_hint: {'x': 0, 'top': 1}
+            size_hint: None, None
+        BtnBack:
+            pos_hint: {'x': 0, 'top': 1}
             enabled: screen_man.current != 'SettingScreen'
             on_release: screen_man.current = 'SettingScreen'
-            pos_hint: {'x': 0, 'top': 1}
+            size_hint: None, None
+        BtnKebap:
+            id: btn_kebap
+            pos_hint: {'right': 1, 'top': 1}
+            enabled: hasattr(screen_man.current_screen, 'show_options')
+            on_release: screen_man.current_screen.show_options()
+            size_hint: None, None
         ScreenManager:
+            size: p.screen_width, p.screen_height - p.title_bar_height - p.tab_height - p.status_bar_height
+            pos: 0, p.tab_height
             id: screen_man
             name: 'SettingScreenManager'
+            size_hint: None, None
             transition: screenmanager.NoTransition()
             SettingScreen:
                 id: setting_screen
@@ -43,6 +70,7 @@
 <SettingScreen@Screen>:
     name: 'SettingScreen'
     ScrollView:
+        always_overscroll: False
         canvas.before:
             Color:
                 rgba: p.background
@@ -96,6 +124,7 @@
 <SetupScreen@Screen>:
     name: 'SetupScreen'
     ScrollView:
+        always_overscroll: False
         canvas.before:
             Color:
                 rgba: p.background
@@ -226,8 +255,7 @@
             width: p.btn_height*4
             right: root.right - p.h_padding
             top: root.height - p.small_padding # screens are relative layouts
-            enabled:
-                app.state == "ready" and 'x' in app.homed and 'y' in app.homed
+            enabled: app.state == "ready" and 'x' in app.homed and 'y' in app.homed
         Btn4x:
             id: btn_4x
             top: xy_field.y - p.padding
@@ -415,22 +443,31 @@
         Rectangle:
             pos: 0, 0
             size: self.size
-    Divider:
-        pos_hint: {'center_x': 0.5, 'top': 1}
-    #Label:
-    #    id: message
-    #    text: ""
-    #    font_size: p.normal_font
-    #    text_size: self.size
-    #    size_hint: 1, 0.1
-    #    valign: 'top'
-    #    halign: 'left'
-    #    padding_x: p.padding
-    #    padding_y: p.padding - 10
-    #    pos_hint: {'x':0, 'top':1}
-    #    color: p.medium_light_gray
+    KebapMenu:
+        id: kebap_menu
+        right: p.mars if self.hidden else (root.right - p.small_padding)
+        height: dp(80)
+        top: root.top
+        size_hint: None, None
+        MICheckbox:
+            text: "Show all Versions"
+            on_active: root.show_all_versions = self.active
+    Label:
+        id: message
+        text: ""
+        font_size: p.large_font
+        size_hint: 1, None
+        text_size: self.size
+        size: p.screen_width, dp(90)
+        halign: 'left'
+        valign: 'bottom' 
+        padding_x: p.padding
+        pos_hint: {'x':0, 'top':1}
+        color: p.light_gray
     ScrollView:
-        size_hint: 1, 1
+        always_overscroll: False
+        size_hint: 1, None
+        height: root.height - message.height
         pos_hint: {'x': 0, 'y': 0}
         do_scroll_x: False
         BoxLayout:
@@ -438,14 +475,6 @@
             orientation: 'vertical'
             height: self.minimum_height
             size_hint_y: None
-    FloatingButton:
-        id: btn_update
-        btn_color: p.medium_gray
-        y: p.padding
-        right: root.right - p.padding
-        size: dp(85*p.disp_vertical_stretch), dp(85)
-        text: "Update"
-        on_release: root.fetch()
 
 <XyField>:
     mm: [0, 0, 0]
@@ -516,7 +545,8 @@
             points:
                 self.x + p.btn_height*3, self.y + p.btn_divider_padding, \
                 self.x + p.btn_height*3, self.top - p.btn_divider_padding
-# SETITEMS
+
+# SETITEMSK
 
 <SetItem>:
     enabled: True
@@ -529,7 +559,6 @@
     text_size: self.size
     valign: 'middle'
     halign: 'left'
-    pos: self.pos
     padding_x: p.padding
     color: (1,1,1,1) if self.enabled else p.medium_light_gray
     hidden: False
@@ -571,7 +600,6 @@
     text_size: self.size
     valign: 'middle'
     halign: 'left'
-    pos: self.pos
     padding_x: p.padding
     selected: False
     enabled: False
@@ -588,13 +616,38 @@
     on_release: Factory.TimezonePopup().open()
 
 <SIRelease>:
-    # Highlight the currently installed version
-    canvas:
-        Color:
-            rgba: p.translucent_white if self.release.current else (0, 0, 0, 0)
-        Rectangle:
-            size: self.size
-            pos: self.pos
+    size_hint_y: None
+    height: dp(180)
+    width: p.screen_width
+    # Button Label
+    text: self.lower_title
+    font_size: p.normal_font
+    text_size: self.size
+    valign: 'bottom'
+    halign: 'left'
+    padding_x: p.padding
+    padding_y: p.padding
+    color: p.medium_light_gray
+    Label:
+        text: root.upper_title
+        font_size: p.large_font
+        text_size: self.size
+        color: p.light_gray
+        size: dp(350), root.height
+        size_hint: None, None
+        valign: 'top'
+        halign: 'left'
+        padding_x: p.padding
+        padding_y: p.padding
+        pos: root.pos
+    Btn:
+        id: btn_install
+        size: dp(145), dp(70)
+        text: "Install"
+        on_release: root.install()
+        size_hint: None, None
+        right: root.right - p.h_padding
+        y: root.y
 
 # POPUPS
 
@@ -847,19 +900,30 @@
             on_release: app.reactor.cb(printer_cmd.write_pressure_advance, slider.val, app.extruder_count), root.dismiss()
 
 <ReleasePopup>:
-    size_hint: 0.94, 0.4
-    title: "Install"
+    size_hint: 0.85, 0.62
+    title: self.release['tag_name']
     FloatLayout:
         id: f_layout
-        Label:
-            text: root.release.version + "\n" +  root.release.date
-            halign: 'center'
-            valign: 'middle'
-            size_hint: 0.8, None
-            pos_hint: {'center_x': 0.5, 'center_y': 0.8}
-            text_size: self.size
-            font_size: p.large_font
-            color: p.light_gray
+        ScrollView:
+            id: scroll_view
+            size_hint: 1, None
+            pos_hint: {'x': 0}
+            top: root.top - dp(60)
+            height: root.height - btn_cancel.height - dp(80)
+            do_scroll_x: False
+            Label:
+                text: "Kgui works on most touchscreens compatible with the raspberry pi. It is fully written in Python enabling direct and fast communication with all aspects of Klipper. \n This plugin works best in conjunction with the klipper_cura_connection plugin. A modified version of klipper is used, so other web-interfaces may have limited compatibility.FeaturesA print job history, to easily find and reprint past print jobs"# root.release['name']  + "\n \n" + root.release['body']
+                halign: 'left'
+                valign: 'top'
+                size_hint: None, None
+                width: root.width
+                padding_x: p.padding
+                height: self.texture_size[1]
+                top: name_label.y - dp(40)
+                center_x: root.center_x
+                text_width: self.width
+                font_size: p.normal_font
+                color: p.medium_light_gray
         BtnPCancel:
             id: btn_cancel
             width: root.width/2
@@ -867,10 +931,7 @@
             on_release: root.dismiss()
         BtnPConfirm:
             id: btn_update
-            text:
-                ('Update' if root.release.newer else
-                'Reinstall' if root.release.current else
-                'Downgrade')
+            text: "Install"
             enabled: True
             width: root.width/2
             pos: btn_cancel.right, root.y

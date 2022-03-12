@@ -1,3 +1,4 @@
+from multiprocessing.dummy import active_children
 import shutil
 from os.path import join, basename
 from os import remove
@@ -12,6 +13,7 @@ from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.vkeyboard import VKeyboard
 from kivy.uix.widget import Widget
+from kivy.uix.boxlayout import BoxLayout
 
 from . import parameters as p
 from . import printer_cmd
@@ -90,6 +92,31 @@ class BtnSlider(BaseButton):
     px = NumericProperty()
     s_title = StringProperty()
     offset = NumericProperty()
+
+class KebapMenu(BoxLayout, Widget):
+    widgets = ListProperty()
+    hidden = BooleanProperty(True)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def on_touch_up(self, touch):
+        if not self.collide_point(*touch.pos) and not self.hidden:
+            self.hidden = True
+            return True
+        return super().on_touch_up(touch)
+
+    def on_widgets(self, *args):
+        self.ids.box_layout.clear_widgets()
+        for widget in self.widgets:
+            self.ids.box_layout.add_widget(widget)
+
+class MenuItem(RoundButton):
+    pass
+
+class MICheckbox(MenuItem):
+    active = BooleanProperty(False)
+    def on_release(self):
+        self.active = not self.active
 
 class BasePopup(Popup):
     def __init__(self, creator=None, val=None, **kwargs):

@@ -30,6 +30,7 @@ btn_height = dp(84)
 btn_stop = dp(65)
 progress_bar_height = dp(10)
 tab_height = dp(100)
+title_bar_height = dp(110)
 #generate even spacing based on all contents on homescreen
 small_padding = dp(15)
 btn_divider_padding = dp(8)

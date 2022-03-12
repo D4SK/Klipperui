@@ -62,15 +62,14 @@
             size: self.size
             pos: self.pos
 
-# Basic button for future use
-#<Btn@RoundButton>:
-#    canvas:
-#        Color:
-#            rgba: p.btn
-#        RoundedRectangle:
-#            radius: (p.radius,)
-#            pos: self.pos
-#            size: self.size
+<Btn@RoundButton>:
+    canvas:
+        Color:
+            rgba: p.btn
+        RoundedRectangle:
+            radius: (p.radius,)
+            pos: self.pos
+            size: self.size
 
 <BtnToggle@Widget>:
     width: wdt - 2*rad + 2*Rad
@@ -267,29 +266,10 @@
 
 # MISC
 
-<TitleBar@BaseButton>:
-    size: dp(150), dp(110)
-    enabled: False
+<TitleBar@Label>:
+    size: p.screen_width, p.title_bar_height
     title: ""
-    #: set q 26
-    canvas.before:
-        Color:
-            rgba: p.background
-        Rectangle:
-            size: p.screen_width, self.height
-            pos: self.pos
-        Color:
-            rgba: (1,1,1,1) if self.enabled else (0,0,0,0)
-        Triangle:
-            points:
-                p.h_padding, self.center_y, \
-                p.h_padding + q, self.center_y - q, \
-                p.h_padding + q, self.center_y + q
-        Color:
-            rgba: p.translucent_white if self.pressed else (0,0,0,0)
-        Rectangle:
-            size: self.size
-            pos: self.pos
+    size_hint: None, None
     Label:
         text: root.title
         shorten: True
@@ -304,6 +284,87 @@
         text_size: self.size
         font_size: p.large_font
         color: (1,1,1,1)
+
+<BtnBack@RectangleButton>:
+    #: set q 26
+    size: dp(150), p.title_bar_height
+    size_hint: None, None
+    canvas:
+        Color:
+            rgba: (1,1,1,1) if self.enabled else (0,0,0,0)
+        Triangle:
+            points:
+                p.h_padding, self.center_y, \
+                p.h_padding + dp(q), self.center_y - dp(q), \
+                p.h_padding + dp(q), self.center_y + dp(q)
+
+<BtnKebap@RectangleButton>:
+    #: set c_rad 4.5
+    #: set c_dist 16.5
+    size: p.title_bar_height, p.title_bar_height
+    size_hint: None, None
+    canvas:
+        Color:
+            rgba: (1,1,1,1) if self.enabled else (0,0,0,0)
+        Ellipse:
+            pos: self.center_x - dp(c_rad),   self.center_y - dp(c_rad) - dp(c_dist) 
+            size: dp(c_rad)*2, dp(c_rad)*2
+        Ellipse:
+            pos: self.center_x - dp(c_rad),   self.center_y - dp(c_rad) + dp(c_dist)
+            size: dp(c_rad)*2*p.disp_vertical_stretch, dp(c_rad)*2
+        Ellipse:
+            pos: self.center_x - dp(c_rad),   self.center_y - dp(c_rad)
+            size: dp(c_rad)*2*p.disp_vertical_stretch, dp(c_rad)*2
+
+<KebapMenu>:
+    width: dp(200)
+    height: box_layout.minimum_height
+    size_hint: None, None
+    canvas:
+        Color:
+            rgba: p.popup
+        RoundedRectangle:
+            radius: (p.popup_radius,)
+            size: root.size
+    BoxLayout:
+        id: box_layout
+        width: root.width
+        height: self.minimum_height
+        pos: root.pos
+        orientation: 'vertical'
+
+<Checkbox@Widget>:
+    active: False
+    size_hint: None, None
+    size: 36, 35
+    canvas.before:
+        Color:
+            rgba: p.btn_outline
+        Line:
+            width: 1
+            rounded_rectangle: (self.x, self.y, self.width, self.height, p.icon_radius)
+        Color:
+            rgba: p.medium_light_gray if self.active else (0,0,0,0)
+        RoundedRectangle:
+            radius: (p.icon_radius/2,)
+            pos: self.x + 5, self.y + 5
+            size: self.width - 10, self.height - 10
+        Color:
+            rgba: (0,0,0,0.3) if self.active else (0,0,0,0)
+        Line:
+            width: 2
+            points: self.center_x -9, self.center_y,     self.center_x-2.5, self.center_y -7,     self.center_x + 9, self.center_y + 6
+
+<MenuItem>:
+    width: dp(200)
+    height: dp(80)
+
+<MICheckbox>:
+    active: False
+    CheckBox:
+        center_y: root.center_y
+        center_x: root.x + dp(40)
+        active: root.active
 
 <BasePopup>:
     title_size: p.large_font

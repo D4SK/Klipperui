@@ -25,10 +25,13 @@
                 pos: 0, p.tab_height
         TitleBar:
             id: title_bar
+            pos_hint: {'x':0, 'top':1}
+            title: relpath(gc.path, dirname(p.sdcard_path))
+        BtnBack:
             enabled: gc.path != p.sdcard_path
             on_release: gc.back()
             pos_hint: {'x':0, 'top':1}
-            title: relpath(gc.path, dirname(p.sdcard_path))
+            height: title_bar.height
         Filechooser:
             id: gc
             viewclass: 'FilechooserItem'
