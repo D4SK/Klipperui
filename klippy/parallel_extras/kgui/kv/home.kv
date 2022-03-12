@@ -158,7 +158,7 @@
             id: temp_chamber
             large_value: "{:3.0f}°C".format(app.chamber_temp[1])
             small_value: f"{app.chamber_fan_speed:3.0f}%" if app.chamber_fan_speed != 0 else "Off"
-            right: temp_bed.right if app.chamber_temp[1] != 0 else p.mars
+            right: temp_bed.right
             y: p.tab_height + p.progress_bar_height + 6*p.padding + 3*p.btn_height + p.btn_stop
 
 <HomeScreen@Screen>:

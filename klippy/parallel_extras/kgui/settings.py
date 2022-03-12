@@ -449,7 +449,6 @@ class HostnamePopup(BasePopup):
     """
     Popup for changing the hostname.
     """
-
     txt_input = ObjectProperty(None)
 
     def __init__(self, **kwargs):
