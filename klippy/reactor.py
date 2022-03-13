@@ -344,8 +344,9 @@ class SelectReactor:
     def finalize(self):
         self._g_dispatch = None
         self._greenlets = []
-        self.mp_queue.put_nowait((self.run_event, 0, None, ("trigger_mp_dispatch", []), {}))
-        self._mp_dispatch_thread.join()
+        if self.mp_queue is not None:
+            self.mp_queue.put_nowait((self.run_event, 0, None, ("trigger_mp_dispatch", []), {}))
+            self._mp_dispatch_thread.join()
         if self._async_pipe is not None:
             os.close(self._async_pipe[0])
             os.close(self._async_pipe[1])
