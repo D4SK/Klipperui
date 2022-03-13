@@ -33,7 +33,7 @@ if __name__ == "__main__":
         "get_thumbnail_path",
         ]
     extruder_interface = [
-        "get_filament",
+        "get_material_amount",
         "get_material_guid",
         "get_material_type",
         "get_material_brand",

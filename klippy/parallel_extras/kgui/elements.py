@@ -140,7 +140,7 @@ class PrintPopup(BasePopup):
             self.add_detail("Invalid File", "")
             return
 
-        weight = md.get_filament(measure='weight')
+        weight = md.get_material_amount(measure='weight')
         if weight is not None:
             precision = max(1-int(log10(weight)), 0) # show up to 2 decimal places for small values
             self.add_detail("Filament:", f"{weight:.{precision}f}g")

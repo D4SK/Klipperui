@@ -170,7 +170,7 @@ class FilamentManager:
                              md.get_material_type(extruder),
                              md.get_material_brand(extruder),
                              md.get_material_color(extruder),
-                             md.get_material(extruder, "weight"))
+                             md.get_material_amount(extruder, "weight"))
 
             if extruder >= len(loaded):
                 problems |= Problem.EXTRUDER_COUNT
