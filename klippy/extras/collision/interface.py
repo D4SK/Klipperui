@@ -11,42 +11,40 @@ class CollisionInterface:
 
     def __init__(self, config):
         self._config = config
-        self.continuous_printing = config.getboolean(
-                'continuous_printing', False)
+        self.printer = config.get_printer()
+        self.continuous_printing = config.getboolean('continuous_printing', False)
         self.reposition = config.getboolean('reposition', False)
         self.material_condition = config.getchoice('material_condition',
                 {'exact': "exact", "type": "type", "any": "any"}, "any")
+        self.printer.reactor.register_event_handler("klippy:connect", self.handle_connect)
 
+    def handle_connect(self):
         printbed = self._read_printbed()
         printhead = self._read_printhead()
         gantry, gantry_x_oriented = self._read_gantry(printbed)
-        gantry_height = config.getfloat("gantry_z_min")
-        padding = config.getfloat("padding", DEFAULT_PADDING)
-
+        gantry_height = self._config.getfloat("gantry_z_min")
+        padding = self._config.getfloat("padding", DEFAULT_PADDING)
         self.collision = BoxCollision(printbed, printhead, gantry,
                                       gantry_x_oriented, gantry_height, padding)
-        self.printer = config.get_printer()
         self.printer.register_event_handler(
                 "virtual_sdcard:print_end", self._handle_print_end)
 
     def _read_printbed(self):
         """Read the printer size from the config and return it as a Cuboid"""
-        stepper_configs = [self._config.getsection("stepper_" + axis)
-                           for axis in "xyz"]
-        min_ = [cfg.getfloat("position_min") for cfg in stepper_configs]
-        max_ = [cfg.getfloat("position_max") for cfg in stepper_configs]
+        rails = self.printer.objects['toolhead'].kin.rails
+        min_ = [rail.position_min for rail in rails]
+        max_ = [rail.position_max for rail in rails]
         return Cuboid(*min_, *max_)
 
     def _read_printhead(self):
         """Return a Rectangle representing the size of the print head
         as viewed from above. The printing nozzle would be at (0, 0).
         """
-        config = self._config
         return Rectangle(
-            -config.getfloat("printhead_x_min"),
-            -config.getfloat("printhead_y_min"),
-            config.getfloat("printhead_x_max"),
-            config.getfloat("printhead_y_max"),
+            -self._config.getfloat("printhead_x_min"),
+            -self._config.getfloat("printhead_y_min"),
+            self._config.getfloat("printhead_x_max"),
+            self._config.getfloat("printhead_y_max"),
         )
 
     def _read_gantry(self, printbed):
@@ -54,10 +52,9 @@ class CollisionInterface:
         from above as well as if it is oriented parallel to the X-Axis or not.
         The printing nozzle would be at the 0-coordinate on the other axis.
         """
-        config = self._config
-        xy_min = config.getfloat("gantry_xy_min")
-        xy_max = config.getfloat("gantry_xy_max")
-        x_oriented = config.getchoice("gantry_orientation",
+        xy_min = self._config.getfloat("gantry_xy_min")
+        xy_max = self._config.getfloat("gantry_xy_max")
+        x_oriented = self._config.getchoice("gantry_orientation",
                                       {"x": True, "y": False})
         if x_oriented:
             gantry = Rectangle(printbed.x, -xy_min,

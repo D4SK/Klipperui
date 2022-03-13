@@ -119,8 +119,6 @@ class XyField(Widget):
         super().__init__(**kwargs)
         self.point_radius = 10
         self.app = App.get_running_app()
-        self.printer_dimensions = (self.app.pos_max['x'] - self.app.pos_min['x'],
-                                   self.app.pos_max['y'] - self.app.pos_min['y'])
         self.app.bind(pos=self.update_with_mm)
         self.bind(x=self.init_drawing)
         self.bind(y=self.init_drawing)
@@ -180,12 +178,12 @@ class XyField(Widget):
         ratio_x = float(px[0] - self.origin[0]) / (self.limits[0] - self.origin[0])
         ratio_y = float(px[1] - self.origin[1]) / (self.limits[1] - self.origin[1])
 
-        self.mm[0] = self.printer_dimensions[0] * ratio_x
-        self.mm[1] = self.printer_dimensions[1] * ratio_y
+        self.mm[0] = (self.app.pos_max[0] - self.app.pos_min[0]) * ratio_x
+        self.mm[1] = (self.app.pos_max[1] - self.app.pos_min[1]) * ratio_y
 
     def set_px_with_mm(self, mm):
-        px = [(self.limits[0] - self.origin[0]) * float(mm[0]) / self.printer_dimensions[0] + self.origin[0],
-              (self.limits[1] - self.origin[1]) * float(mm[1]) / self.printer_dimensions[1] + self.origin[1]]
+        px = [(self.limits[0] - self.origin[0]) * float(mm[0]) / (self.app.pos_max[0] - self.app.pos_min[0]) + self.origin[0],
+              (self.limits[1] - self.origin[1]) * float(mm[1]) / (self.app.pos_max[1] - self.app.pos_min[1]) + self.origin[1]]
         self.px = self.apply_bounds(*px)
 
 

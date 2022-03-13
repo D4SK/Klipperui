@@ -68,6 +68,8 @@ class MainApp(App, threading.Thread):
     print_done_time = StringProperty()
     progress = NumericProperty(0)
     pos = ListProperty([0, 0, 0, 0])
+    pos_min = ListProperty([0, 0, 0])
+    pos_max = ListProperty([0, 0, 0])
     material = DictProperty()
     tbc_to_guid = DictProperty()
     cura_connected = BooleanProperty(False)
@@ -103,8 +105,6 @@ class MainApp(App, threading.Thread):
         self.kv_file = join(p.kgui_dir, "kv/main.kv") # Tell kivy where the root kv file is
 
         if TESTING:
-            self.pos_max = {'x': 200, 'y': 0}
-            self.pos_min = {'x': 0, 'y': 0}
             self.xy_homing_controls = True
             self.extruder_count = 2
             self.reactor = None
@@ -123,11 +123,6 @@ class MainApp(App, threading.Thread):
         self.led_update_time = 0
         if self.led_controls:
             self.led_brightness = config.getsection(f'output_pin {self.led_controls}').getfloat('value')
-        stepper_config = {'x': config.getsection('stepper_x'),
-                          'y': config.getsection('stepper_y'),
-                          'z': config.getsection('stepper_z')}
-        self.pos_max = {i: stepper_config[i].getfloat('position_max', 200) for i in 'xyz'}
-        self.pos_min = {i: stepper_config[i].getfloat('position_min', 0) for i in 'xyz'}
         # Maintain this by keeping default the same as klipper
         self.min_extrude_temp = config.getsection("extruder").getfloat("min_extrude_temp", 170)
         # Count how many extruders exist
@@ -140,6 +135,7 @@ class MainApp(App, threading.Thread):
         self.reactor.cb(printer_cmd.load_object, "print_history")
         super().__init__(**kwargs)
         self.reactor.cb(printer_cmd.request_event_history)
+        self.reactor.cb(printer_cmd.get_pos_limits)
 
     def clean(self):
         ndel, freed = freedir(p.sdcard_path)
