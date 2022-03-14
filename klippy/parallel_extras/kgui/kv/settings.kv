@@ -178,7 +178,7 @@
         Divider:
         SIToggle:
             id: enable_toggle
-            text: "Enabled" if self.active else "Disabled"
+            text: "Print continously when possible"
             size_hint: None, None
             on_release: root.update()
         SIToggle:
@@ -191,21 +191,21 @@
             text: "Exact Material Match"
             value: "exact"
             selected: app.material_condition == self.value
-            enabled: enable_toggle.active
+            enabled: True
             size_hint: None, None
             on_release: app.material_condition = self.value; root.update()
         SIRadio:
             text: "Material Type Match (PLA, PETG, ...)"
             value: "type"
             selected: app.material_condition == self.value
-            enabled: enable_toggle.active
+            enabled: True
             size_hint: None, None
             on_release: app.material_condition = self.value; root.update()
         SIRadio:
             text: "No Material Match required"
             value: "any"
             selected: app.material_condition == self.value
-            enabled: enable_toggle.active
+            enabled: True
             size_hint: None, None
             on_release: app.material_condition = self.value; root.update()
         Divider:
