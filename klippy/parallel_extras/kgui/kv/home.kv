@@ -871,7 +871,7 @@
         center_x: root.right - dp(160/2)
         text:
             # needed_material can be None if extruder count doesn't match
-            (f"{root.needed_material.amount*1000:.0f}g {root.needed_material.type}"
+            (f"{root.needed_material.amount:.0f}g {root.needed_material.type}"
             if root.needed_material else "")
         font_size: p.normal_font
         valign: 'middle'
@@ -884,7 +884,7 @@
         valign: 'middle'
         halign: 'center'
         font_size: p.normal_font
-        text: f"{root.material.amount*1000:.0f}g {root.material.type}"
+        text: f"{root.material.amount:.0f}g {root.material.type}"
         color: (1,1,1,1) if root.problems else p.light_gray
 
 <ExtTempPopup@BasePopup>:
