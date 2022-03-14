@@ -158,7 +158,7 @@ class Handler(srv.BaseHTTPRequestHandler):
             #        owner = msg.get_payload().strip()
             for path in paths:
                 self.reactor.cb(self.module.add_print, path)
-            self.send_response(HTTPStatus.OK)
+            self.send_response(HTTPStatus.OK, close=True)
             self.end_headers()
 
     def post_material(self):
@@ -174,7 +174,7 @@ class Handler(srv.BaseHTTPRequestHandler):
         else:
             self.reactor.cb(self.read_material_file, paths[0])
             # Reply is checked specifically for 200
-            self.send_response(HTTPStatus.OK)
+            self.send_response(HTTPStatus.OK, close=True)
             self.end_headers()
 
     @staticmethod
@@ -203,7 +203,7 @@ class Handler(srv.BaseHTTPRequestHandler):
         else:
             if self.reactor.cb(self.module.queue_move,
                     old_index, uuid, new_index-old_index, wait=True):
-                self.send_response(HTTPStatus.OK)
+                self.send_response(HTTPStatus.OK, close=True)
                 self.end_headers()
             else:
                 self.send_error(HTTPStatus.CONFLICT, "Queue order has changed")
@@ -215,7 +215,7 @@ class Handler(srv.BaseHTTPRequestHandler):
             self.send_error(HTTPStatus.NOT_FOUND, "Print job not in queue")
         else:
             if self.reactor.cb(self.module.queue_delete, index, uuid, wait=True):
-                self.send_response(HTTPStatus.OK)
+                self.send_response(HTTPStatus.OK, close=True)
                 self.end_headers()
             else:
                 self.send_error(HTTPStatus.CONFLICT, "Queue order has changed")
@@ -249,9 +249,13 @@ class Handler(srv.BaseHTTPRequestHandler):
                 res = self.reactor.cb(self.module.stop_print, uuid, wait=True)
             else:
                 self.send_error(HTTPStatus.BAD_REQUEST, "Unknown action: " + str(action))
+
             if not res:
                 self.send_error(HTTPStatus.CONFLICT,
                     "Failed to " + str(action) + ", queue order has changed")
+            else:
+                self.send_response(HTTPStatus.OK, close=True)
+                self.end_headers()
 
     def put_force(self, uuid):
         """
@@ -276,7 +280,7 @@ class Handler(srv.BaseHTTPRequestHandler):
             self.send_error(HTTPStatus.NOT_IMPLEMENTED)
 
 
-    def send_response(self, code, message=None, size=None):
+    def send_response(self, code, message=None, size=None, close=False):
         """
         Accept size as an argument (can be int or str) which sends the
         Content-Length header and takes care of logging the size as well.
@@ -289,6 +293,11 @@ class Handler(srv.BaseHTTPRequestHandler):
         self.server.last_request = time.time()
         if self._size is not None:
             self.send_header("Content-Length", self._size)
+
+        if close:
+            self.send_header("Connection", "close")
+        else:
+            self.send_header("Connection", "Keep-Alive")
 
     def log_request(self, code="-", size="-"):
         """Add size to logging"""
