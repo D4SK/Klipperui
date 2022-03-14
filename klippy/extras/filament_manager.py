@@ -4,6 +4,7 @@
 # Copyright (C) 2020  Konstantin Vogel <konstantin.vogel@gmx.net>
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
+from enum import Flag, auto
 import functools
 import os
 import json
@@ -16,13 +17,28 @@ from xml.etree import ElementTree
 class FilamentManager:
 
     # Contains xml files for each material
-    material_dir = os.path.expanduser('~/materials')
-    loaded_material_path = os.path.join(material_dir, "loaded_material.json")
+    _default_material_dir = os.path.expanduser('~/materials')
 
     def __init__(self, config):
         self.printer = config.get_printer()
         self.reactor = self.printer.get_reactor()
+
+        self.material_condition = config.getchoice("material_condition",
+                {"exact": "exact", "type": "type", "any": "any"}, "any")
+        self.material_tolerance = config.getfloat("material_tolerance", 50)
         self.config_diameter = config.getsection("extruder").getfloat("filament_diameter", 1.75)
+
+        # Configure paths
+        self.material_dir = config.get("material_dir", self._default_material_dir)
+        try:
+            os.makedirs(os.path.expanduser(self.material_dir), exist_ok=True)
+        except OSError:
+            logging.exception(f"Could not create material directory {self.material_dir}")
+            logging.error(f"Falling back to {self._default_material_dir}")
+            self.material_dir = self._default_material_dir
+        self.loaded_material_path = config.get("loaded_material_path",
+                os.path.join(self.material_dir, "loaded_material.json"))
+
         self.filament_switch_sensor = bool(config.get_prefix_sections("filament_switch_sensor"))
         self.preselected_material = {}
         for i in range(1, 10):
@@ -33,9 +49,6 @@ class FilamentManager:
         self.printer.register_event_handler("klippy:ready", self.handle_ready)
         self.printer.register_event_handler("klippy:shutdown", self.handle_shutdown)
         self.printer.register_event_handler("filament_switch_sensor:runout", self.unload)
-
-        if not os.path.exists(self.material_dir):
-            os.mkdir(self.material_dir)
 
         # [Type][Brand][Color] = guid, a dict tree for choosing filaments
         self.tbc_to_guid = {}
@@ -74,6 +87,13 @@ class FilamentManager:
     def handle_shutdown(self):
         self.update_loaded_material_amount()
         self.write_loaded_material_json()
+
+    def set_config(self, material_condition):
+        configfile = self.printer.lookup_object('configfile')
+        if material_condition in {"exact", "type", "any"}:
+            self.material_condition = material_condition
+            configfile.set("filament_manager", "material_condition", material_condition)
+            configfile.save_config(restart=False)
 
 ######################################################################
 # manage cura-material xml files
@@ -135,6 +155,55 @@ class FilamentManager:
         else:
             ns = {'m': 'http://www.ultimaker.com/material'}
             return tree.findtext(xpath, default, ns)
+
+    def get_material_match(self, printjob):
+        md = printjob.md
+        loaded = self.get_status()["loaded"]
+
+        loaded_materials = []
+        needed_materials = []
+        problems_per_extruder = []
+        for extruder in range(md.get_extruder_count() or 1):
+            problems = Problem.OK
+
+            n_mat = Material(self, md.get_material_guid(extruder),
+                             md.get_material_type(extruder),
+                             md.get_material_brand(extruder),
+                             md.get_material_color(extruder),
+                             md.get_material_amount(extruder, "weight"))
+
+            if extruder >= len(loaded):
+                problems |= Problem.EXTRUDER_COUNT
+                l_mat = None
+            else:
+                l_mat = Material(self, loaded[extruder]["guid"],
+                                 amount=loaded[extruder]["amount"] * 1000)
+
+                # Ignore if printjob does not specify needed material
+                if (n_mat.amount is not None and
+                    (l_mat.amount - n_mat.amount) < self.material_tolerance):
+                    problems |= Problem.AMOUNT
+
+                if self.material_condition != "any" and (
+                    n_mat.guid is None or l_mat.guid != n_mat.guid):
+                    if (n_mat.type is None or l_mat.type is None or
+                        n_mat.type.lower() != l_mat.type.lower()):
+                        problems |= Problem.TYPE
+
+                    if self.material_condition != "type":
+                        if (n_mat.brand is None or l_mat.brand is None or
+                            n_mat.brand.lower() != l_mat.brand.lower()):
+                            problems |= Problem.BRAND
+                        if (n_mat.color is None or l_mat.color is None or
+                            n_mat.color != n_mat.color):
+                            problems |= Problem.COLOR
+
+            loaded_materials.append(l_mat)
+            needed_materials.append(n_mat)
+            problems_per_extruder.append(problems)
+
+        return loaded_materials, needed_materials, problems_per_extruder
+
 
 ######################################################################
 # loading and unloading api
@@ -286,6 +355,30 @@ class FilamentManager:
                 extruded_weight = extruded_length*area*density/1e6 # convert from mm^2 to m^2
                 mat['amount'] -= extruded_weight
                 mat['all_time_extruded_length'] += extruded_length
+
+class Material:
+
+    def __init__(self, fm=None, guid=None,
+        type=None, brand=None, color=None, amount=None):
+        self.guid = guid
+        if isinstance(fm, FilamentManager) and guid in fm.guid_to_path:
+            self.type  = fm.get_info(guid, './m:metadata/m:name/m:material')
+            self.brand = fm.get_info(guid, './m:metadata/m:name/m:brand')
+            self.color = fm.get_info(guid, './m:metadata/m:color_code')
+        else:
+            self.type = type
+            self.brand = brand
+            self.color = color # Hex color-code like "#1188ff"
+        self.amount = amount  # In g
+
+
+class Problem(Flag):
+    OK = 0
+    TYPE = auto()
+    BRAND = auto()
+    COLOR = auto()
+    AMOUNT = auto()
+    EXTRUDER_COUNT = auto()
 
 
 def load_config(config):

@@ -96,7 +96,7 @@ class BaseParser:
         """Total print time in seconds"""
         return None
 
-    def get_filament(self, extruder=None, measure=None):
+    def get_material_amount(self, extruder=None, measure=None):
         """
         Return the amount of filament used for the given extruder index
         (starting at 0). If extruder is None, the sum of all extruders is
