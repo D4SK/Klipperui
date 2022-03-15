@@ -316,24 +316,7 @@
             pos: self.center_x - dp(c_rad),   self.center_y - dp(c_rad)
             size: dp(c_rad)*2*p.disp_vertical_stretch, dp(c_rad)*2
 
-<KebapMenu>:
-    width: dp(200)
-    height: box_layout.minimum_height
-    size_hint: None, None
-    canvas:
-        Color:
-            rgba: p.popup
-        RoundedRectangle:
-            radius: (p.popup_radius,)
-            size: root.size
-    BoxLayout:
-        id: box_layout
-        width: root.width
-        height: self.minimum_height
-        pos: root.pos
-        orientation: 'vertical'
-
-<Checkbox@Widget>:
+<CheckboxIcon@Widget>:
     active: False
     size_hint: None, None
     size: 36, 35
@@ -342,11 +325,11 @@
             rgba: p.btn_outline
         Line:
             width: 1
-            rounded_rectangle: (self.x, self.y, self.width, self.height, p.icon_radius)
+            rounded_rectangle: (self.x, self.y, self.width, self.height, p.checkbox_radius)
         Color:
             rgba: p.medium_light_gray if self.active else (0,0,0,0)
         RoundedRectangle:
-            radius: (p.icon_radius/2,)
+            radius: (p.checkbox_radius/2,)
             pos: self.x + 5, self.y + 5
             size: self.width - 10, self.height - 10
         Color:
@@ -356,15 +339,30 @@
             points: self.center_x -9, self.center_y,     self.center_x-2.5, self.center_y -7,     self.center_x + 9, self.center_y + 6
 
 <MenuItem>:
+    halign: 'left'
+    padding_x: dp(40)
     width: dp(200)
     height: dp(80)
 
 <MICheckbox>:
-    active: False
-    CheckBox:
+    title: ""
+    CheckboxIcon:
         center_y: root.center_y
         center_x: root.x + dp(40)
         active: root.active
+    Label:
+        size_hint: None, None
+        text: root.title
+        color: (1,1,1,1) if root.enabled else p.btn_disabled
+        y: root.y
+        x: root.x + root.height - dp(5)
+        size: root.width - root.height - dp(30), root.height
+        font_size: p.normal_font
+        text_size: self.size
+        valign: 'middle'
+        halign: 'left'
+        max_lines: 2
+        shorten_from: "left"
 
 <BasePopup>:
     title_size: p.large_font
