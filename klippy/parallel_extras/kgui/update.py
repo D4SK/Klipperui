@@ -31,7 +31,6 @@ class Updater(EventDispatcher):
     show_all_versions = BooleanProperty(False)
     current_version_idx = NumericProperty(0)
     downloaded_bytes = NumericProperty(0)
-    total_bytes = NumericProperty(1)
     download_finished = BooleanProperty(False)
 
     def __init__(self):
@@ -48,6 +47,7 @@ class Updater(EventDispatcher):
         self._fetch_retries = 0
         self.fetch_clock = Clock.schedule_once(self.fetch, 15)
         self.bind(show_all_versions=self.process_releases)
+        self.register_event_type("on_new_releases")
 
     def _execute(self, cmd, ignore_errors=False):
         """Execute a command, and return its stdout
@@ -93,6 +93,7 @@ class Updater(EventDispatcher):
             releases[i]['distance'] = i - current_version_idx
         self.current_version_idx = current_version_idx
         self.releases = releases
+        self.dispatch("on_new_releases")
 
     def semantic_versioning_key(self, release):
         try:
@@ -120,7 +121,7 @@ class Updater(EventDispatcher):
         self._install_process = subprocess.Popen(self.INSTALL_SCRIPT, text=True,
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         Thread(target=self._capture_install_output).start()
-    
+
     def start_download(self, release):
         self.downloaded_bytes = 0
         self.local_filename = expanduser(f"~/{release['tag_name']}")
@@ -129,14 +130,10 @@ class Updater(EventDispatcher):
     def download(self, release):
         url = release['zipball_url']
         aborted = False
-        logging.info(f"headers are {requests.head(url).json()}")
-        self.total_bytes = int(requests.head(url).json().get("content-length"))
         with requests.get(url, stream=True, allow_redirects=True) as r:
-            # self.total_bytes = int(r.head().get('Content-Length'))
-
             r.raise_for_status()
             with open(self.local_filename, 'wb') as f:
-                for chunk in r.iter_content(chunk_size=16384):
+                for chunk in r.iter_content(chunk_size=262144):
                     self.downloaded_bytes += len(chunk)
                     if self.abort_download:
                         aborted = True
@@ -181,6 +178,9 @@ class Updater(EventDispatcher):
     def terminate_installation(self):
         self._terminate_installation = True
 
+    def on_new_releases(self, *args):
+        pass
+
 
 updater = Updater()
 
@@ -205,7 +205,7 @@ class UpdateScreen(Screen):
     def __init__(self, **kwargs):
         self.min_time = 0
         super().__init__(**kwargs)
-        updater.bind(releases=self.draw_releases)
+        updater.bind(on_new_releases=self.draw_releases)
 
     def draw_releases(self, *args):
         additional_time = self.min_time - time.time()
@@ -223,9 +223,9 @@ class UpdateScreen(Screen):
         elif updater.current_version_idx < (len(updater.releases) - 1):
             self.ids.box.add_widget(SIRelease(updater.releases[-1]))
 
-    def on_enter(self, *args):
+    def on_pre_enter(self, *args):
         self.ids.message.text = "Checking for Updates..."
-        self.min_time = time.time() + 2 
+        self.min_time = time.time() + 2
         updater.fetch()
 
     def show_dropdown(self, button, *args):
@@ -262,7 +262,6 @@ class ReleasePopup(BasePopup):
 
 class DownloadPopup(BasePopup):
     downloaded_bytes = NumericProperty(0)
-    total_bytes = NumericProperty(1)
 
     def __init__(self, release, **kwargs):
         self.release = release
