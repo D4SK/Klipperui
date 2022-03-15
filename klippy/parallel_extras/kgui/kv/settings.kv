@@ -911,28 +911,24 @@
     size_hint: 0.94, 0.68
     title: self.release['tag_name']
     FloatLayout:
-        id: f_layout
+        id: content
         ScrollView:
-            id: scroll_view
+            id: message_scroll
             size_hint: 1, None
-            pos_hint: {'x': 0}
-            top: root.top - dp(80)
-            height: root.height - btn_cancel.height - dp(80)
+            height: content.height - btn_cancel.height
+            pos: content.x, btn_cancel.top
             do_scroll_x: False
             Label:
-                text: "Kgui works on most touchscreens compatible with the raspberry pi. It is fully written in Python enabling direct and fast communication with all aspects of Klipper. \n This plugin works best in conjunction with the klipper_cura_connection plugin. A modified version of klipper is used, so other web-interfaces may have limited compatibility.FeaturesA print job history, to easily find and reprint past print jobs"# root.release['name']  + "\n \n" + root.release['body']
+                text: f"[b]{root.release['name']}[/b] \n \n{root.release['body']}"
                 halign: 'left'
                 valign: 'top'
-                size_hint: None, None
-                width: root.width
-                padding_x: p.padding
+                markup: True
+                padding: p.padding, p.small_padding
+                size_hint_y: None
+                text_size: self.width, None
                 height: self.texture_size[1]
-                center_x: root.center_x
-                text_width: self.width
                 font_size: p.normal_font
                 color: p.medium_light_gray
-                multiline: True
-                shorten_from: 'right'
         BtnPCancel:
             id: btn_cancel
             width: root.width/2
@@ -948,40 +944,17 @@
 
 <DownloadPopup>:
     size_hint: 0.94, 0.68
-    title: "Downloading"
+    title: "Downloading " + root.release['tag_name']
     FloatLayout:
-        id: f_layout
-        canvas:
-            Color:
-                rgba: p.medium_gray
-            RoundedRectangle:
-                size: self.width - 2*p.padding, 10
-                pos: self.x + p.padding, self.center_y
-                radius: (4,)
-            Color:
-                rgba: p.light_gray
-            RoundedRectangle:
-                size: (self.width - 2*p.padding)*root.updater.downloaded_bytes/float(root.updater.total_bytes), 10
-                pos: self.x + p.padding, self.center_y
-                radius: (5,)
         Label:
-            text: root.release['tag_name']
-            halign: 'center'
-            valign: 'middle'
-            max_lines: 5
-            size_hint: 0.8, None
-            pos_hint: {'center_x': 0.5, 'center_y': 0.8}
-            text_size: self.size
-            font_size: p.large_font
-            color: p.light_gray
-        Label:
-            text: "{}/{}kb".format(root.updater.downloaded_bytes/1024, root.updater.total_bytes/1024)
+            text: "Done" if root.updater.download_finished else "{:4.2f} MB".format(root.updater.downloaded_bytes/1000000)
             size_hint: None, None
-            size: root.width, p.normal_font
-            top: f_layout.center_y - 5
-            x: root.x + p.padding
+            size: root.width, dp(100)
+            center_y: root.center_y
+            center_x: root.center_x
             valign: 'top'
-            font_size: p.normal_font
+            halign: 'center'
+            font_size: p.large_font
             color: p.light_gray
             text_size: self.size
         BtnPCancel:
