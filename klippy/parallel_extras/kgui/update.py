@@ -1,4 +1,4 @@
-from .elements import BasePopup
+from .elements import BasePopup, MICheckbox
 from .settings import SetItem
 
 import logging
@@ -7,31 +7,38 @@ import subprocess
 import requests
 import time
 from threading import Thread
-from os.path import join
+from os.path import join, expanduser
 
 from kivy.uix.screenmanager import Screen
 from kivy.uix.label import Label
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.event import EventDispatcher
-from kivy.properties import StringProperty, ListProperty, BooleanProperty
+from kivy.properties import StringProperty, ListProperty, BooleanProperty, NumericProperty
+from kivy.factory import Factory
 
 from . import parameters as p
 
 
-class UpdateHelper(EventDispatcher):
+class Updater(EventDispatcher):
 
     INSTALL_SCRIPT = os.path.join(p.klipper_dir, "scripts/install-klippo.sh")
     RELEASES_URL = "https://api.github.com/repos/D4SK/klippo/releases"
 
     install_output = StringProperty()
     releases = ListProperty()
+    raw_releases = ListProperty()
+    show_all_versions = BooleanProperty(False)
+    current_version_idx = NumericProperty(0)
+    downloaded_bytes = NumericProperty(0)
+    total_bytes = NumericProperty(1)
+    download_finished = BooleanProperty(False)
 
     def __init__(self):
         super().__init__()
         self._install_process = None
         self._terminate_installation = False
-        self.releases = []
+        self.abort_download = False
         try:
             with open(join(p.klipper_dir, "VERSION"), 'r') as f:
                 self.current_version =  f.read()
@@ -40,7 +47,7 @@ class UpdateHelper(EventDispatcher):
         # Leave some time after startup in case WiFi isn't connected yet
         self._fetch_retries = 0
         self.fetch_clock = Clock.schedule_once(self.fetch, 15)
-        Clock.schedule_once(self.fetch, 0)
+        self.bind(show_all_versions=self.process_releases)
 
     def _execute(self, cmd, ignore_errors=False):
         """Execute a command, and return its stdout
@@ -59,15 +66,52 @@ class UpdateHelper(EventDispatcher):
         # Fetch automatically every 24h = 86400s
         self.fetch_clock.cancel()
         self.fetch_clock = Clock.schedule_once(self.fetch, 86400)
-        releases = requests.get(self.RELEASES_URL)
-        if releases.ok:
+        Thread(target=self.do_fetch).start()
+
+    def do_fetch(self, *args):
+        raw_releases = requests.get(self.RELEASES_URL)
+        if raw_releases.ok:
             self._fetch_retries = 0
-            self.releases = releases.json()
+            raw_releases = raw_releases.json()
+            raw_releases.sort(key=self.semantic_versioning_key)
+            self.raw_releases = raw_releases
+            Clock.schedule_del_safe(self.process_releases)
         elif self._fetch_retries <= 3:
             self._fetch_retries += 1
             Clock.schedule_once(self.fetch, 20)
 
-    def install(self, tag_name):
+    def process_releases(self, *args):
+        current_version_idx = 0
+        releases = []
+        for release in self.raw_releases:
+            if not release['prerelease'] or self.show_all_versions:
+                releases.append(release)
+        for i, release in enumerate(releases):
+            if release['tag_name'] == updater.current_version:
+                current_version_idx = i
+        for i in range(len(releases)):
+            releases[i]['distance'] = i - current_version_idx
+        self.current_version_idx = current_version_idx
+        self.releases = releases
+
+    def semantic_versioning_key(self, release):
+        try:
+            tag = release['tag_name']
+            tag = tag.lstrip('V')
+            tag = tag.replace('-beta.', ".")
+            tag = tag.replace('-beta', ".0")
+            tag = tag.split('.')
+            major = int(tag[0])
+            minor = int(tag[1])
+            patch = int(tag[2])
+            prerelease = int(len(tag) > 3)
+            prerelease_version = 0 if not prerelease else int(tag[3])
+            key =  major*10000000 + minor*100000 + patch*1000 - prerelease*100 + prerelease_version
+        except:
+            return 0
+        return key
+
+    def install(self):
         """Run the installation script"""
         if self._install_process is not None: # Install is currently running
             logging.warning("Update: Attempted to install while script is running")
@@ -76,6 +120,32 @@ class UpdateHelper(EventDispatcher):
         self._install_process = subprocess.Popen(self.INSTALL_SCRIPT, text=True,
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         Thread(target=self._capture_install_output).start()
+    
+    def start_download(self, release):
+        self.downloaded_bytes = 0
+        self.local_filename = expanduser(f"~/{release['tag_name']}")
+        Thread(target=self.download, args=[release]).start()
+
+    def download(self, release):
+        url = release['zipball_url']
+        aborted = False
+        logging.info(f"headers are {requests.head(url).json()}")
+        self.total_bytes = int(requests.head(url).json().get("content-length"))
+        with requests.get(url, stream=True, allow_redirects=True) as r:
+            # self.total_bytes = int(r.head().get('Content-Length'))
+
+            r.raise_for_status()
+            with open(self.local_filename, 'wb') as f:
+                for chunk in r.iter_content(chunk_size=16384):
+                    self.downloaded_bytes += len(chunk)
+                    if self.abort_download:
+                        aborted = True
+                        break
+                    f.write(chunk)
+        if aborted:
+            os.remove(self.local_filename)
+        else:
+            self.download_finished = True
 
     def _capture_install_output(self):
         """
@@ -112,64 +182,42 @@ class UpdateHelper(EventDispatcher):
         self._terminate_installation = True
 
 
-update_helper = UpdateHelper()
+updater = Updater()
 
 
 class SIUpdate(SetItem):
     """Entry in SettingScreen, opens UpdateScreen"""
-
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.right_title = update_helper.current_version
+        updater.bind(releases=self.show_message)
+        self.show_message()
+
+    def show_message(self, *args):
+        if updater.current_version_idx < len(updater.releases) - 1:
+            self.right_title = "Updates Available"
+        else:
+            self.right_title = updater.current_version
 
 
 class UpdateScreen(Screen):
     """Screen listing all releases"""
 
-    show_all_versions = BooleanProperty(False)
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.update_helper = UpdateHelper()
-        self.bind(show_all_versions=self.draw_releases)
+        updater.bind(releases=self.draw_releases)
 
     def draw_releases(self, *args):
         self.ids.box.clear_widgets()
-        releases = update_helper.releases
-        releases.sort(key=self.semantic_versioning_key)
-        current_version = 0
-        eligible_releases = []
-        for release in releases:
-            if not release['prerelease'] or self.show_all_versions:
-                eligible_releases.append(release)
-        for i, release in enumerate(eligible_releases):
-            if release['tag_name'] == update_helper.current_version:
-                current_version = i
-        if current_version < len(eligible_releases) - 1:
-            self.ids.message.text = f"An Update is available\nInstalled Version: {update_helper.current_version}"
-        else:
-             self.ids.message.text = f"Your System is up to Date\nInstalled Version: {update_helper.current_version}"
-        if self.show_all_versions:
-            for i, release in reversed(enumerate(eligible_releases)):
-                self.ids.box.add_widget(SIRelease(release), distance = i - current_version)
-        elif current_version < (len(eligible_releases) - 1):
-            self.ids.box.add_widget(SIRelease(eligible_releases[-1]), 1)
 
-    def semantic_versioning_key(self, release):
-        try:
-            tag = release['tag_name']
-            tag = tag.lstrip('V')
-            tag = tag.replace('-beta.', ".")
-            tag = tag.replace('-beta', ".0")
-            tag = tag.split('.')
-            major = int(tag[0])
-            minor = int(tag[1])
-            patch = int(tag[2])
-            prerelease = int(len(tag) > 3)
-            prerelease_version = 0 if not prerelease else int(tag[3])
-            key =  major*10000000 + minor*100000 + patch*1000 - prerelease*100 + prerelease_version
-        except:
-            return 0
-        return key
+        if updater.current_version_idx < len(updater.releases) - 1:
+            self.ids.message.text = f"An Update is available\nInstalled Version: {updater.current_version}"
+        else:
+             self.ids.message.text = f"Your System is up to Date\nInstalled Version: {updater.current_version}"
+        if updater.show_all_versions:
+            for release in reversed(updater.releases):
+                self.ids.box.add_widget(SIRelease(release))
+        elif updater.current_version_idx < (len(updater.releases) - 1):
+            self.ids.box.add_widget(SIRelease(updater.releases[-1]))
 
     def on_enter(self, *args):
         self.ids.message.text = "Checking for Updates..."
@@ -177,30 +225,35 @@ class UpdateScreen(Screen):
 
     def fetch(self, *args):
         start = time.time()
-        update_helper.fetch()
+        updater.fetch()
         additional_time = start + 2 - time.time()
         if additional_time > 0:
             Clock.schedule_once(self.draw_releases, additional_time)
         else:
             self.draw_releases()
 
-    def show_kebap_menu(self, *args):
-        self.ids.kebap_menu.hidden = not self.ids.kebap_menu.hidden
+    def show_dropdown(self, button, *args):
+        Factory.UpdateDropDown().open(button)
+
+
+class MIShowAllVersions(MICheckbox):
+    def __init__(self, **kwargs):
+        self.active = updater.show_all_versions
+        super().__init__(**kwargs)
+
+    def on_active(self, *args):
+        updater.show_all_versions = self.active
+
 
 class SIRelease(Label):
     """Releases as displayed in a list on the UpdateScreen"""
 
-    upper_title = StringProperty()
-    lower_title = StringProperty()
-    def __init__(self, release, distance, **kwargs):
+    def __init__(self, release, **kwargs):
         self.release = release
-        super().__init__(**kwargs)
         self.upper_title = self.release['tag_name']
         self.lower_title = ""
-        self.ids.btn_install.text = "Install" if distance > 0 else "Reinstall" if distance == 0 else "Downgrade"
-
-    def install(self):
-        ReleasePopup(self.release).open()
+        super().__init__(**kwargs)
+        self.ids.btn_install.text = "Install" if release['distance'] > 0 else "Reinstall" if release['distance'] == 0 else "Downgrade"
 
 
 class ReleasePopup(BasePopup):
@@ -210,21 +263,24 @@ class ReleasePopup(BasePopup):
         self.release = release
         super().__init__(**kwargs)
 
-    def install(self):
-        self.dismiss()
-        try:
-            update_helper.install(self.release['tag_name'])
-        except FileExistsError:
-            return
-        InstallPopup().open()
+
+class DownloadPopup(BasePopup):
+    downloaded_bytes = NumericProperty(0)
+    total_bytes = NumericProperty(1)
+
+    def __init__(self, release, **kwargs):
+        self.release = release
+        self.updater = updater
+        super().__init__(**kwargs)
+        updater.start_download(release)
 
 
 class InstallPopup(BasePopup):
     """Popup shown while installing with live stdout display"""
 
     def __init__(self, **kwargs):
-        update_helper.bind(install_output=self.update)
-        update_helper.bind(on_install_finished=self.on_finished)
+        updater.bind(install_output=self.update)
+        updater.bind(on_install_finished=self.on_finished)
         super().__init__(**kwargs)
 
     def update(self, instance, value):
@@ -251,4 +307,4 @@ class InstallPopup(BasePopup):
             self.ids.btn_cancel.text = "Close"
 
     def terminate(self):
-        update_helper.terminate_installation()
+        updater.terminate_installation()

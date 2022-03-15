@@ -46,9 +46,9 @@ class BaseButton(Label):
         self.dispatch('on_press')
         touch.grab(self)
         touch.ud[self] = True
-        # Set pressed=True for at least 150ms to allow GPU to render
+        # Set pressed=True for at least this time to allow GPU to render
         # highlighting of the button. Choose lower for faster GPU.
-        self.pressed_at_least_till = time() + 0.12
+        self.pressed_at_least_till = time() + 0.08
         return True
 
     def on_touch_move(self, touch):
@@ -92,23 +92,6 @@ class BtnSlider(BaseButton):
     s_title = StringProperty()
     offset = NumericProperty()
 
-class KebapMenu(BoxLayout, Widget):
-    widgets = ListProperty()
-    hidden = BooleanProperty(True)
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    def on_touch_up(self, touch):
-        if not self.collide_point(*touch.pos) and not self.hidden:
-            self.hidden = True
-            return True
-        return super().on_touch_up(touch)
-
-    def on_widgets(self, *args):
-        self.ids.box_layout.clear_widgets()
-        for widget in self.widgets:
-            self.ids.box_layout.add_widget(widget)
-
 class MenuItem(RoundButton):
     pass
 
@@ -116,6 +99,7 @@ class MICheckbox(MenuItem):
     active = BooleanProperty(False)
     def on_release(self):
         self.active = not self.active
+        return super().on_release()
 
 class BasePopup(Popup):
     def __init__(self, creator=None, val=None, **kwargs):
