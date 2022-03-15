@@ -12,7 +12,6 @@ from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.vkeyboard import VKeyboard
 from kivy.uix.widget import Widget
-from kivy.uix.boxlayout import BoxLayout
 
 from . import parameters as p
 from . import printer_cmd
