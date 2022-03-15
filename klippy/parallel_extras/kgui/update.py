@@ -130,6 +130,8 @@ class Updater(EventDispatcher):
     def download(self, release):
         url = release['zipball_url']
         aborted = False
+        if os.exists(self.local_filename):
+            os.remove(self.local_filename)
         with requests.get(url, stream=True, allow_redirects=True) as r:
             r.raise_for_status()
             with open(self.local_filename, 'wb') as f:
