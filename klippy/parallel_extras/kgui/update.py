@@ -203,12 +203,16 @@ class UpdateScreen(Screen):
     """Screen listing all releases"""
 
     def __init__(self, **kwargs):
+        self.min_time = 0
         super().__init__(**kwargs)
         updater.bind(releases=self.draw_releases)
 
     def draw_releases(self, *args):
+        additional_time = self.min_time - time.time()
+        if additional_time > 0:
+            Clock.schedule_once(self.draw_releases, additional_time)
+            return
         self.ids.box.clear_widgets()
-
         if updater.current_version_idx < len(updater.releases) - 1:
             self.ids.message.text = f"An Update is available\nInstalled Version: {updater.current_version}"
         else:
@@ -221,16 +225,8 @@ class UpdateScreen(Screen):
 
     def on_enter(self, *args):
         self.ids.message.text = "Checking for Updates..."
-        Clock.schedule_once(self.fetch, 0)
-
-    def fetch(self, *args):
-        start = time.time()
+        self.min_time = time.time() + 2 
         updater.fetch()
-        additional_time = start + 2 - time.time()
-        if additional_time > 0:
-            Clock.schedule_once(self.draw_releases, additional_time)
-        else:
-            self.draw_releases()
 
     def show_dropdown(self, button, *args):
         Factory.UpdateDropDown().open(button)
