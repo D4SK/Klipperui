@@ -14,7 +14,7 @@ class CollisionInterface:
         self.printer = config.get_printer()
         self.continuous_printing = config.getboolean('continuous_printing', False)
         self.reposition = config.getboolean('reposition', False)
-        self.printer.reactor.register_event_handler("klippy:connect", self.handle_connect)
+        self.printer.register_event_handler("klippy:connect", self.handle_connect)
 
     def handle_connect(self):
         printbed = self._read_printbed()
