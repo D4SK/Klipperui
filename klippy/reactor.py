@@ -367,12 +367,13 @@ class SelectReactor:
         # Start event handlers in other processes
         completions = [self.cb(self.run_event, event, params, completion=True, process=process)
             for process in self.mp_queues]
-        # Run events in printer process
+        # Add event to printer event_history
+        if self.event_history != None:
+            self.event_history.append((event, params))
+        # Run event in printer process
         for cb in self.event_handlers.get(event, []):
             if self.root.state_message != check_status != None:
                 return
-            if self.event_history != None:
-                self.event_history.append((event, params))
             cb()
         # Wait for other processes to finish event handlers
         for completion in completions:
