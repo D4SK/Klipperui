@@ -1,5 +1,4 @@
 import logging
-import site
 import threading
 import os
 import traceback
@@ -37,8 +36,7 @@ from . import parameters as p
 # Imports for KvLang Builder
 from . import files, home, settings, status, timeline, update, printer_cmd
 
-site.addsitedir(join(p.klipper_dir, "klippy/extras/")) # gcode_metadata
-import gcode_metadata
+from extras import gcode_metadata
 
 class MainApp(App, threading.Thread):
     state = OptionProperty("startup", options=[
@@ -292,8 +290,6 @@ class PopupExceptionHandler(ExceptionHandler):
 ExceptionManager.add_handler(PopupExceptionHandler())
 
 # Load kv-files:
-# Add parent directory to sys.path so kv-files (kivy/../parser.py) can import from it
-site.addsitedir(p.kgui_dir)
 # load a custom style.kv with changes to popup and more
 Builder.unload_file(join(kivy_data_dir, "style.kv"))
 # All files to read (order is important), main.kv is read first, automatically
