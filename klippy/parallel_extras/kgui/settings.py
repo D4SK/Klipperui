@@ -234,6 +234,7 @@ class WifiBox(LayoutSelectionBehavior, RecycleBoxLayout):
 class WifiItem(RecycleDataViewBehavior, Label):
     ap = ObjectProperty(allownone=True)
     pressed = BooleanProperty(False)
+    cake_radius = NumericProperty(0)
     index = None
 
     def refresh_view_attrs(self, rv, index, data):

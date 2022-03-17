@@ -366,10 +366,18 @@
 <WifiItem>:
     canvas:
         Color:
+            rgba: p.medium_gray
+        Ellipse:
+            pos: dp(105) - root.cake_radius, root.center_y - dp(35) - root.cake_radius
+            size: 2*root.cake_radius, 2*root.cake_radius
+            angle_start: 315
+            angle_end: 405
+        Color:
             rgba: p.translucent_white if self.pressed else (0,0,0,0)
         Rectangle:
             size: self.width, self.height - 1
             pos: self.pos
+    cake_radius: 0 if not root.ap else dp(78)*max(0.12, min(1, root.ap.signal/80))
     #Label
     text: "" if not self.ap else "Connected" if self.ap.in_use else "Saved" if self.ap.saved else ""
     halign: 'right'
@@ -392,19 +400,6 @@
         padding_x: p.h_padding
         text_size: self.size
         font_size: p.normal_font
-    Label:
-        text: "" if not root.ap else str(root.ap.signal)
-        shorten: True
-        halign: 'left'
-        valign: 'middle'
-        padding_x: p.h_padding
-        size_hint: None, None
-        size: root.width, dp(110)
-        top: root.top
-        x: root.x
-        text_size: self.size
-        font_size: p.normal_font
-        color: p.medium_light_gray
     Divider:
         top: root.y
 
