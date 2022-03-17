@@ -5,9 +5,6 @@ without causing collisions. In case this isn't possible, this module also
 provides a function to find an offset that allows a print job to be printed
 anyway at a different place on the print bed.
 
-This is meant to be used in [D4SK/klipperui](https://github.com/D4SK/klipperui).
-
-
 ## Configuration
 
 For this module to work some measurements will need to be configured in the
