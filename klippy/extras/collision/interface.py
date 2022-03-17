@@ -2,6 +2,7 @@ import logging
 
 from .collision_check import BoxCollision
 from .geometry import Rectangle, Cuboid
+from ..virtual_sdcard import PrintJob
 
 
 # Default padding, if not specified in config, in mm
@@ -74,6 +75,24 @@ class CollisionInterface:
             return available, offset
         except MissingMetadataError:
             return False, None
+
+    def predict_availability(self, printjob, queue):
+        """Look in the future and predict if printjob will be printable without
+        collisions if everything in queue is printed first.
+
+        printjob can be either a PrintJob object or metadata object.
+        """
+        object_queue = [self.printjob_to_cuboid(pj) for pj in queue]
+        if isinstance(printjob, PrintJob):
+            cuboid = self.printjob_to_cuboid(printjob)
+        else:
+            cuboid = self.metadata_to_cuboid(printjob)
+        predict_collision = self.collision.replicate_with_objects(object_queue)
+        available = not predict_collision.object_collides(cuboid)
+        if not available and self.reposition:
+            offset = predict_collision.find_offset(cuboid)
+            available = offset is not None
+        return available
 
     def _handle_print_end(self, printjobs, printjob):
         try:

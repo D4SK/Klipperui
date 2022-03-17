@@ -1,3 +1,5 @@
+import copy
+
 from .geometry import Rectangle, Cuboid
 
 
@@ -15,6 +17,16 @@ class BoxCollision:
         self.gantry_height = gantry_height
         self.padding = padding
         self.current_objects = current_objects or []
+
+    def replicate_with_objects(self, objects, expand=True):
+        """Return a copy of this collision instance but with an expanded (or
+        replaced) object list.
+        """
+        new_collision = copy.copy(self)
+        if expand:
+            objects = copy.copy(self.current_objects) + objects
+        new_collision.current_objects = objects
+        return new_collision
 
     def moving_parts(self, print_object):
         """Return collision boxes for the moving parts (printhead and gantry)
