@@ -81,6 +81,12 @@
         Rectangle:
             size: self.width, self.height - 1
             pos: self.pos
+    canvas.after:
+        Color:
+            rgba: p.accent if self.continuous else (0, 0, 0, 0)
+        Rectangle:
+            size: p.status_bar_height, self.height
+            pos: self.right - p.status_bar_height, self.y
     #Label
     text: app.print_time if self.state in ('printing', 'pausing', 'paused', 'aborting') else ""
     size_hint: 1, None
