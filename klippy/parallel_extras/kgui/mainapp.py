@@ -290,8 +290,8 @@ class PopupExceptionHandler(ExceptionHandler):
             return ExceptionManager.PASS
 
 def handle_exception_in_thread(exception):
-    App.get_running_app().handle_critical_error(traceback.format_traceback(exception.exc_traceback )+ "\n\n" + str(exception.exc_type) + "\n\n" + str(exception.exc_value))
-    logging.exception("Thread-Exception, popup invoked" + traceback.format_traceback(exception.exc_traceback)+ "\n\n" + str(exception.exc_type) + "\n\n" + str(exception.exc_value))
+    App.get_running_app().handle_critical_error(str(exception.exc_value))
+    logging.exception("Thread-Exception, popup invoked \n\n" + str(exception.exc_value))
 
 ExceptionManager.add_handler(PopupExceptionHandler())
 threading.excepthook = handle_exception_in_thread
