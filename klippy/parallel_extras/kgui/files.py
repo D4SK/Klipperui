@@ -77,7 +77,7 @@ class Filechooser(RecycleView):
                         dict_['item_type'] = "file"
                         if self.app.gcode_metadata:
                             md = self.app.gcode_metadata.get_metadata(path)
-                            weight = md.get_filament(measure="weight")
+                            weight = md.get_material_amount(measure="weight")
                             if weight is not None:
                                 precision = max(1-int(log10(weight)), 0)
                                 dict_['details'] = f"{weight:.{precision}f}g"

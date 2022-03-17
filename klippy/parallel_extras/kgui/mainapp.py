@@ -239,9 +239,9 @@ class MainApp(App, threading.Thread):
 
     def handle_material_runout(self, extruder_id):
         FilamentRunoutPopup(extruder_id).open()
-
-    def handle_material_mismatch(self, loaded_materials, needed_materials):
-        MaterialMismatchPopup(loaded_materials, needed_materials).open()
+    
+    def handle_material_mismatch(self, *args):
+        MaterialMismatchPopup(*args).open()
 
     def set_led_brightness(self, val):
         self.led_brightness = val

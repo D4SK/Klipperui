@@ -1,5 +1,3 @@
-import logging
-
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.properties import ListProperty, NumericProperty, StringProperty, \
@@ -7,6 +5,7 @@ from kivy.properties import ListProperty, NumericProperty, StringProperty, \
 from kivy.uix.label import Label
 
 from .elements import BaseButton, BasePopup, UltraSlider, RoundButton
+from extras.filament_manager import Problem
 from .printer_cmd import hex_to_rgba, calculate_filament_color
 from . import parameters as p
 from . import printer_cmd
@@ -79,16 +78,18 @@ class BtnMaterial(RoundButton):
                                 'material_type': "", 'hex_color': None, 'brand': ""})
 
 class MaterialMismatchPopup(BasePopup):
-    def __init__(self, loaded_materials, needed_materials):
+    def __init__(self, loaded_materials, needed_materials, problems):
         super().__init__()
         app = App.get_running_app()
-        problems = []
-        for material, needed_material in zip(loaded_materials, needed_materials):
-            material_widget = Material(material, needed_material)
+        all_problems = Problem.OK
+        for extruder_info in zip(loaded_materials, needed_materials, problems):
+            material_widget = Material(*extruder_info)
             self.ids.material_box.add_widget(material_widget)
-            problems.extend(material_widget.problems)
-        if "amount" in problems:
+            all_problems |= material_widget.problems
+        if all_problems & Problem.AMOUNT:
             self.title = f"Insufficient Material for {app.print_title}"
+        elif all_problems & Problem.EXTRUDER_COUNT:
+            self.title = f"{app.print_title} requires {len(needed_materials)} extruders"
         else:
             self.title = f"Material Change required for {app.print_title}"
         Clock.schedule_once(self._align, 0)
@@ -97,19 +98,10 @@ class MaterialMismatchPopup(BasePopup):
         self.ids.material_box.center_y = self.center_y
 
 class Material(Label):
-    def __init__(self, material, needed_material):
-        app = App.get_running_app()
+    def __init__(self, material, needed_material, problems):
         self.material = material
         self.needed_material = needed_material
-        self.problems = []
-        if material['amount'] - app.material_tolerance < needed_material['amount']:
-            self.problems.append("amount")
-        if material['type'] != needed_material['type'] and app.material_condition in ("type", "exact"):
-            self.problems.append("type")
-        if material['brand'] != needed_material['brand'] and app.material_condition == "exact":
-            self.problems.append("brand")
-        if material['hex_color'] != needed_material['hex_color'] and app.material_condition == "exact":
-            self.problems.append("color")
+        self.problems = problems
         super().__init__()
 
 class FilamentRunoutPopup(BasePopup):

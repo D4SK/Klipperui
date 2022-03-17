@@ -18,7 +18,7 @@ class PrintJob:
         self.heaters = manager.printer.lookup_object('heaters')
         self.gcode_metadata = manager.gcode_metadata
 
-        self.continuous = False #TODO set predictively, hide dividers
+        self.continuous = False
         self.no_material_check = no_material_check
         self.path = path
         self.state = None
@@ -40,7 +40,8 @@ class PrintJob:
             self.set_state('aborted')
 
     def __getstate__(self):
-        return {'path': self.path, 'name': self.name, 'state': self.state, 'uuid': self.uuid, 'continuous': self.continuous}
+        return {'path': self.path, 'name': self.name, 'state': self.state,
+                'uuid': self.uuid, 'continuous': self.continuous}
 
     def set_state(self, state):
         if self.state != state:
@@ -52,16 +53,15 @@ class PrintJob:
 
     def start(self):
         if self.state == 'queued':
-            # TODO check_material()
-            materials =        [{'amount': 0.4, 'type': "PLA", 'brand': "Generic", 'hex_color': "#ff4433"}, {'amount': 0.4, 'type': "PLA", 'brand': "Generic", "hex_color": "#ffffff"}]
-            needed_materials = [{'amount': 0.8, 'type': "PLA", 'brand': "Generic", 'hex_color': "#ff4433"}, {'amount': 0.6, 'type': "PVA", 'brand': "Generic", "hex_color": "#ffffff"}]
-            mismatch = True
-            if mismatch and not self.no_material_check:
+            fm = self.manager.printer.lookup_object("filament_manager")
+            materials, needed_materials, problems = fm.get_material_match(self)
+            if any(problems) and not self.no_material_check:
                 self.gcode.run_script("SAVE_GCODE_STATE NAME=PAUSE_STATE")
                 self.gcode.run_script("SET_GCODE_OFFSET X=0 Y=0")
                 self.set_state('paused')
                 self.reactor.send_event("virtual_sdcard:print_start", self.manager.jobs, self)
-                self.reactor.send_event("virtual_sdcard:material_mismatch", materials, needed_materials)
+                self.reactor.send_event("virtual_sdcard:material_mismatch",
+                        materials, needed_materials, problems)
             else:
                 self.last_start_time = self.toolhead.mcu.estimated_print_time(self.reactor.monotonic())
                 self.set_state('printing') # set_state only after last_start_time is set but before entering work handler
@@ -185,7 +185,12 @@ class PrintJobManager:
         self.printer.load_object(config, 'print_stats')
         self.printer.register_event_handler("klippy:ready", self.handle_ready)
         self.printer.register_event_handler("klippy:shutdown", self.handle_shutdown)
-        #TODO Listen for loaded material change events to check queue (maybe?)
+        self.printer.register_event_handler(
+                "filament_manager:material_changed", self.handle_material_change)
+
+        # Index of the last print job in self.jobs that can be printed
+        # continuously. If self.jobs is empty, this is set to 0.
+        self.continuous_index = 0
         self.jobs = [] # Print jobs, first is current
 
     def add_print(self, path, assume_clear_after=None, no_material_check_when_first=False):
@@ -208,9 +213,10 @@ class PrintJobManager:
                 if (self.jobs[0].print_end_time is not None and
                     (now - self.jobs[0].print_end_time) > assume_clear_after):
                     self.clear_buildplate()
-        no_material_check = (not len(self.jobs) or len(self.jobs) == 1 and self.jobs[0].state in ('finished', 'aborted')) and no_material_check_when_first
+        no_material_check = (not self.jobs or
+            (len(self.jobs) == 1 and self.jobs[0].state in ('finished', 'aborted'))
+            and no_material_check_when_first)
         job = PrintJob(path, self, no_material_check)
-        job.continuous = not self.jobs or (len(self.jobs) == 1 and self.jobs[0].state in ('finished', 'aborted'))
         self.jobs.append(job)
         self.check_queue()
         self.printer.send_event("virtual_sdcard:print_added", self.jobs, job)
@@ -239,6 +245,7 @@ class PrintJobManager:
     def remove_print(self, idx, uuid):
         if 0 < idx < len(self.jobs) and self.jobs[idx].uuid == uuid:
             del self.jobs[idx]
+            self.update_continuity(send_event=False)
             self.printer.send_event("virtual_sdcard:print_change", self.jobs)
             return True
 
@@ -246,12 +253,14 @@ class PrintJobManager:
         if 0 < idx + move < len(self.jobs) and 0 < idx < len(self.jobs) and self.jobs[idx].uuid == uuid:
             to_move = self.jobs.pop(idx)
             self.jobs.insert(idx + move, to_move)
+            self.update_continuity(send_event=False)
             self.printer.send_event("virtual_sdcard:print_change", self.jobs)
             return True
 
     def clear_queue(self):
         """ Remove everything but the first element which is currently being printed """
         self.jobs = self.jobs[:1]
+        self.update_continuity(send_event=False)
         self.printer.send_event("virtual_sdcard:print_change", self.jobs)
 
     def check_queue(self):
@@ -268,6 +277,36 @@ class PrintJobManager:
                     logging.info(f"Printing with offset: {offset}")
                     self.gcode.run_script(f"SET_GCODE_OFFSET X={offset[0]} Y={offset[1]}")
                     self.jobs[0].start()
+        self.update_continuity()
+
+    def update_continuity(self, send_event=True):
+        """Recalculate how far into the queue we can continuously print.
+
+        send_event controls whether to send a print_change event when the
+        continuous attributes of any print jobs were updated.
+        """
+        i = 0
+        collision = self.printer.lookup_object('collision', None)
+        if collision and collision.continuous_printing and len(self.jobs) > 1:
+            fm = self.printer.lookup_object("filament_manager")
+            for i in range(1, len(self.jobs)):
+                pj = self.jobs[i]
+                if not collision.predict_availability(pj, self.jobs[:i]) or (
+                    any(fm.get_material_match(pj)[2]) and not pj.no_material_check):
+                    # Previous print job is the last continuous one
+                    i = i-1
+                    break
+
+        self.continuous_index = i
+        # Update continuous attributes of all print jobs in queue
+        changed = False
+        for j, pj in enumerate(self.jobs):
+            if pj.continuous != j <= i:
+                pj.continuous = j <= i
+                changed = True
+        if send_event and changed:
+            self.printer.send_event("virtual_sdcard:print_change", self.jobs)
+        return i
 
     def get_status(self, eventtime=None):
         return {'jobs': self.jobs}
@@ -288,6 +327,10 @@ class PrintJobManager:
                 return
             logging.info(f"Virtual sdcard ({readpos}): {repr(data[:readcount])}\n\
                            Upcoming ({self.jobs[0].file_position}): {repr(data[readcount:])}")
+
+    def handle_material_change(self, material):
+        #TODO: Automatically start next print job if it was waiting for material change
+        self.update_continuity()
 
     def stats(self, eventtime):
         if len(self.jobs) and self.jobs[0].state in ('printing', 'pausing', 'aborting'):

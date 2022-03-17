@@ -13,7 +13,8 @@ site.addsitedir(os.path.dirname(_extras_dir))  # For configfile module
 
 import configfile
 
-from collision import geometry, load_config
+from collision import geometry
+from collision.interface import CollisionInterface
 
 
 # Needed to create ConfigWrapper
@@ -21,6 +22,19 @@ class _DummyPrinter:
     reactor = None
     def register_event_handler(self, _, __):
         pass
+
+class TestInterface(CollisionInterface):
+
+    def __init__(self, config):
+        super().__init__(config)
+        self.handle_connect()
+
+    def _read_printbed(self):
+        stepper_configs = [self._config.getsection("stepper_" + axis)
+                           for axis in "xyz"]
+        min_ = [cfg.getfloat("position_min") for cfg in stepper_configs]
+        max_ = [cfg.getfloat("position_max") for cfg in stepper_configs]
+        return geometry.Cuboid(*min_, *max_)
 
 CONFIG_FILE = "test_config.cfg"
 
@@ -183,14 +197,14 @@ class CollisionTest(unittest.TestCase):
             fileconfig.read_file(fp)
         config = configfile.ConfigWrapper(
             _DummyPrinter(), fileconfig, {}, "collision")
-        self.collision = load_config(config).collision
+        self.collision = TestInterface(config).collision
 
         # Make another collision object but with an x-oriented gantry
         fc_x = copy.deepcopy(fileconfig)
         fc_x.set("collision", "gantry_orientation", "x")
         config_x = configfile.ConfigWrapper(
             _DummyPrinter(), fc_x, {}, "collision")
-        self.collision_x = load_config(config_x).collision
+        self.collision_x = TestInterface(config_x).collision
 
     def test_attributes(self):
         c = self.collision

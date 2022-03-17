@@ -317,14 +317,23 @@ class Handler(srv.BaseHTTPRequestHandler):
 
 
 class Server(srv.ThreadingHTTPServer, threading.Thread):
-    """Wrapper class to store the module in the server and add threading"""
+    """Custom server class to add little more functionality"""
+
     def __init__(self, server_address, RequestHandler, module):
         super().__init__(server_address, RequestHandler)
         threading.Thread.__init__(self, name="Server-Thread")
         self.module = module
         self.last_request = 0 # Time of last request in seconds since epoch
 
+    # Move the server main loop in a separate thread
     run = srv.HTTPServer.serve_forever
+
+    def handle_error(self, request, client_address):
+        """By default, exceptions during request handling are caught and printed
+        on stderr. This overwrite directs them to our logs instead.
+        """
+        logging.exception("Exception occurred during processing of request from %s",
+                str(client_address))
 
 
 def get_server(module):

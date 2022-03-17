@@ -38,7 +38,7 @@ class CuraMarlinParser(BaseParser):
     def get_time(self):
         return self.options.get("TIME")
 
-    def get_filament(self, extruder=None, measure=None):
+    def get_material_amount(self, extruder=None, measure=None):
         fil = self.options.get("Filament used")
         if fil is None:
             return None

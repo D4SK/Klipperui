@@ -2,6 +2,7 @@ import logging
 
 from .collision_check import BoxCollision
 from .geometry import Rectangle, Cuboid
+from ..virtual_sdcard import PrintJob
 
 
 # Default padding, if not specified in config, in mm
@@ -14,9 +15,7 @@ class CollisionInterface:
         self.printer = config.get_printer()
         self.continuous_printing = config.getboolean('continuous_printing', False)
         self.reposition = config.getboolean('reposition', False)
-        self.material_condition = config.getchoice('material_condition',
-                {'exact': "exact", "type": "type", "any": "any"}, "any")
-        self.printer.reactor.register_event_handler("klippy:connect", self.handle_connect)
+        self.printer.register_event_handler("klippy:connect", self.handle_connect)
 
     def handle_connect(self):
         printbed = self._read_printbed()
@@ -73,39 +72,27 @@ class CollisionInterface:
             if not available and self.reposition:
                 offset = self.find_offset(printjob)
                 available = offset is not None
-            available = available and self.check_material(printjob)
             return available, offset
         except MissingMetadataError:
             return False, None
 
-    def check_material(self, printjob):
-        if self.material_condition == "any":
-            return True
-        fm = self.printer.load_object(self._config, "filament_manager")
-        loaded = fm.get_status()["loaded"]
-        md = printjob.md
+    def predict_availability(self, printjob, queue):
+        """Look in the future and predict if printjob will be printable without
+        collisions if everything in queue is printed first.
 
-        # Make sure the print job doesn't expect more extruders than we have
-        if md.get_extruder_count() > len(loaded):
-            return False
-
-        for extruder in range(md.get_extruder_count()):
-            l_guid = loaded[extruder]["guid"]
-            guid = md.get_material_guid(extruder)
-
-            if guid is not None and guid == l_guid:
-                continue
-            elif self.material_condition == "exact":
-                # If exact match is wanted, require guids to match
-                return False
-
-            p_type = md.get_material_type(extruder)
-            l_type = fm.get_info(l_guid, "./m:metadata/m:name/m:material")
-            if (p_type is None or l_type is None or
-                p_type.lower() != l_type.lower()):
-                return False
-
-        return True
+        printjob can be either a PrintJob object or metadata object.
+        """
+        object_queue = [self.printjob_to_cuboid(pj) for pj in queue]
+        if isinstance(printjob, PrintJob):
+            cuboid = self.printjob_to_cuboid(printjob)
+        else:
+            cuboid = self.metadata_to_cuboid(printjob)
+        predict_collision = self.collision.replicate_with_objects(object_queue)
+        available = not predict_collision.object_collides(cuboid)
+        if not available and self.reposition:
+            offset = predict_collision.find_offset(cuboid)
+            available = offset is not None
+        return available
 
     def _handle_print_end(self, printjobs, printjob):
         try:
@@ -159,16 +146,14 @@ class CollisionInterface:
 
 
     def get_config(self):
-        return self.continuous_printing, self.reposition, self.material_condition
+        return self.continuous_printing, self.reposition
 
-    def set_config(self, continuous_printing, reposition, condition):
+    def set_config(self, continuous_printing, reposition):
         self.continuous_printing = continuous_printing
         self.reposition = reposition
-        self.material_condition = condition
         configfile = self.printer.lookup_object('configfile')
         configfile.set("collision", "continuous_printing", continuous_printing)
         configfile.set("collision", "reposition", reposition)
-        configfile.set("collision", "material_condition", condition)
         configfile.save_config(restart=False)
 
 
