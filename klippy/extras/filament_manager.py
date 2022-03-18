@@ -48,7 +48,7 @@ class FilamentManager:
         self.extruders = {}
         self.printer.register_event_handler("klippy:ready", self.handle_ready)
         self.printer.register_event_handler("klippy:shutdown", self.handle_shutdown)
-        self.printer.register_event_handler("filament_switch_sensor:runout", self.unload)
+        self.printer.register_event_handler("filament_switch_sensor:runout", self.handle_runout)
 
         # [Type][Brand][Color] = guid, a dict tree for choosing filaments
         self.tbc_to_guid = {}
@@ -83,6 +83,12 @@ class FilamentManager:
             extruder = self.printer.lookup_object(extruder_id, None)
             if extruder:
                 self.extruders[extruder_id] = extruder
+
+    def handle_runout(self, extruder_id):
+        virtual_sdcard = self.printer.objects['virtual_sdcard']
+        while len(virtual_sdcard.jobs) and virtual_sdcard.jobs[0].state == 'pausing':
+            self.reactor.pause(self.reactor.monotonic() + 0.05)
+        self.unload(extruder_id)
 
     def handle_shutdown(self):
         self.update_loaded_material_amount()
@@ -148,7 +154,7 @@ class FilamentManager:
         fpath = self.guid_to_path.get(material) or material
         try:
             tree = self.cached_parse(fpath)
-        except: 
+        except:
             logging.warning(f"Filament Manager: Failed to parse {fpath}",
                     exc_info=True)
             return default
