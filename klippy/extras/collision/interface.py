@@ -13,18 +13,27 @@ class CollisionInterface:
     def __init__(self, config):
         self._config = config
         self.printer = config.get_printer()
+
+        # Read config
         self.continuous_printing = config.getboolean('continuous_printing', False)
         self.reposition = config.getboolean('reposition', False)
+        self.printbed = Cuboid(*[0]*6)  # Received after klippy:connect
+        self.printhead = self._read_printhead()
+        self.gantry_x_oriented = config.getchoice("gantry_orientation",
+                                                  {"x": True, "y": False})
+        self.gantry = self._read_gantry(self.printbed)  # Preliminary
+        self.gantry_height = config.getfloat("gantry_z_min")
+        self.padding = config.getfloat("padding", DEFAULT_PADDING)
+
         self.printer.register_event_handler("klippy:connect", self.handle_connect)
 
     def handle_connect(self):
-        printbed = self._read_printbed()
-        printhead = self._read_printhead()
-        gantry, gantry_x_oriented = self._read_gantry(printbed)
-        gantry_height = self._config.getfloat("gantry_z_min")
-        padding = self._config.getfloat("padding", DEFAULT_PADDING)
-        self.collision = BoxCollision(printbed, printhead, gantry,
-                                      gantry_x_oriented, gantry_height, padding)
+        """Get printbed size later and update gantry"""
+        self.printbed = self._read_printbed()
+        self.gantry = self._read_gantry(self.printbed)
+        self.collision = BoxCollision(self.printbed, self.printhead,
+                                      self.gantry, self.gantry_x_oriented,
+                                      self.gantry_height, self.padding)
         self.printer.register_event_handler(
                 "virtual_sdcard:print_end", self._handle_print_end)
 
@@ -53,15 +62,13 @@ class CollisionInterface:
         """
         xy_min = self._config.getfloat("gantry_xy_min")
         xy_max = self._config.getfloat("gantry_xy_max")
-        x_oriented = self._config.getchoice("gantry_orientation",
-                                      {"x": True, "y": False})
-        if x_oriented:
+        if self.gantry_x_oriented:
             gantry = Rectangle(printbed.x, -xy_min,
                                printbed.width, xy_max)
         else:
             gantry = Rectangle(-xy_min, printbed.y,
                                xy_max, printbed.height)
-        return gantry, x_oriented
+        return gantry
 
     def check_available(self, printjob):
         if not self.continuous_printing:

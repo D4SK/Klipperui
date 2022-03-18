@@ -64,6 +64,7 @@ class Printer:
         self.objects = collections.OrderedDict()
         self.parallel_objects = {}
         self.parallel_queues = {}
+        self.parallel_access_completion = {}
         # Init printer components that must be setup prior to config
         for m in [gcode, webhooks]:
             m.add_early_printer_objects(self)
@@ -156,11 +157,17 @@ class Printer:
         def start(e):
             config.reactor.setup_mp_queues(mp_queues)
             config.reactor.root = init_func(config)
+            config.reactor.cb(Printer._report_access_tracking,
+                    config.section, config.access_tracking)
         try:
             config.reactor.register_callback(start)
             config.reactor.run()
         except Exception:
             logging.exception("Unhandled exception during run")
+    @staticmethod
+    def _report_access_tracking(e, printer, section, access_tracking):
+        logging.debug("Receiving config access tracking from %s", section)
+        printer.parallel_access_completion[section].complete(access_tracking)
     def _read_config(self):
         self.objects['configfile'] = pconfig = configfile.PrinterConfig(self)
         config = pconfig.read_main_config()
@@ -173,12 +180,23 @@ class Printer:
             self.load_object(config, section_config.get_name(), None)
         self.parallel_queues['printer'] = multiprocessing.Queue()
         self.reactor.setup_mp_queues(self.parallel_queues)
+        self.parallel_access_completion = {section: self.reactor.completion()
+                                           for section in self.parallel_objects}
         for section in self.parallel_objects:
             self._load_parallel_object(section)
+
+        # Wait for config access_tracking to be reported back
+        for section, completion in self.parallel_access_completion.items():
+            access_tracking = completion.wait(waketime=self.reactor.monotonic() + 10)
+            if access_tracking is None:
+                raise TimeoutError(f"{section} Did not return access tracking within 10 seconds!")
+            else:
+                config.access_tracking.update(access_tracking)
+
         for m in [toolhead]:
             m.add_printer_objects(config)
         # Validate that there are no undefined parameters in the config file
-        # pconfig.check_unused_options(config)
+        pconfig.check_unused_options(config)
     def _get_versions(self):
         try:
             parts = ["%s=%s" % (n.split()[-1], m.get_status()['mcu_version'])

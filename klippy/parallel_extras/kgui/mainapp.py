@@ -133,7 +133,6 @@ class MainApp(App, threading.Thread):
         self.reactor.cb(printer_cmd.load_object, "print_history")
         super().__init__(**kwargs)
         self.reactor.cb(printer_cmd.request_event_history)
-        self.reactor.cb(printer_cmd.get_pos_limits)
 
     def clean(self):
         ndel, freed = freedir(p.sdcard_path)
@@ -142,6 +141,7 @@ class MainApp(App, threading.Thread):
             self.reactor.cb(printer_cmd.trim_history, process='printer')
 
     def handle_connect(self):
+        self.reactor.cb(printer_cmd.get_pos_limits)
         self.connected = True
         self.clean() # print_history should exist at this point since it is created from a callback in init
 

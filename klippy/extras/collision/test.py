@@ -2,19 +2,18 @@
 
 import configparser
 import copy
-import os
+from os.path import dirname, realpath
 import random
 import unittest
 
 import site
-_extras_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-site.addsitedir(_extras_dir)  # For collision module
-site.addsitedir(os.path.dirname(_extras_dir))  # For configfile module
+_klippo_dir = dirname(dirname(dirname(realpath(__file__))))
+site.addsitedir(_klippo_dir)
 
 import configfile
 
-from collision import geometry
-from collision.interface import CollisionInterface
+from extras.collision import geometry
+from extras.collision.interface import CollisionInterface
 
 
 # Needed to create ConfigWrapper
