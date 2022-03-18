@@ -47,7 +47,7 @@ class RunoutHelper:
             virtual_sdcard = self.printer.lookup_object('virtual_sdcard')
             virtual_sdcard.pause_print()
             self.printer.get_reactor().pause(eventtime + self.pause_delay)
-        self._exec_gcode(self.runout_gcode)
+        self._exec_gcode("", self.runout_gcode)
         self.printer.send_event("filament_switch_sensor:runout", self.extruder_id)
     def _insert_event_handler(self, eventtime):
         if self.filament_manager:
