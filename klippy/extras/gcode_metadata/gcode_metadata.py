@@ -17,15 +17,26 @@ class GCodeMetadata:
     def __init__(self, config=None):
         # Map paths to metadata objects to cache already parsed files
         self._md_cache = {}
+
+        self.filament_manager = None
         if config is None:
             import site
             site.addsitedir(os.path.dirname(os.path.dirname(
                             os.path.realpath(__file__))))
+            import filament_manager
+            self.filament_manager = filament_manager.load_config(None)
             self.config_diameter = None
             return
-
-        extruder_config = config.getsection("extruder")
+        self.config = config
+        self.printer = config.get_printer()
+        self.printer.register_event_handler(
+                "klippy:connect", self._handle_connect)
+        extruder_config = self.config.getsection("extruder")
         self.config_diameter = extruder_config.getfloat("filament_diameter", None)
+
+    def _handle_connect(self):
+        self.filament_manager = self.printer.lookup_object(
+                "filament_manager", None)
 
     def delete_cache_entry(self, path):
         """Delete a single metadata object from the cache"""

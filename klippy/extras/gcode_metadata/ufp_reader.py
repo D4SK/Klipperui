@@ -114,16 +114,15 @@ class _UFPReader(metaclass=_UFPMetaClass):
         self.thumbnail_path = thumbnail_path
 
     def _extract_materials(self):
-        """ #TODO
+        """
         In case a material file isn't present yet on this system, it gets
         extracted and added to the filament manager.
         """
-        return None
-        # material_paths = [e["Target"] for e in self._relationships
-        #                   if e["Type"] == self._material_relationship_type]
-
-    @staticmethod
-    def register_materials(e, printer, material_paths):
+        fm = self._module.filament_manager
+        if fm is None:
+            return
+        material_paths = [e["Target"] for e in self._relationships
+                          if e["Type"] == self._material_relationship_type]
         for material in material_paths:
             material_file = self._zip_obj.open(material)
             guid = fm.get_info(material_file, "./m:metadata/m:GUID")
@@ -153,14 +152,11 @@ class _UFPReader(metaclass=_UFPMetaClass):
         return guid
 
     def get_material_info(self, xpath, extruder=0):
+        fm = self._module.filament_manager
         guid = self.get_material_guid(extruder)
-        if not guid:
+        if fm is None or guid is None:
             return None
-        return self.reactor.cb(self.obtain_material_info, guid, xpath, wait=True)
-
-    @staticmethod
-    def obtain_material_info(e, printer, guid, xpath):
-        return printer.objects['filament_manager'].get_info(guid, xpath)
+        return fm.get_info(guid, xpath)
 
     def get_material_type(self, extruder=0):
         return self.get_material_info("./m:metadata/m:name/m:material", extruder)
