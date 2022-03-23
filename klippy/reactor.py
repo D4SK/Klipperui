@@ -66,7 +66,8 @@ def run_mp_callback(e, reactor, callback, waketime, waiting_process, *args, **kw
     res = callback(e, reactor.root, *args, **kwargs)
     if waiting_process:
         reactor.cb(reactor.mp_complete,
-            (callback.__name__, waketime, reactor.process_name), res, process=waiting_process)
+            (callback.__name__, waketime, reactor.process_name), res,
+            process=waiting_process, execute_in_reactor=True)
 
 class ReactorFileHandler:
     def __init__(self, fd, callback):
@@ -203,33 +204,20 @@ class SelectReactor:
         rcb = ReactorCallback(self, callback, waketime)
         return rcb.completion
     # Multiprocessing (from another process) callbacks and completions
-    def cb(self, callback, *args, waketime=NOW, process='printer', wait=False, completion=False, **kwargs):
+    def cb(self, callback, *args, waketime=NOW, process='printer',
+           wait=False, completion=False, execute_in_reactor=False, **kwargs):
         waiting_process = None
         if wait or completion:
             waiting_process = self.process_name
             waketime = self.monotonic() # This gives unique reference to completion
             mp_completion = ReactorCompletion(self)
             self._mp_completions[(callback.__name__, waketime, process)] = mp_completion
-        self.mp_queues[process].put_nowait((callback, waketime, waiting_process, args, kwargs))
+        self.mp_queues[process].put_nowait((callback, waketime,
+                waiting_process, execute_in_reactor, args, kwargs))
         if wait:
             return mp_completion.wait()
         if completion:
             return mp_completion
-    # def check_pickleable(self, args):
-    #     import pickle
-    #     is_kwarg = bool(type(args) is dict)
-    #     if is_kwarg:
-    #         items = args.items()
-    #     else:
-    #         args = list(args)
-    #         items = enumerate(args)
-    #     for key, value in items:
-    #         try:
-    #             pickle.dumps(value)
-    #         except:
-    #             import logging
-    #             logging.warning(f"couldn't pickle arg {key}, {value}")
-    #             raise
     @staticmethod
     def mp_complete(e, root, reference, result):
         root.reactor.async_complete(root.reactor._mp_completions.pop(reference), result)
@@ -330,8 +318,9 @@ class SelectReactor:
             self.finalize()
     def _mp_dispatch_loop(self):
         while self._process:
-            cb, waketime, waiting_process, args, kwargs = self.mp_queue.get()
-            self._mp_callback_handler(self, cb, waketime, waiting_process, *args, **kwargs)
+            cb, waketime, waiting_process, execute_in_reactor, args, kwargs = self.mp_queue.get()
+            handler = mp_callback if execute_in_reactor else self._mp_callback_handler
+            handler(self, cb, waketime, waiting_process, *args, **kwargs)
     def run(self):
         if self._async_pipe is None:
             self._setup_async_callbacks()
@@ -345,7 +334,7 @@ class SelectReactor:
         self._g_dispatch = None
         self._greenlets = []
         if self.mp_queue is not None:
-            self.mp_queue.put_nowait((self.run_event, 0, None, ("trigger_mp_dispatch", []), {}))
+            self.mp_queue.put_nowait((self.run_event, self.NOW, None, False, ("trigger_mp_dispatch", []), {}))
             self._mp_dispatch_thread.join()
         if self._async_pipe is not None:
             os.close(self._async_pipe[0])

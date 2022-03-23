@@ -1,5 +1,27 @@
 #!/usr/bin/env python3
 
+"""
+IMPORTANT NOTES FOR MULTIPROCESSING:
+
+Using this module in an extra process works mostly like in the main printer
+process. Obtaining the module is done through printer.load_object(). The module
+returned when doing that outside of the main process is slightly different
+and any calls to get_metadata() get delegated to the main process so that all
+processes can utilize the same cache.
+
+The returned metadata object is picklable and all of its methods are called
+locally. The filament_manager calls are handled specially by MPMetadata.
+
+Other module functions, like flush_cache() must be executed in the main process.
+
+Example:
+
+
+    md = reactor.cb(obtain_md, path, wait=True)
+    time = md.get_time()
+
+"""
+
 import os
 
 from .ufp_reader import create_ufp_reader
@@ -14,29 +36,26 @@ class GCodeMetadata:
                 PrusaSlicerParser,
     ]
 
-    def __init__(self, config=None):
+    def __init__(self, config):
         # Map paths to metadata objects to cache already parsed files
         self._md_cache = {}
 
         self.filament_manager = None
-        if config is None:
-            import site
-            site.addsitedir(os.path.dirname(os.path.dirname(
-                            os.path.realpath(__file__))))
-            import filament_manager
-            self.filament_manager = filament_manager.load_config(None)
-            self.config_diameter = None
-            return
         self.config = config
         self.printer = config.get_printer()
         self.printer.register_event_handler(
                 "klippy:connect", self._handle_connect)
         extruder_config = self.config.getsection("extruder")
-        self.config_diameter = extruder_config.getfloat("filament_diameter", None)
+        self.config_diameter = extruder_config.getfloat(
+                "filament_diameter", None)
 
     def _handle_connect(self):
         self.filament_manager = self.printer.lookup_object(
                 "filament_manager", None)
+
+    def get_material_info(self, material, xpath):
+        if self.filament_manager:
+            return self.filament_manager.get_info(material, xpath)
 
     def delete_cache_entry(self, path):
         """Delete a single metadata object from the cache"""
@@ -48,7 +67,7 @@ class GCodeMetadata:
         Delete all cached metadata objects, forcing all files to be
         reparsed in the future.
         """
-        self._md_cache = {}
+        self._md_cache.clear()
 
     def get_metadata(self, path):
         """
@@ -77,10 +96,9 @@ class GCodeMetadata:
         file pointer. If a stream is provided, be aware that it gets closed
         in this function.
         """
-        gcode_file = open(path, "rb")
-        head = self._get_head_md(gcode_file)
-        tail = self._get_tail_md(gcode_file)
-        gcode_file.close()
+        with open(path, "rb") as gcode_file:
+            head = self._get_head_md(gcode_file)
+            tail = self._get_tail_md(gcode_file)
         ParserClass = self._find_parser(head + tail)
         return ParserClass(head, tail, path, self)
 
@@ -159,6 +177,37 @@ class GCodeMetadata:
         tail.reverse()
         return tail
 
+
+class MPMetadata:
+    """Module class used in unpickled metadata objects that calls
+    filament_manager.get_info in printer process.
+    """
+
+    def __init__(self, config):
+        self.reactor = config.reactor
+
+    def get_metadata(self, path):
+        ret = self.reactor.cb(self.obtain_md, path, wait=True)
+        return ret
+
+    @staticmethod
+    def obtain_md(e, printer, path):
+        gcode_metadata = printer.lookup_object('gcode_metadata')
+        return gcode_metadata.get_metadata(path)
+
+    def get_material_info(self, material, xpath):
+        self.reactor.cb(self.obtain_material_info, material, xpath, wait=True)
+
+    @staticmethod
+    def obtain_material_info(e, printer, material, xpath):
+        fm = printer.lookup_object('filament_manager', None)
+        if fm:
+            return fm.get_info(material, xpath)
+
+
 def load_config(config):
-    module = GCodeMetadata(config)
+    if config.reactor.process_name == "printer":
+        module = GCodeMetadata(config)
+    else:
+        module = MPMetadata(config)
     return module

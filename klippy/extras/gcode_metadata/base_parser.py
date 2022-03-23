@@ -32,7 +32,7 @@ class BaseParser:
     _needs_tail = False
 
     def __init__(self, head, tail, path, module):
-        self._module = module
+        self.config_diameter = module.config_diameter
         self.path = path
         self.options, self.non_option_lines = self._parse_options(head, tail)
 
@@ -125,7 +125,7 @@ class BaseParser:
         Weight    g
         """
         # Use the actual diameter the printer wants, regardless of what it was sliced for
-        diameter = self._module.config_diameter or self.get_diameter()
+        diameter = self.config_diameter or self.get_diameter()
         if diameter is not None:
             area = pi * (diameter/2)**2  # mm^2
         else:

@@ -10,6 +10,8 @@ error = configparser.Error
 class sentinel:
     pass
 
+main_config = None
+
 class ConfigWrapper:
     error = configparser.Error
     def __init__(self, printer, fileconfig, access_tracking, section):

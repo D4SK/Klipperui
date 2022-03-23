@@ -7,7 +7,7 @@
 import sys, os, gc, optparse, logging, time, collections, importlib
 import util, reactor, queuelogger, msgproto
 import gcode, configfile, pins, mcu, toolhead, webhooks
-import signal, traceback, site, multiprocessing
+import signal, traceback, multiprocessing
 from os.path import join, exists, dirname
 
 message_ready = "Printer is ready"
@@ -52,6 +52,7 @@ Printer is shutdown
 class Printer:
     config_error = configfile.error
     command_error = gcode.CommandError
+
     def __init__(self, main_reactor, bglogger, start_args):
         signal.signal(signal.SIGTERM, lambda signum, frame: self.request_exit('exit'))
         self.bglogger = bglogger
@@ -142,11 +143,15 @@ class Printer:
     def _load_parallel_object(self, section):
         self.parallel_objects[section] = multiprocessing.Process(
             target=self.start_process,
-            args=(*self.parallel_objects[section], self.parallel_queues))
+            args=(*self.parallel_objects[section], self.parallel_queues),
+            name=self.parallel_objects[section][2])
         self.parallel_objects[section].start()
     @staticmethod
     def start_process(config, init_func, module_name, mp_queues):
         os.nice(config.getint("nice", 10))
+        configfile.main_config = config
+        # Delete all loaded klipper modules
+        config.printer.objects.clear()
         # Reset logging module so that all processes can use the root logger
         logging.shutdown()
         importlib.reload(logging)
@@ -154,11 +159,14 @@ class Printer:
         mod = importlib.import_module('parallel_extras.' + module_name)
         init_func = getattr(mod, init_func, None)
         config.reactor = reactor.Reactor(process=module_name, gc_checking=True)
+        config.printer.reactor = config.reactor
         def start(e):
             config.reactor.setup_mp_queues(mp_queues)
             config.reactor.root = init_func(config)
             config.reactor.cb(Printer._report_access_tracking,
                     config.section, config.access_tracking)
+            # Ignore SIGTERM in child processes
+            signal.signal(signal.SIGTERM, signal.SIG_IGN)
         try:
             config.reactor.register_callback(start)
             config.reactor.run()
@@ -303,6 +311,9 @@ class Printer:
             self.run_result = result
         self.reactor.end()
 
+def get_main_config():
+    return configfile.main_config
+
 ######################################################################
 # Startup
 ######################################################################
@@ -406,7 +417,10 @@ def main():
         time.sleep(1)
         for name, process in printer.parallel_objects.items():
             logging.info(f"Joining {name}")
-            process.join()
+            process.join(10)
+            if process.exitcode is None:
+                logging.error("Process %s did not finish after 10 seconds. Terminating.", process.name)
+                process.terminate()
         logging.info("Joined all processes")
         main_reactor.finalize()
         if res in ('exit', 'error_exit'):
