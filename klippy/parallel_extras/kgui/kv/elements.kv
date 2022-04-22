@@ -493,3 +493,38 @@
             enabled: True
             pos: root.center_x, root.y
             on_release: root.confirm()
+
+<WarningPopup>:
+    size_hint: 0.9, 0.4
+    message: "Are you sure you want to proceed, the ongoing Print Jobs will be aborted"
+    FloatLayout:
+        canvas:
+            color:
+                rgba: p.red
+            Rectangle:
+                source: p.kgui_dir+'/logos/warning.png'
+                size: dp(60*p.disp_vertical_stretch), dp(60)
+                pos: root.x + p.padding, root.center_y
+        Label:
+            text: root.message
+            halign: 'center'
+            valign: 'middle'
+            size_hint: None, None
+            size: root.width - 2*p.padding - dp(30) - dp(60)
+            center_y: root.center_y
+            x: root.x + p.padding + dp(30) + dp(60)
+            text_size: self.size
+            font_size: p.large_font
+            color: p.red
+        BtnPCancel:
+            id: btn_cancel
+            width: root.width/2
+            pos: root.pos
+            on_release: root.dismiss()
+        BtnPConfirm:
+            id: btn_confirm
+            enabled: True
+            text: "0k"
+            width: root.width/2
+            pos: root.center_x, root.y
+            on_release: root.dismiss(), root.confirm_callback()

@@ -262,6 +262,9 @@ class MainApp(App, threading.Thread):
         """Stop networking dbus event loop"""
         self.network_manager.stop()
 
+    def firmware_restart(self):
+        self.reactor.cb(printer_cmd.firmware_restart)
+
     def poweroff(self):
         Popen(['sudo','systemctl', 'poweroff'])
 
