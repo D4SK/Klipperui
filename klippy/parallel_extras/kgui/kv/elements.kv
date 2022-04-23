@@ -497,9 +497,10 @@
 <WarningPopup>:
     size_hint: 0.9, 0.4
     message: "Are you sure you want to proceed, the ongoing Print Jobs will be aborted"
+    title: ''
     FloatLayout:
         canvas:
-            color:
+            Color:
                 rgba: p.red
             Rectangle:
                 source: p.kgui_dir+'/logos/warning.png'
@@ -510,7 +511,7 @@
             halign: 'center'
             valign: 'middle'
             size_hint: None, None
-            size: root.width - 2*p.padding - dp(30) - dp(60)
+            size: root.width - 2*p.padding - dp(30) - dp(60), root.height
             center_y: root.center_y
             x: root.x + p.padding + dp(30) + dp(60)
             text_size: self.size
