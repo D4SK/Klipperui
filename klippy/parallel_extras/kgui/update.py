@@ -69,8 +69,11 @@ class Updater(EventDispatcher):
         Thread(target=self.do_fetch).start()
 
     def do_fetch(self, *args):
-        raw_releases = requests.get(self.RELEASES_URL)
-        if raw_releases.ok:
+        try:
+            raw_releases = requests.get(self.RELEASES_URL)
+        except:
+            raw_releases = None
+        if raw_releases and raw_releases.ok:
             self._fetch_retries = 0
             raw_releases = raw_releases.json()
             raw_releases.sort(key=self.semantic_versioning_key)
