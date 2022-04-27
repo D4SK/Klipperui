@@ -70,8 +70,9 @@ class FilamentManager:
         # set state for all materials to loaded in case
         # power was lost during loading or unloading
         for material in self.material['loaded']:
-            if material['state'] == 'loading':
+            if material['state'] in ('loading', 'unloading'):
                 material['state'] = 'loaded'
+
 
     def handle_ready(self):
         self.heater_manager = self.printer.lookup_object('heaters')
