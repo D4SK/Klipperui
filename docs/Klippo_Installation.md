@@ -41,10 +41,7 @@ git clone https://github.com/D4SK/klippo
 - If you haven't flashed your printer-mainboards firmware yet follow [klipper/Installation.md](https://github.com/D4SK/klippo/blob/master/docs/Installation.md) (Building and flashing the micro-controller)
 - Move your printer configuration (printer.cfg) to /home/pi and add the necessary sections
 - Change the resolution in the kivy config according to the screen you are using. (default is 1024x600) E.g. "height = 800" and "width = 480" ```nano ~/klippo/klippy/parallel_extras/kgui/config.ini```
-- If the UI appears upside down, rotate your screen. Alternatively you can change the rotation parameter of the kivy config from "rotation = 90" to "rotation = 270" ```nano ~/klippo/klippy/parallel_extras/kgui/config.ini```
-
-
-
+- If the UI appears upside down, rotate your screen. Alternatively you can change some parameters in the ~/.kivy/config.ini file. In the [graphics] section set rotation=90 to rotation=270 and in the [input] section set rotation=0 to rotation=2
 
 - Reboot ``` sudo reboot  ```
 
