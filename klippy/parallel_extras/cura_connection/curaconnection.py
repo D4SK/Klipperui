@@ -46,7 +46,7 @@ class CuraConnectionModule:
         self.zeroconf_handler = None
         self.server = None
         self.reactor = config.get_reactor()
-        self.metadata = config.printer.lookup_object("gcode_metadata")
+        self.metadata = config.get_printer().load_object(config, "gcode_metadata")
         # These are loaded a bit late, they sometimes miss the klippy:connect event
         # klippy:ready works since it only occurs after kguis handle_connect reports back
         self.reactor.cb(self.load_object, "filament_manager")

@@ -4,6 +4,7 @@
 
 #:import p parallel_extras.kgui.parameters
 #:import printer_cmd parallel_extras.kgui.printer_cmd
+#:import warn_if_printing parallel_extras.kgui.elements.warn_if_printing
 
 <SettingTab>:
     background_down: ''
@@ -753,7 +754,7 @@
             text: "Restart"
             size: btn_poweroff.size
             pos: btn_poweroff.x, btn_reboot.top
-            on_release: app.reactor.cb(printer_cmd.firmware_restart)
+            on_release: warn_if_printing(app.firmware_restart)
         Divider:
             width: root.width
             pos: btn_reboot.pos
@@ -762,7 +763,7 @@
             text: "System Reboot"
             size: btn_poweroff.size
             pos: btn_poweroff.x, btn_poweroff.top
-            on_release: app.reboot()
+            on_release: warn_if_printing(app.reboot)
         Divider:
             width: root.width
             pos: btn_restart.pos
@@ -772,13 +773,13 @@
             size_hint: 1, None
             height: btn_cancel.height
             pos: root.x, btn_cancel.top
-            on_release: app.poweroff()
+            on_release: warn_if_printing(app.poweroff)
         BtnPCancel:
             id: btn_cancel
             single: True
             width: root.width
             pos: root.pos
-            on_release: root.dismiss()
+            on_release: warn_if_printing(root.dismiss)
 
 <TimezonePopup>:
     size_hint: 0.94, 0.7
@@ -877,7 +878,7 @@
             enabled: slider.changed
             width: root.width/2
             pos: root.center_x, root.y
-            on_release: app.reactor.cb(printer_cmd.write_config, 'printer', 'max_accel', slider.val), root.dismiss()
+            on_release: warn_if_printing(lambda: app.reactor.cb(printer_cmd.write_config, 'printer', 'max_accel', slider.val)); root.dismiss()
 
 <PressureAdvanceConfPopup@BasePopup>:
     size_hint: 0.94, 0.4
@@ -902,7 +903,7 @@
             enabled: slider.changed
             width: root.width/2
             pos: root.center_x, root.y
-            on_release: app.reactor.cb(printer_cmd.write_pressure_advance, slider.val, app.extruder_count), root.dismiss()
+            on_release: warn_if_printing(lambda: app.reactor.cb(printer_cmd.write_pressure_advance, slider.val, app.extruder_count)), root.dismiss()
 
 <ReleasePopup>:
     size_hint: 0.94, 0.68

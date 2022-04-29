@@ -21,7 +21,6 @@ class FilamentManager:
 
     def __init__(self, config):
         self.printer = config.get_printer()
-        self.reactor = self.printer.get_reactor()
 
         self.material_condition = config.getchoice("material_condition",
                 {"exact": "exact", "type": "type", "any": "any"}, "any")
@@ -71,8 +70,9 @@ class FilamentManager:
         # set state for all materials to loaded in case
         # power was lost during loading or unloading
         for material in self.material['loaded']:
-            if material['state'] == 'loading':
+            if material['state'] in ('loading', 'unloading'):
                 material['state'] = 'loaded'
+
 
     def handle_ready(self):
         self.heater_manager = self.printer.lookup_object('heaters')

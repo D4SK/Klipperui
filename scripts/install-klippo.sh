@@ -160,6 +160,7 @@ create_virtualenv()
 
 setup_kivy_config()
 {
+    mkdir -p ~/.kivy/
     cp ${SRCDIR}/klippy/parallel_extras/kgui/config.ini ~/.kivy/config.ini
 }
 

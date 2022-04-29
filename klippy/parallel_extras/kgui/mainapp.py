@@ -36,7 +36,6 @@ from . import parameters as p
 # Imports for KvLang Builder
 from . import files, home, settings, status, timeline, update, printer_cmd
 
-from extras import gcode_metadata
 
 class MainApp(App, threading.Thread):
     state = OptionProperty("startup", options=[
@@ -98,7 +97,7 @@ class MainApp(App, threading.Thread):
         logging.info("Kivy app initializing...")
         self.network_manager = NetworkManager()
         self.notify = Notifications()
-        self.gcode_metadata = gcode_metadata.load_config(config) # Beware this is not the 'right' config
+        self.gcode_metadata = config.get_printer().load_object(config, "gcode_metadata")
         self.temp = {'extruder': [0,0], 'extruder1': [0,0], 'heater_bed': [0,0]}
         self.kv_file = join(p.kgui_dir, "kv/main.kv") # Tell kivy where the root kv file is
 
@@ -133,7 +132,6 @@ class MainApp(App, threading.Thread):
         self.reactor.cb(printer_cmd.load_object, "print_history")
         super().__init__(**kwargs)
         self.reactor.cb(printer_cmd.request_event_history)
-        self.reactor.cb(printer_cmd.get_pos_limits)
 
     def clean(self):
         ndel, freed = freedir(p.sdcard_path)
@@ -142,6 +140,7 @@ class MainApp(App, threading.Thread):
             self.reactor.cb(printer_cmd.trim_history, process='printer')
 
     def handle_connect(self):
+        self.reactor.cb(printer_cmd.get_pos_limits)
         self.connected = True
         self.clean() # print_history should exist at this point since it is created from a callback in init
 
@@ -263,6 +262,9 @@ class MainApp(App, threading.Thread):
         """Stop networking dbus event loop"""
         self.network_manager.stop()
 
+    def firmware_restart(self):
+        self.reactor.cb(printer_cmd.firmware_restart)
+
     def poweroff(self):
         Popen(['sudo','systemctl', 'poweroff'])
 
@@ -273,7 +275,8 @@ class MainApp(App, threading.Thread):
 def run_callback(reactor, callback, waketime, waiting_process, *args, **kwargs):
     res = callback(reactor.monotonic(), reactor.root, *args, **kwargs)
     if waiting_process:
-        reactor.cb(reactor.mp_complete, (callback.__name__, waketime, "kgui"), res, process=waiting_process)
+        reactor.cb(reactor.mp_complete, (callback.__name__, waketime, "kgui"),
+                res, process=waiting_process, execute_in_reactor=True)
 
 def kivy_callback(*args, **kwargs):
     Clock.schedule_del_safe(lambda: run_callback(*args, **kwargs))

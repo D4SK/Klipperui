@@ -230,6 +230,21 @@ class DeletePopup(BasePopup):
         self.dismiss()
         app.notify.show("File deleted", "Deleted " + basename(self.path), delay=4)
 
+
+class WarningPopup(BasePopup):
+    def __init__(self, confirm_callback, **kwargs):
+        self.confirm_callback = confirm_callback
+        super().__init__(**kwargs)
+
+
+def warn_if_printing(confirm_callback):
+    app = App.get_running_app()
+    if app.jobs and app.jobs[0].state not in ('finished', 'aborting', 'aborted'):
+        WarningPopup(confirm_callback=confirm_callback).open()
+    else:
+        confirm_callback()
+
+
 class UltraSlider(Widget):
     """
     Simple slider widget

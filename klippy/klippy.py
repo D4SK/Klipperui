@@ -7,7 +7,7 @@
 import sys, os, gc, optparse, logging, time, collections, importlib
 import util, reactor, queuelogger, msgproto
 import gcode, configfile, pins, mcu, toolhead, webhooks
-import signal, traceback, site, multiprocessing
+import signal, traceback, multiprocessing
 from os.path import join, exists, dirname
 
 message_ready = "Printer is ready"
@@ -52,6 +52,7 @@ Printer is shutdown
 class Printer:
     config_error = configfile.error
     command_error = gcode.CommandError
+
     def __init__(self, main_reactor, bglogger, start_args):
         signal.signal(signal.SIGTERM, lambda signum, frame: self.request_exit('exit'))
         self.bglogger = bglogger
@@ -64,6 +65,7 @@ class Printer:
         self.objects = collections.OrderedDict()
         self.parallel_objects = {}
         self.parallel_queues = {}
+        self.parallel_access_completion = {}
         # Init printer components that must be setup prior to config
         for m in [gcode, webhooks]:
             m.add_early_printer_objects(self)
@@ -141,11 +143,15 @@ class Printer:
     def _load_parallel_object(self, section):
         self.parallel_objects[section] = multiprocessing.Process(
             target=self.start_process,
-            args=(*self.parallel_objects[section], self.parallel_queues))
+            args=(*self.parallel_objects[section], self.parallel_queues),
+            name=self.parallel_objects[section][2])
         self.parallel_objects[section].start()
     @staticmethod
     def start_process(config, init_func, module_name, mp_queues):
         os.nice(config.getint("nice", 10))
+        configfile.main_config = config
+        # Delete all loaded klipper modules
+        config.printer.objects.clear()
         # Reset logging module so that all processes can use the root logger
         logging.shutdown()
         importlib.reload(logging)
@@ -153,14 +159,23 @@ class Printer:
         mod = importlib.import_module('parallel_extras.' + module_name)
         init_func = getattr(mod, init_func, None)
         config.reactor = reactor.Reactor(process=module_name, gc_checking=True)
+        config.printer.reactor = config.reactor
         def start(e):
             config.reactor.setup_mp_queues(mp_queues)
             config.reactor.root = init_func(config)
+            config.reactor.cb(Printer._report_access_tracking,
+                    config.section, config.access_tracking)
+            # Ignore SIGTERM in child processes
+            signal.signal(signal.SIGTERM, signal.SIG_IGN)
         try:
             config.reactor.register_callback(start)
             config.reactor.run()
         except Exception:
             logging.exception("Unhandled exception during run")
+    @staticmethod
+    def _report_access_tracking(e, printer, section, access_tracking):
+        logging.debug("Receiving config access tracking from %s", section)
+        printer.parallel_access_completion[section].complete(access_tracking)
     def _read_config(self):
         self.objects['configfile'] = pconfig = configfile.PrinterConfig(self)
         config = pconfig.read_main_config()
@@ -173,12 +188,23 @@ class Printer:
             self.load_object(config, section_config.get_name(), None)
         self.parallel_queues['printer'] = multiprocessing.Queue()
         self.reactor.setup_mp_queues(self.parallel_queues)
+        self.parallel_access_completion = {section: self.reactor.completion()
+                                           for section in self.parallel_objects}
         for section in self.parallel_objects:
             self._load_parallel_object(section)
+
+        # Wait for config access_tracking to be reported back
+        for section, completion in self.parallel_access_completion.items():
+            access_tracking = completion.wait(waketime=self.reactor.monotonic() + 10)
+            if access_tracking is None:
+                raise TimeoutError(f"{section} Did not return access tracking within 10 seconds!")
+            else:
+                config.access_tracking.update(access_tracking)
+
         for m in [toolhead]:
             m.add_printer_objects(config)
         # Validate that there are no undefined parameters in the config file
-        # pconfig.check_unused_options(config)
+        pconfig.check_unused_options(config)
     def _get_versions(self):
         try:
             parts = ["%s=%s" % (n.split()[-1], m.get_status()['mcu_version'])
@@ -285,6 +311,9 @@ class Printer:
             self.run_result = result
         self.reactor.end()
 
+def get_main_config():
+    return configfile.main_config
+
 ######################################################################
 # Startup
 ######################################################################
@@ -388,7 +417,10 @@ def main():
         time.sleep(1)
         for name, process in printer.parallel_objects.items():
             logging.info(f"Joining {name}")
-            process.join()
+            process.join(10)
+            if process.exitcode is None:
+                logging.error("Process %s did not finish after 10 seconds. Terminating.", process.name)
+                process.terminate()
         logging.info("Joined all processes")
         main_reactor.finalize()
         if res in ('exit', 'error_exit'):
