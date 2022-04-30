@@ -51,7 +51,7 @@ def send_z_offset(e, printer, z_offset):
 def get_speed(e, printer):
     motion_status = printer.objects['motion_report'].get_status(e)
     status = printer.objects['gcode_move'].get_status(e)
-    printer.reactor.cb(set_attribute, 'speed_factor', status['speed_factor']*60*100, process='kgui')#speed factor also converts from mm/min to mm/sec
+    printer.reactor.cb(set_attribute, 'speed_factor', status['speed_factor']*100, process='kgui')
     printer.reactor.cb(set_attribute, 'speed', motion_status['live_velocity'], process='kgui')
 def send_speed(e, printer, val):
     val = val/(60.*100.)
