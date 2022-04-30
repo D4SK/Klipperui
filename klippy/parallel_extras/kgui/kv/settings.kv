@@ -347,7 +347,7 @@
         font_size: p.normal_font + sp(5)
         x: root.x if root.enabled else p.mars
         center_y: root.center_y
-        foreground_color: (1,1,1,1)
+        foreground_color: (1,1,1,1) if self.focus else (0,0,0,0)
         padding: (26,20,26,20)
         height: self.minimum_height
         background_color: (0,0,0,0)
