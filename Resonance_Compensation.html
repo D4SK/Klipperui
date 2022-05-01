@@ -136,6 +136,44 @@
       </form>
     
     
+      <div class="md-header__option">
+        <div class="md-select">
+          
+          <button class="md-header__button md-icon" aria-label="Select language">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16.36 14c.08-.66.14-1.32.14-2 0-.68-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2m-5.15 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95a8.03 8.03 0 0 1-4.33 3.56M14.34 14H9.66c-.1-.66-.16-1.32-.16-2 0-.68.06-1.35.16-2h4.68c.09.65.16 1.32.16 2 0 .68-.07 1.34-.16 2M12 19.96c-.83-1.2-1.5-2.53-1.91-3.96h3.82c-.41 1.43-1.08 2.76-1.91 3.96M8 8H5.08A7.923 7.923 0 0 1 9.4 4.44C8.8 5.55 8.35 6.75 8 8m-2.92 8H8c.35 1.25.8 2.45 1.4 3.56A8.008 8.008 0 0 1 5.08 16m-.82-2C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2 0 .68.06 1.34.14 2M12 4.03c.83 1.2 1.5 2.54 1.91 3.97h-3.82c.41-1.43 1.08-2.77 1.91-3.97M18.92 8h-2.95a15.65 15.65 0 0 0-1.38-3.56c1.84.63 3.37 1.9 4.33 3.56M12 2C6.47 2 2 6.5 2 12a10 10 0 0 0 10 10 10 10 0 0 0 10-10A10 10 0 0 0 12 2z"/></svg>
+          </button>
+          <div class="md-select__inner">
+            <ul class="md-select__list">
+              
+                <li class="md-select__item">
+                  <a href="/" hreflang="en" class="md-select__link">
+                    English
+                  </a>
+                </li>
+                
+                <li class="md-select__item">
+                  <a href="/zh/" hreflang="zh" class="md-select__link">
+                    简体中文
+                  </a>
+                </li>
+                
+                <li class="md-select__item">
+                  <a href="/zh-Hant/" hreflang="zh-Hant" class="md-select__link">
+                    繁體中文
+                  </a>
+                </li>
+                
+                <li class="md-select__item">
+                  <a href="/hu/" hreflang="hu" class="md-select__link">
+                    Magyar
+                  </a>
+                </li>
+                
+            </ul>
+          </div>
+        </div>
+      </div>
+    
     
       <label class="md-header__button md-icon" for="__search">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5z"/></svg>
@@ -1478,8 +1516,8 @@ can be enabled. Besides ringing, Input Shaping typically reduces the vibrations
 and shaking of the printer in general, and may also improve the reliability
 of the stealthChop mode of Trinamic stepper drivers.</p>
 <h2 id="tuning">Tuning<a class="headerlink" href="#tuning" title="Permanent link">&para;</a></h2>
-<p>Basic tuning requires measuring the ringing frequencies of the printer and
-adding a few parameters to <code>printer.cfg</code> file.</p>
+<p>Basic tuning requires measuring the ringing frequencies of the printer
+by printing a test model.</p>
 <p>Slice the ringing test model, which can be found in
 <a href="prints/ringing_tower.stl">docs/prints/ringing_tower.stl</a>, in the slicer:</p>
 <ul>
@@ -1497,22 +1535,19 @@ adding a few parameters to <code>printer.cfg</code> file.</p>
 <h3 id="ringing-frequency">Ringing frequency<a class="headerlink" href="#ringing-frequency" title="Permanent link">&para;</a></h3>
 <p>First, measure the <strong>ringing frequency</strong>.</p>
 <ol>
-<li>Increase <code>max_accel</code> and <code>max_accel_to_decel</code> parameters in your
-   <code>printer.cfg</code> to 7000. Note that this is only needed for tuning, and more
-   proper value will be selected in the corresponding
-   <a href="#selecting-max_accel">section</a>.</li>
-<li>If <code>square_corner_velocity</code> parameter was changed, revert it back to 5.0.
-   It is not advised to increase it when using the input shaper because it can
-   cause more smoothing in parts - it is better to use higher acceleration
-   value instead.</li>
-<li>Restart the firmware: <code>RESTART</code>.</li>
-<li>Disable Pressure Advance: <code>SET_PRESSURE_ADVANCE ADVANCE=0</code>.</li>
+<li>If <code>square_corner_velocity</code> parameter was changed, revert it back
+   to 5.0. It is not advised to increase it when using input shaper
+   because it can cause more smoothing in parts - it is better to use
+   higher acceleration value instead.</li>
+<li>Increase <code>max_accel_to_decel</code> by issuing the following command:
+   <code>SET_VELOCITY_LIMIT ACCEL_TO_DECEL=7000</code></li>
+<li>Disable Pressure Advance: <code>SET_PRESSURE_ADVANCE ADVANCE=0</code></li>
 <li>If you have already added <code>[input_shaper]</code> section to the printer.cfg,
    execute <code>SET_INPUT_SHAPER SHAPER_FREQ_X=0 SHAPER_FREQ_Y=0</code> command. If you
    get "Unknown command" error, you can safely ignore it at this point and
    continue with the measurements.</li>
-<li>Execute the command
-   <code>TUNING_TOWER COMMAND=SET_VELOCITY_LIMIT PARAMETER=ACCEL START=1250 FACTOR=100 BAND=5</code>.
+<li>Execute the command:
+   <code>TUNING_TOWER COMMAND=SET_VELOCITY_LIMIT PARAMETER=ACCEL START=1500 STEP_DELTA=500 STEP_HEIGHT=5</code>
    Basically, we try to make ringing more pronounced by setting different large
    values for acceleration. This command will increase the acceleration every
    5 mm starting from 1500 mm/sec^2: 1500 mm/sec^2, 2000 mm/sec^2, 2500 mm/sec^2
@@ -1533,14 +1568,14 @@ adding a few parameters to <code>printer.cfg</code> file.</p>
 </li>
 <li>
 <p>Count how many oscillations <em>N</em> the measured distance <em>D</em> corresponds to.
-    If you are unsure how to count the oscillations, refer to the picture
-    above, which shows <em>N</em> = 6 oscillations.</p>
+   If you are unsure how to count the oscillations, refer to the picture
+   above, which shows <em>N</em> = 6 oscillations.</p>
 </li>
 <li>Compute the ringing frequency of X axis as <em>V</em> &middot; <em>N</em> / <em>D</em> (Hz),
     where <em>V</em> is the velocity for outer perimeters (mm/sec). For the example
     above, we marked 6 oscillations, and the test was printed at 100 mm/sec
     velocity, so the frequency is 100 * 6 / 12.14 ≈ 49.4 Hz.</li>
-<li>Do (9) - (11) for Y mark as well.</li>
+<li>Do (8) - (10) for Y mark as well.</li>
 </ol>
 <p>Note that ringing on the test print should follow the pattern of the curved
 notches, as in the picture above. If it doesn't, then this defect is not really
@@ -1593,15 +1628,14 @@ configured from different considerations to reduce several resonances at once.</
 <p>For most of the printers, either MZV or EI shapers can be recommended. This
 section describes a testing process to choose between them, and figure out
 a few other related parameters.</p>
-<p>Print the ringing test model as follows (assuming you already have
-shaper_freq_x/y set and max_accel/max_accel_to_decel increased to 7000 in
-printer.cfg file):</p>
+<p>Print the ringing test model as follows:</p>
 <ol>
-<li>Restart the firmware: <code>RESTART</code>.</li>
-<li>Disable Pressure Advance: <code>SET_PRESSURE_ADVANCE ADVANCE=0</code>.</li>
-<li>Execute <code>SET_INPUT_SHAPER SHAPER_TYPE=MZV</code>.</li>
-<li>Execute the command
-   <code>TUNING_TOWER COMMAND=SET_VELOCITY_LIMIT PARAMETER=ACCEL START=1250 FACTOR=100 BAND=5</code>.</li>
+<li>Restart the firmware: <code>RESTART</code></li>
+<li>Prepare for test: <code>SET_VELOCITY_LIMIT ACCEL_TO_DECEL=7000</code></li>
+<li>Disable Pressure Advance: <code>SET_PRESSURE_ADVANCE ADVANCE=0</code></li>
+<li>Execute: <code>SET_INPUT_SHAPER SHAPER_TYPE=MZV</code></li>
+<li>Execute the command:
+   <code>TUNING_TOWER COMMAND=SET_VELOCITY_LIMIT PARAMETER=ACCEL START=1500 STEP_DELTA=500 STEP_HEIGHT=5</code></li>
 <li>Print the test model sliced with the suggested parameters.</li>
 </ol>
 <p>If you see no ringing at this point, then MZV shaper can be recommended for use.</p>
@@ -1610,8 +1644,8 @@ described in <a href="#ringing-frequency">Ringing frequency</a> section. If the 
 differ significantly from the values you obtained earlier, a more complex input
 shaper configuration is needed. You can refer to Technical details of
 <a href="#input-shapers">Input shapers</a> section. Otherwise, proceed to the next step.</p>
-<p>Now try EI input shaper. To try it, repeat steps (1)-(5) from above, but
-executing at step 3 the following command instead:
+<p>Now try EI input shaper. To try it, repeat steps (1)-(6) from above, but
+executing at step 4 the following command instead:
 <code>SET_INPUT_SHAPER SHAPER_TYPE=EI</code>.</p>
 <p>Compare two prints with MZV and EI input shaper. If EI shows noticeably better
 results than MZV, use EI shaper, otherwise prefer MZV. Note that EI shaper will
@@ -1645,7 +1679,7 @@ shaper_type: mzv
 (if you don't, print the test model sliced with the
 <a href="#tuning">suggested parameters</a> with the pressure advance disabled
 <code>SET_PRESSURE_ADVANCE ADVANCE=0</code> and with the tuning tower enabled as
-<code>TUNING_TOWER COMMAND=SET_VELOCITY_LIMIT PARAMETER=ACCEL START=1250 FACTOR=100 BAND=5</code>).
+<code>TUNING_TOWER COMMAND=SET_VELOCITY_LIMIT PARAMETER=ACCEL START=1500 STEP_DELTA=500 STEP_HEIGHT=5</code>).
 Note that at very high accelerations, depending on the resonance frequency and
 the input shaper you chose (e.g. EI shaper creates more smoothing than MZV),
 input shaping may cause too much smoothing and rounding of the parts. So,
@@ -1672,8 +1706,7 @@ If that is the case, you may need to repeat the print with the PA enabled.
 It may also be a result of a miscalibrated (too high) filament flow, so it is
 a good idea to check that too.</p>
 <p>Choose the minimum out of the two acceleration values (from ringing and
-smoothing), and put it as max_accel into printer.cfg (you can delete
-max_accel_to_decel or revert it to the old value).</p>
+smoothing), and put it as <code>max_accel</code> into printer.cfg.</p>
 <p>As a note, it may happen - especially at low ringing frequencies - that EI
 shaper will cause too much smoothing even at lower accelerations. In this case,
 MZV may be a better choice, because it may allow higher acceleration values.</p>
@@ -1695,29 +1728,29 @@ still see some ringing after printing a test model with an input shaper of
 your choice with the same frequencies as you have measured earlier), you can
 follow the steps in this section. Note that if you see ringing at different
 frequencies after enabling [input_shaper], this section will not help with that.</p>
-<p>Assuming that you have sliced the ringing model with suggested parameters and
-increased <code>max_accel</code> and <code>max_accel_to_decel</code> parameters in the <code>printer.cfg</code>
-to 7000 already, complete the following steps for each of the axes X and Y:</p>
+<p>Assuming that you have sliced the ringing model with suggested
+parameters, complete the following steps for each of the axes X and Y:</p>
 <ol>
-<li>Make sure Pressure Advance is disabled: <code>SET_PRESSURE_ADVANCE ADVANCE=0</code>.</li>
-<li>Execute <code>SET_INPUT_SHAPER SHAPER_TYPE=ZV</code>.</li>
+<li>Prepare for test: <code>SET_VELOCITY_LIMIT ACCEL_TO_DECEL=7000</code></li>
+<li>Make sure Pressure Advance is disabled: <code>SET_PRESSURE_ADVANCE ADVANCE=0</code></li>
+<li>Execute: <code>SET_INPUT_SHAPER SHAPER_TYPE=ZV</code></li>
 <li>From the existing ringing test model with your chosen input shaper select
    the acceleration that shows ringing sufficiently well, and set it with:
-   <code>SET_VELOCITY_LIMIT ACCEL=...</code>.</li>
+   <code>SET_VELOCITY_LIMIT ACCEL=...</code></li>
 <li>Calculate the necessary parameters for the <code>TUNING_TOWER</code> command to tune
    <code>shaper_freq_x</code> parameter as follows: start = shaper_freq_x * 83 / 132 and
    factor = shaper_freq_x / 66, where <code>shaper_freq_x</code> here is the current value
    in <code>printer.cfg</code>.</li>
-<li>Execute the command
+<li>Execute the command:
    <code>TUNING_TOWER COMMAND=SET_INPUT_SHAPER PARAMETER=SHAPER_FREQ_X START=start FACTOR=factor BAND=5</code>
-   using <code>start</code> and <code>factor</code> values calculated at step (4).</li>
+   using <code>start</code> and <code>factor</code> values calculated at step (5).</li>
 <li>Print the test model.</li>
 <li>Reset the original frequency value:
    <code>SET_INPUT_SHAPER SHAPER_FREQ_X=...</code>.</li>
 <li>Find the band which shows ringing the least and count its number from the
    bottom starting at 1.</li>
 <li>Calculate the new shaper_freq_x value via old
-   shaper_freq_x * (39 + 5 * #band-number) / 66.</li>
+    shaper_freq_x * (39 + 5 * #band-number) / 66.</li>
 </ol>
 <p>Repeat these steps for the Y axis in the same manner, replacing references to X
 axis with the axis Y (e.g. replace <code>shaper_freq_x</code> with <code>shaper_freq_y</code> in
@@ -1731,14 +1764,11 @@ equal to 45 * (39 + 5 * 4) / 66 ≈ 40.23.</p>
 <p>After both new <code>shaper_freq_x</code> and <code>shaper_freq_y</code> parameters have been
 calculated, you can update <code>[input_shaper]</code> section in <code>printer.cfg</code> with the
 new <code>shaper_freq_x</code> and <code>shaper_freq_y</code> values.</p>
-<p>Do not forget to revert the changes to <code>max_accel</code> and <code>max_accel_to_decel</code>
-parameters in the <code>printer.cfg</code> after finishing this section.</p>
 <h3 id="pressure-advance">Pressure Advance<a class="headerlink" href="#pressure-advance" title="Permanent link">&para;</a></h3>
 <p>If you use Pressure Advance, it may need to be re-tuned. Follow the
-<a href="Pressure_Advance.html#tuning-pressure-advance">instructions</a> to find the
-new value, if it differs from the previous one. Make sure to restore the
-original values of <code>max_accel</code> and <code>max_accel_to_decel</code> parameters in the
-<code>printer.cfg</code> and restart Klipper before tuning Pressure Advance.</p>
+<a href="Pressure_Advance.html#tuning-pressure-advance">instructions</a> to find
+the new value, if it differs from the previous one. Make sure to
+restart Klipper before tuning Pressure Advance.</p>
 <h3 id="unreliable-measurements-of-ringing-frequencies">Unreliable measurements of ringing frequencies<a class="headerlink" href="#unreliable-measurements-of-ringing-frequencies" title="Permanent link">&para;</a></h3>
 <p>If you are unable to measure the ringing frequencies, e.g. if the distance
 between the oscillations is not stable, you may still be able to take advantage
@@ -1748,26 +1778,26 @@ the test model. Note that another possibility is to purchase and install an
 accelerometer and measure the resonances with it (refer to the
 <a href="Measuring_Resonances.html">docs</a> describing the required hardware and the setup
 process) - but this option requires some crimping and soldering.</p>
-<p>For tuning, add empty <code>[input_shaper]</code> section to your <code>printer.cfg</code>. Then,
-assuming that you have sliced the ringing model with suggested parameters and
-increased <code>max_accel</code> and <code>max_accel_to_decel</code> parameters in the <code>printer.cfg</code>
-to 7000 already, print the test model 3 times as follows. First time, prior to
-printing, run</p>
+<p>For tuning, add empty <code>[input_shaper]</code> section to your
+<code>printer.cfg</code>. Then, assuming that you have sliced the ringing model
+with suggested parameters, print the test model 3 times as
+follows. First time, prior to printing, run</p>
 <ol>
 <li><code>RESTART</code></li>
-<li><code>SET_PRESSURE_ADVANCE ADVANCE=0</code>.</li>
-<li><code>SET_INPUT_SHAPER SHAPER_TYPE=2HUMP_EI SHAPER_FREQ_X=60 SHAPER_FREQ_Y=60</code>.</li>
-<li><code>TUNING_TOWER COMMAND=SET_VELOCITY_LIMIT PARAMETER=ACCEL START=1250 FACTOR=100 BAND=5</code>.</li>
+<li><code>SET_VELOCITY_LIMIT ACCEL_TO_DECEL=7000</code></li>
+<li><code>SET_PRESSURE_ADVANCE ADVANCE=0</code></li>
+<li><code>SET_INPUT_SHAPER SHAPER_TYPE=2HUMP_EI SHAPER_FREQ_X=60 SHAPER_FREQ_Y=60</code></li>
+<li><code>TUNING_TOWER COMMAND=SET_VELOCITY_LIMIT PARAMETER=ACCEL START=1500 STEP_DELTA=500 STEP_HEIGHT=5</code></li>
 </ol>
 <p>and print the model. Then print the model again, but before printing run instead</p>
 <ol>
-<li><code>SET_INPUT_SHAPER SHAPER_TYPE=2HUMP_EI SHAPER_FREQ_X=50 SHAPER_FREQ_Y=50</code>.</li>
-<li><code>TUNING_TOWER COMMAND=SET_VELOCITY_LIMIT PARAMETER=ACCEL START=1250 FACTOR=100 BAND=5</code>.</li>
+<li><code>SET_INPUT_SHAPER SHAPER_TYPE=2HUMP_EI SHAPER_FREQ_X=50 SHAPER_FREQ_Y=50</code></li>
+<li><code>TUNING_TOWER COMMAND=SET_VELOCITY_LIMIT PARAMETER=ACCEL START=1500 STEP_DELTA=500 STEP_HEIGHT=5</code></li>
 </ol>
 <p>Then print the model for the 3rd time, but now run</p>
 <ol>
-<li><code>SET_INPUT_SHAPER SHAPER_TYPE=2HUMP_EI SHAPER_FREQ_X=40 SHAPER_FREQ_Y=40</code>.</li>
-<li><code>TUNING_TOWER COMMAND=SET_VELOCITY_LIMIT PARAMETER=ACCEL START=1250 FACTOR=100 BAND=5</code>.</li>
+<li><code>SET_INPUT_SHAPER SHAPER_TYPE=2HUMP_EI SHAPER_FREQ_X=40 SHAPER_FREQ_Y=40</code></li>
+<li><code>TUNING_TOWER COMMAND=SET_VELOCITY_LIMIT PARAMETER=ACCEL START=1500 STEP_DELTA=500 STEP_HEIGHT=5</code></li>
 </ol>
 <p>Essentially, we are printing the ringing test model with TUNING_TOWER using
 2HUMP_EI shaper with shaper_freq = 60 Hz, 50 Hz, and 40 Hz.</p>
@@ -1787,8 +1817,8 @@ frequency based on the frequency of 2HUMP_EI shaper you chose:</p>
 </ul>
 <p>Now print the test model one more time, running</p>
 <ol>
-<li><code>SET_INPUT_SHAPER SHAPER_TYPE=EI SHAPER_FREQ_X=... SHAPER_FREQ_Y=...</code>.</li>
-<li><code>TUNING_TOWER COMMAND=SET_VELOCITY_LIMIT PARAMETER=ACCEL START=1250 FACTOR=100 BAND=5</code>.</li>
+<li><code>SET_INPUT_SHAPER SHAPER_TYPE=EI SHAPER_FREQ_X=... SHAPER_FREQ_Y=...</code></li>
+<li><code>TUNING_TOWER COMMAND=SET_VELOCITY_LIMIT PARAMETER=ACCEL START=1500 STEP_DELTA=500 STEP_HEIGHT=5</code></li>
 </ol>
 <p>providing the shaper_freq_x=... and shaper_freq_y=... as determined previously.</p>
 <p>If EI shaper shows very comparable good results as 2HUMP_EI shaper, stick with

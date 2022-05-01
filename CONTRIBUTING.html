@@ -136,6 +136,44 @@
       </form>
     
     
+      <div class="md-header__option">
+        <div class="md-select">
+          
+          <button class="md-header__button md-icon" aria-label="Select language">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16.36 14c.08-.66.14-1.32.14-2 0-.68-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2m-5.15 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95a8.03 8.03 0 0 1-4.33 3.56M14.34 14H9.66c-.1-.66-.16-1.32-.16-2 0-.68.06-1.35.16-2h4.68c.09.65.16 1.32.16 2 0 .68-.07 1.34-.16 2M12 19.96c-.83-1.2-1.5-2.53-1.91-3.96h3.82c-.41 1.43-1.08 2.76-1.91 3.96M8 8H5.08A7.923 7.923 0 0 1 9.4 4.44C8.8 5.55 8.35 6.75 8 8m-2.92 8H8c.35 1.25.8 2.45 1.4 3.56A8.008 8.008 0 0 1 5.08 16m-.82-2C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2 0 .68.06 1.34.14 2M12 4.03c.83 1.2 1.5 2.54 1.91 3.97h-3.82c.41-1.43 1.08-2.77 1.91-3.97M18.92 8h-2.95a15.65 15.65 0 0 0-1.38-3.56c1.84.63 3.37 1.9 4.33 3.56M12 2C6.47 2 2 6.5 2 12a10 10 0 0 0 10 10 10 10 0 0 0 10-10A10 10 0 0 0 12 2z"/></svg>
+          </button>
+          <div class="md-select__inner">
+            <ul class="md-select__list">
+              
+                <li class="md-select__item">
+                  <a href="/" hreflang="en" class="md-select__link">
+                    English
+                  </a>
+                </li>
+                
+                <li class="md-select__item">
+                  <a href="/zh/" hreflang="zh" class="md-select__link">
+                    简体中文
+                  </a>
+                </li>
+                
+                <li class="md-select__item">
+                  <a href="/zh-Hant/" hreflang="zh-Hant" class="md-select__link">
+                    繁體中文
+                  </a>
+                </li>
+                
+                <li class="md-select__item">
+                  <a href="/hu/" hreflang="hu" class="md-select__link">
+                    Magyar
+                  </a>
+                </li>
+                
+            </ul>
+          </div>
+        </div>
+      </div>
+    
     
       <label class="md-header__button md-icon" for="__search">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5z"/></svg>
@@ -1356,6 +1394,52 @@ the submission if needed.</p>
  in progress".</p>
 </li>
 <li>
+<p>Does the submission provide a "high impact" benefit to real-world
+   users performing real-world tasks?</p>
+<p>Reviewers need to identify, at least in their own minds, roughly
+ "who the target audience is", a rough scale of "the size of that
+ audience", the "benefit" they will obtain, how the "benefit is
+ measured", and the "results of those measurement tests". In most
+ cases this will be obvious to both the submitter and the reviewer,
+ and it is not explicitly stated during a review.</p>
+<p>Submissions to the master Klipper branch are expected to have a
+ noteworthy target audience. As a general "rule of thumb",
+ submissions should target a user base of at least a 100 real-world
+ users.</p>
+<p>If a reviewer asks for details on the "benefit" of a submission,
+ please don't consider it criticism. Being able to understand the
+ real-world benefits of a change is a natural part of a review.</p>
+<p>When discussing benefits it is preferable to discuss "facts and
+ measurements". In general, reviewers are not looking for responses
+ of the form "someone may find option X useful", nor are they
+ looking for responses of the form "this submission adds a feature
+ that firmware X implements". Instead, it is generally preferable to
+ discuss details on how the quality improvement was measured and
+ what were the results of those measurements - for example, "tests
+ on Acme X1000 printers show improved corners as seen in picture
+ ...", or for example "print time of real-world object X on a
+ Foomatic X900 printer went from 4 hours to 3.5 hours". It is
+ understood that testing of this type can take significant time and
+ effort. Some of Klipper's most notable features took months of
+ discussion, rework, testing, and documentation prior to being
+ merged into the master branch.</p>
+<p>All new modules, config options, commands, command parameters, and
+ documents should have "high impact". We do not want to burden users
+ with options that they can not reasonably configure nor do we want
+ to burden them with options that don't provide a notable benefit.</p>
+<p>A reviewer may ask for clarification on how a user is to configure
+ an option - an ideal response will contain details on the process -
+ for example, "users of the MegaX500 are expected to set option X to
+ 99.3 while users of the Elite100Y are expected to calibrate option
+ X using procedure ...".</p>
+<p>If the goal of an option is to make the code more modular then
+ prefer using code constants instead of user facing config options.</p>
+<p>New modules, new options, and new parameters should not provide
+ similar functionality to existing modules - if the differences are
+ arbitrary than it's preferable to utilize the existing system or
+ refactor the existing code.</p>
+</li>
+<li>
 <p>Is the copyright of the submission clear, non-gratuitous, and
    compatible?</p>
 <p>New C files and Python files should have an unambiguous copyright
@@ -1417,54 +1501,6 @@ the submission if needed.</p>
 <p>Whitespace changes should not be mixed with functional changes. In
  general, gratuitous whitespace changes are not accepted unless they
  are from the established "owner" of the code being modified.</p>
-</li>
-<li>
-<p>Does the submission provide a "high impact" benefit to real-world
-   users performing real-world tasks?</p>
-<p>Reviewers need to identify, at least in their own minds, roughly
- "who the target audience is", a rough scale of "the size of that
- audience", the "benefit" they will obtain, how the "benefit is
- measured", and the "results of those measurement tests". In most
- cases this will be obvious to both the submitter and the reviewer,
- and it is not explicitly stated during a review.</p>
-<p>Submissions to the master Klipper branch are expected to have a
- noteworthy target audience. As a general "rule of thumb",
- submissions should target a user base of at least a 100 real-world
- users.</p>
-<p>If a reviewer asks for details on the "benefit" of a submission,
- please don't consider it criticism. Being able to understand the
- real-world benefits of a change is a natural part of a review.</p>
-<p>When discussing benefits it is preferable to discuss "facts and
- measurements" instead of "opinions and theories". In general,
- reviewers are not looking for responses of the form "this
- submission may improve quality because of ...", nor are they
- looking for responses of the form "someone may find option X
- useful", nor are they looking for responses of the form "this
- submission adds a feature that firmware X implements". Instead, it
- is generally preferable to discuss details on how the quality
- improvement was measured and what were the results of those
- measurements - for example, "tests on Acme X1000 printers show
- improved corners as seen in picture ...", or for example "print
- time of real-world object X on a Foomatic X900 printer went from 4
- hours to 3.5 hours". It is understood that testing of this type can
- take significant time and effort. Some of Klipper's most notable
- features took years of discussion, rework, testing, and
- documentation prior to being merged into the master branch.</p>
-<p>All new modules, config options, commands, command parameters, and
- documents should have "high impact". We do not want to burden users
- with options that they can not reasonably configure nor do we want
- to burden them with options that don't provide a notable benefit.</p>
-<p>A reviewer may ask for clarification on how a user is to configure
- an option - an ideal response will contain details on the process -
- for example, "users of the MegaX500 are expected to set option X to
- 99.3 while users of the Elite100Y are expected to calibrate option
- X using procedure ...".</p>
-<p>If the goal of an option is to make the code more modular then
- prefer using code constants instead of user facing config options.</p>
-<p>New modules, new options, and new parameters should not provide
- similar functionality to existing modules - if the differences are
- arbitrary than it's preferable to utilize the existing system or
- refactor the existing code.</p>
 </li>
 </ol>
 <p>Klipper does not implement a strict "coding style guide", but
@@ -1590,14 +1626,13 @@ contributions) and contain a current email address.</p>
 <p><a href="https://github.com/Klipper3d/klipper-translations">Klipper-translations Project</a>
 is a project dedicated to translating Klipper to different languages.
 <a href="https://hosted.weblate.org/projects/klipper/">Weblate</a> hosts all the
-Gettext strings for translating and reviewing. Locales can merge into
-the Klipper project once they satisfy the following requirements:</p>
+Gettext strings for translating and reviewing. Locales can be displayed on
+<a href="https://www.klipper3d.org">klipper3d.org</a> once they satisfy the following requirements:</p>
 <ul>
 <li><input disabled="disabled" type="checkbox" /> 75% Total coverage</li>
-<li><input disabled="disabled" type="checkbox" /> All titles (H1) are covered</li>
+<li><input disabled="disabled" type="checkbox" /> All titles (H1) are translated</li>
 <li><input disabled="disabled" type="checkbox" /> An updated navigation hierarchy PR in klipper-translations.</li>
 </ul>
-<p>The navigation hierarchy is in <code>docs\_klipper3d\mkdocs.yml</code>.</p>
 <p>To reduce the frustration of translating domain-specific terms and
 gain awareness of the ongoing translations, you can submit a PR
 modifying the
@@ -1607,17 +1642,20 @@ modification to the Klipper project can be made.</p>
 <p>If a translation already exists in the Klipper repository and no
 longer meets the checklist above, it will be marked out-of-date after
 a month without updates.</p>
-<p>Please follow the following format for <code>mkdocs.yml</code> navigation
-hierarchy:</p>
-<div class="highlight"><pre><span></span><code>nav:
-
-  - existing hierachy
-  - &lt;language&gt;:
-    - locales/&lt;language code&gt;/md file
-</code></pre></div>
-
-<p>Note: Currently, there isn't a method for correctly translating
-pictures in the documentation.</p>
+<p>Once the requirements are met, you need to:</p>
+<ol>
+<li>update klipper-tranlations repository
+<a href="https://github.com/Klipper3d/klipper-translations/blob/translations/active_translations">active_translations</a></li>
+<li>Optional: add a manual-index.md file in klipper-translations repository's
+<code>docs\locals\&lt;lang&gt;</code> folder to replace the language specific index.md (generated
+index.md does not render correctly).</li>
+</ol>
+<p>Known Issues:</p>
+<ol>
+<li>Currently, there isn't a method for correctly translating pictures in
+the documentation</li>
+<li>It is impossible to translate titles in mkdocs.yml.</li>
+</ol>
 
               
             </article>
