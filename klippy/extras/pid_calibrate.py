@@ -135,9 +135,9 @@ class ControlAutoTune:
     def write_file(self, filename):
         pwm = [b"pwm: %.3f %.3f" % (time, value)
                for time, value in self.pwm_samples]
-        out = [b"%.3f %.3f" % (time, temp) for time, temp in self.temp_samples]
-        f = open(filename, "wb")
-        f.write(b'\n'.join(pwm + out))
+        out = ["%.3f %.3f" % (time, temp) for time, temp in self.temp_samples]
+        f = open(filename, "w")
+        f.write('\n'.join(pwm + out))
         f.close()
 
 def load_config(config):
