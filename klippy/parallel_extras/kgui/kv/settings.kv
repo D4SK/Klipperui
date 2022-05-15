@@ -779,7 +779,7 @@
             single: True
             width: root.width
             pos: root.pos
-            on_release: warn_if_printing(root.dismiss)
+            on_release: root.dismiss()
 
 <TimezonePopup>:
     size_hint: 0.94, 0.7
