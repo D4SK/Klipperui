@@ -93,6 +93,8 @@ class PrintJob:
             self.heaters.cmd_TURN_OFF_HEATERS(None)
             self.reactor.pause(self.reactor.monotonic() + 0.05)
             self.heaters.cmd_TURN_OFF_HEATERS(None)
+            if "END_PRINT" in self.gcode.gcode_handlers:
+                self.gcode.run_script("END_PRINT")
             return True
         elif self.state == 'paused': # In case it is paused we need to do all aborting actions here
             self.set_state('aborted')
