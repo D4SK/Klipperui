@@ -9,6 +9,9 @@ import os
 from uuid import uuid4
 
 
+RESTORE_GCODE_POS_SPEED = 100
+
+
 class PrintJob:
     def __init__(self, path, manager, no_material_check):
         self.manager = manager
@@ -77,7 +80,7 @@ class PrintJob:
             self.set_state('printing')
             if "PRINT_RESUME" in self.gcode.gcode_handlers:
                 self.gcode.run_script("PRINT_RESUME")
-            self.gcode.run_script_from_command("RESTORE_GCODE_STATE NAME=PAUSE_STATE MOVE=1")
+            self.gcode.run_script_from_command(f"RESTORE_GCODE_STATE NAME=PAUSE_STATE MOVE=1 SPEED={RESTORE_GCODE_POS_SPEED*60}")
             self.work_timer = self.reactor.register_timer(self.work_handler, self.reactor.NOW)
             return True
 
