@@ -30,7 +30,6 @@
                 {'SettingScreen': "Settings",
                 'ConsoleScreen': "Gcode Console",
                 'WifiScreen': "Wifi",
-                'UpdateScreen': "System Update",
                 "ContinuousPrintingScreen": "Continuous Printing",
                 "MoveScreen": "Move Printhead",
                 "SetupScreen": "Setup"}[screen_man.current]
@@ -60,8 +59,6 @@
                 id: console_screen
             WifiScreen:
                 id: wifi_screen
-            UpdateScreen:
-                id: update_screen
             MoveScreen:
                 id: move_screen
             ContinuousPrintingScreen:
@@ -116,9 +113,6 @@
             SetItem:
                 left_title: "Shutdown..."
                 on_release: Factory.PowerPopup().open()
-            SIUpdate:
-                left_title: "Update"
-                on_release: root.manager.current = "UpdateScreen"
             SetItem:
                 left_title: "Setup"
                 on_release: root.manager.current = "SetupScreen"
@@ -432,55 +426,6 @@
         font_size: p.normal_font
     Divider:
         top: root.y
-
-<UpdateScreen>:
-    name: 'UpdateScreen'
-    canvas.before:
-        Color:
-            rgba: p.background
-        Rectangle:
-            pos: 0, 0
-            size: self.size
-    Label:
-        id: message
-        text: ""
-        font_size: p.large_font
-        size_hint: 1, None
-        text_size: self.size
-        size: p.screen_width, dp(90)
-        halign: 'left'
-        valign: 'bottom' 
-        padding_x: p.padding
-        pos_hint: {'x':0, 'top':1}
-        color: p.light_gray
-    ScrollView:
-        always_overscroll: False
-        size_hint: 1, None
-        height: root.height - message.height
-        pos_hint: {'x': 0, 'y': 0}
-        do_scroll_x: False
-        BoxLayout:
-            id: box
-            orientation: 'vertical'
-            height: self.minimum_height
-            size_hint_y: None
-
-<UpdateDropDown@DropDown>:
-    canvas:
-        Color:
-            rgba: p.drop_down
-        RoundedRectangle:
-            size: root.size
-            pos: root.pos
-            radius: (p.radius,)
-    size_hint: None, None
-    auto_width: False
-    width: dp(300)
-    MIShowAllVersions:
-        width: root.width
-
-<MIShowAllVersions>:
-    title: "Show all Versions"
 
 <XyField>:
     mm: [0, 0, 0]
@@ -904,115 +849,6 @@
             width: root.width/2
             pos: root.center_x, root.y
             on_release: warn_if_printing(lambda: app.reactor.cb(printer_cmd.write_pressure_advance, slider.val, app.extruder_count)), root.dismiss()
-
-<ReleasePopup>:
-    size_hint: 0.94, 0.68
-    title: self.release['tag_name']
-    FloatLayout:
-        id: content
-        ScrollView:
-            id: message_scroll
-            size_hint: 1, None
-            height: content.height - btn_cancel.height
-            pos: content.x, btn_cancel.top
-            do_scroll_x: False
-            Label:
-                text: f"[b]{root.release['name']}[/b] \n \n{root.release['body']}"
-                halign: 'left'
-                valign: 'top'
-                markup: True
-                padding: p.padding, p.small_padding
-                size_hint_y: None
-                text_size: self.width, None
-                height: self.texture_size[1]
-                font_size: p.normal_font
-                color: p.medium_light_gray
-        BtnPCancel:
-            id: btn_cancel
-            width: root.width/2
-            pos: root.pos
-            on_release: root.dismiss()
-        BtnPConfirm:
-            id: btn_update
-            text: "Install"
-            enabled: True
-            width: root.width/2
-            pos: btn_cancel.right, root.y
-            on_release: Factory.DownloadPopup(root.release).open(), root.dismiss()
-
-<DownloadPopup>:
-    size_hint: 0.94, 0.68
-    title: "Downloading " + root.release['tag_name']
-    FloatLayout:
-        Label:
-            text: "Done" if root.updater.download_finished else "{:4.2f} MB".format(root.updater.downloaded_bytes/1000000)
-            size_hint: None, None
-            size: root.width, dp(100)
-            center_y: root.center_y
-            center_x: root.center_x
-            valign: 'top'
-            halign: 'center'
-            font_size: p.large_font
-            color: p.light_gray
-            text_size: self.size
-        BtnPCancel:
-            id: btn_cancel
-            width: root.width/2
-            pos: root.pos
-            on_release: root.dismiss(); root.updater.abort_download = True
-        BtnPConfirm:
-            id: confirm
-            text: "Install"
-            enabled: root.updater.download_finished
-            width: root.width/2
-            pos: root.center_x, root.y
-            on_release: Factory.InstallPopup(root.release).open(), root.dismiss()
-
-<InstallPopup>:
-    size_hint: 0.94, 0.68
-    title: "Install"
-    auto_dismiss: False
-    FloatLayout:
-        id: content
-        ScrollView:
-            id: output_scroll
-            size_hint: 1, None
-            pos_hint: {'x': 0}
-            y: btn_abort.top
-            height: content.height - btn_abort.height
-            do_scroll_x: False
-            Label:
-                id: output_label
-                markup: True
-                halign: 'left'
-                valign: 'top'
-                padding: p.small_padding, p.small_padding
-                text_size: output_scroll.width, None
-                size_hint_y: None
-                width: output_scroll.width
-                pos: output_scroll.pos
-                height: self.texture_size[1]
-                font_size: p.small_font
-                color: p.light_gray
-        BtnPCancel:
-            id: btn_abort
-            text: "Abort"
-            width: root.width
-            pos: root.pos
-            on_release: root.terminate()
-        BtnPCancel:
-            id: btn_cancel
-            text: "Reboot later"
-            width: root.width/2
-            pos: root.x, p.mars
-            on_release: root.dismiss()
-        BtnPConfirm:
-            id: btn_reboot
-            enabled: True
-            text: "Reboot now"
-            width: root.width/2
-            pos: btn_cancel.right, p.mars
-            on_release: app.reboot()
 
 <HostnamePopup>:
     txt_input: hostname_input

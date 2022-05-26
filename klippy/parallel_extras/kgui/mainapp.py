@@ -34,7 +34,7 @@ from .nm_dbus import NetworkManager
 from .status import Notifications
 from . import parameters as p
 # Imports for KvLang Builder
-from . import files, home, settings, status, timeline, update, printer_cmd
+from . import files, home, settings, status, timeline, printer_cmd
 
 
 class MainApp(App, threading.Thread):
