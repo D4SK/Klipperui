@@ -280,7 +280,7 @@
         Color:
             rgba: self.filament_color
         RoundedRectangle:
-            size: self.width*self.filament_amount, self.height
+            size: max(0, self.width*self.filament_amount), self.height
             pos: self.pos
             radius: 
                 [p.radius, \
@@ -293,7 +293,7 @@
             width: 1
             rounded_rectangle: (self.x, self.y, self.width, self.height, p.radius)
         Color:
-            rgba: p.btn_outline if self.filament_amount else (0,0,0,0)
+            rgba: p.btn_outline if self.filament_amount > 0 else (0,0,0,0)
         Line:
             points:
                 self.x + self.filament_amount * self.width, self.y + p.btn_divider_padding, \
