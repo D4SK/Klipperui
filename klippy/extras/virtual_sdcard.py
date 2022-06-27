@@ -32,7 +32,6 @@ class PrintJob:
         self.name, ext = os.path.splitext(os.path.basename(path))
         self.uuid = str(uuid4())
         self.print_end_time = None
-
         try:
             self.md = self.gcode_metadata.get_metadata(self.path)
             self.file_obj = self.md.get_gcode_stream()
