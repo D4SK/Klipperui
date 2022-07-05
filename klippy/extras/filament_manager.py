@@ -21,6 +21,7 @@ class FilamentManager:
 
     def __init__(self, config):
         self.printer = config.get_printer()
+        self.reactor = config.get_reactor()
 
         self.material_condition = config.getchoice("material_condition",
                 {"exact": "exact", "type": "type", "any": "any"}, "any")
