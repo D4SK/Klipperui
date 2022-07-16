@@ -8,5 +8,4 @@ klippy/.version
 desktop.ini
 .vscode/
 *.code-workspace
-*.pyc
 

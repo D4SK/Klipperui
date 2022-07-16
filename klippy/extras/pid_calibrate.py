@@ -133,7 +133,7 @@ class ControlAutoTune:
         return self.calc_pid(midpoint_pos)
     # Offline analysis helper
     def write_file(self, filename):
-        pwm = [b"pwm: %.3f %.3f" % (time, value)
+        pwm = ["pwm: %.3f %.3f" % (time, value)
                for time, value in self.pwm_samples]
         out = ["%.3f %.3f" % (time, temp) for time, temp in self.temp_samples]
         f = open(filename, "w")
