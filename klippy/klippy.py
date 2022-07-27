@@ -134,7 +134,7 @@ class Printer:
         elif exists(parallel_module) or exists(parallel_package):
             # Temporarily used to store args needed to create this process
             self.parallel_queues[section] = multiprocessing.Queue()
-            self.parallel_objects[section] = [config.getsection(section), init_func, module_name]
+            self.parallel_objects[section] = [config.getsection(section), init_func]
             return
         else:
             if default is not configfile.sentinel:
@@ -143,11 +143,11 @@ class Printer:
     def _load_parallel_object(self, section):
         self.parallel_objects[section] = multiprocessing.Process(
             target=self.start_process,
-            args=(*self.parallel_objects[section], self.parallel_queues),
-            name=self.parallel_objects[section][2])
+            args=(*self.parallel_objects[section], section, self.parallel_queues),
+            name=section)
         self.parallel_objects[section].start()
     @staticmethod
-    def start_process(config, init_func, module_name, mp_queues):
+    def start_process(config, init_func, section, mp_queues):
         os.nice(config.getint("nice", 10))
         configfile.main_config = config
         # Delete all loaded klipper modules
@@ -156,9 +156,9 @@ class Printer:
         logging.shutdown()
         importlib.reload(logging)
         # Avoid active imports changing environment - import in target process
-        mod = importlib.import_module('parallel_extras.' + module_name)
+        mod = importlib.import_module('parallel_extras.' + section.split()[0])
         init_func = getattr(mod, init_func, None)
-        config.reactor = reactor.Reactor(process=module_name, gc_checking=True)
+        config.reactor = reactor.Reactor(process=section, gc_checking=True)
         config.printer.reactor = config.reactor
         def start(e):
             config.reactor.setup_mp_queues(mp_queues)
@@ -195,9 +195,9 @@ class Printer:
 
         # Wait for config access_tracking to be reported back
         for section, completion in self.parallel_access_completion.items():
-            access_tracking = completion.wait(waketime=self.reactor.monotonic() + 10)
+            access_tracking = completion.wait(waketime=self.reactor.monotonic() + 20)
             if access_tracking is None:
-                raise TimeoutError(f"{section} Did not return access tracking within 10 seconds!")
+                raise TimeoutError(f"{section} Did not return access tracking within 20 seconds!")
             else:
                 config.access_tracking.update(access_tracking)
 

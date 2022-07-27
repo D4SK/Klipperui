@@ -1,6 +1,5 @@
 out
 *.so
-*.pyc
 .config
 .config.old
 klippy/.version
@@ -8,4 +7,3 @@ klippy/.version
 desktop.ini
 .vscode/
 *.code-workspace
-
