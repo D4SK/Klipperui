@@ -46,6 +46,7 @@ if __name__ == "__main__":
             config.getsection("filament_manager"))
     md = mm.get_metadata(path)
     general_interface = [
+        "get_path",
         "get_gcode_stream",
         "get_file_size",
         "get_slicer",

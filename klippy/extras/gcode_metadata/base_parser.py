@@ -64,6 +64,9 @@ class BaseParser:
                 non_option_lines.append(l)
         return options, non_option_lines
 
+    def get_path(self):
+        return self.path
+
     def get_gcode_stream(self):
         """Return a file object containing the G-Code data"""
         return open(self.path, "rb")

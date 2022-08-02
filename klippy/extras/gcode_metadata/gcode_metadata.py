@@ -7,21 +7,14 @@ Using this module in an extra process works mostly like in the main printer
 process. Obtaining the module is done through printer.load_object(). The module
 returned when doing that outside of the main process is slightly different
 and any calls to get_metadata() get delegated to the main process so that all
-processes can utilize the same cache.
+processes can utilize the same cache. Additionally the module in extra processes
+uses a local cache to minimize inter-process communication.
 
 The returned metadata object is picklable and all of its methods are called
 locally. The filament_manager calls are handled specially by MPMetadata.
-
-Other module functions, like flush_cache() must be executed in the main process.
-
-Example:
-
-
-    md = reactor.cb(obtain_md, path, wait=True)
-    time = md.get_time()
-
 """
 
+import logging
 import os
 
 from .ufp_reader import create_ufp_reader
@@ -42,6 +35,7 @@ class GCodeMetadata:
 
         self.filament_manager = None
         self.config = config
+        self.reactor = config.reactor
         self.printer = config.get_printer()
         self.printer.register_event_handler(
                 "klippy:connect", self._handle_connect)
@@ -61,6 +55,8 @@ class GCodeMetadata:
         """Delete a single metadata object from the cache"""
         if path in self._md_cache:
             del self._md_cache[path]
+            logging.debug("Deleted %s from metadata cache", path)
+            self.reactor.send_event("gcode_metadata:invalidate_cache", path)
 
     def flush_cache(self):
         """
@@ -68,6 +64,8 @@ class GCodeMetadata:
         reparsed in the future.
         """
         self._md_cache.clear()
+        logging.debug("Deleted metadata cache")
+        self.reactor.send_event("gcode_metadata:invalidate_cache")
 
     def get_metadata(self, path):
         """
@@ -184,25 +182,61 @@ class MPMetadata:
     """
 
     def __init__(self, config):
+        # Map paths to metadata objects to cache already parsed files for this
+        # process specifically
+        self._md_cache = {}
+
         self.reactor = config.reactor
+        self.reactor.register_event_handler("gcode_metadata:invalidate_cache",
+                self.flush_local_cache)
+
+    def flush_local_cache(self, path=None):
+        if path is not None:
+            try:
+                del self._md_cache[path]
+            except KeyError:
+                pass
+        else:
+            self._md_cache.clear()
 
     def get_metadata(self, path):
-        ret = self.reactor.cb(self.obtain_md, path, wait=True)
-        return ret
+        if path in self._md_cache:
+            return self._md_cache[path]
+        md = self.reactor.cb(self._obtain_md, path, wait=True)
+        self._md_cache[path] = md
+        return md
 
     @staticmethod
-    def obtain_md(e, printer, path):
+    def _obtain_md(e, printer, path):
         gcode_metadata = printer.lookup_object('gcode_metadata')
         return gcode_metadata.get_metadata(path)
 
     def get_material_info(self, material, xpath):
-        self.reactor.cb(self.obtain_material_info, material, xpath, wait=True)
-
+        self.reactor.cb(self._obtain_material_info, material, xpath, wait=True)
     @staticmethod
-    def obtain_material_info(e, printer, material, xpath):
+    def _obtain_material_info(e, printer, material, xpath):
         fm = printer.lookup_object('filament_manager', None)
         if fm:
             return fm.get_info(material, xpath)
+
+    # The following functions operate on the cache in the main process
+    # The local cache is updated immediately as well instead of waiting for the
+    # event, which gets handled later as well.
+    def delete_cache_entry(self, path):
+        self.reactor.cb(self._delete_cache_entry, path)
+        self.flush_local_cache(path)
+    @staticmethod
+    def _delete_cache_entry(e, printer, path):
+        gcode_metadata = printer.lookup_object('gcode_metadata')
+        gcode_metadata.delete_cache_entry(path)
+
+    def flush_cache(self):
+        self.reactor.cb(self._flush_cache)
+        self.flush_local_cache()
+    @staticmethod
+    def _flush_cache(e, printer):
+        gcode_metadata = printer.lookup_object('gcode_metadata')
+        gcode_metadata.flush_cache()
 
 
 def load_config(config):

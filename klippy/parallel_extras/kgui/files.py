@@ -1,3 +1,4 @@
+import logging
 import os
 from math import log10
 
@@ -75,13 +76,6 @@ class Filechooser(RecycleView):
                     ext = os.path.splitext(base)[1]
                     if ext in {'.gco', '.gcode', '.ufp'}:
                         dict_['item_type'] = "file"
-                        if self.app.gcode_metadata:
-                            md = self.app.gcode_metadata.get_metadata(path)
-                            weight = md.get_material_amount(measure="weight")
-                            if weight is not None:
-                                precision = max(1-int(log10(weight)), 0)
-                                dict_['details'] = f"{weight:.{precision}f}g"
-                            dict_['thumbnail'] = md.get_thumbnail_path()
                         files.append(dict_)
                 # USB Stick
                 elif base == p.usb_mount_dir:
@@ -128,7 +122,37 @@ class FilechooserItem(RecycleDataViewBehavior, Label):
     def refresh_view_attrs(self, rv, index, data):
         # Catch and handle the view changes
         self.index = index
-        return super().refresh_view_attrs(rv, index, data)
+        super().refresh_view_attrs(rv, index, data)
+        app = App.get_running_app()
+        gcmd = app.gcode_metadata
+        if gcmd:
+            path = data['path']
+            if path in gcmd._md_cache:
+                # Use cached metadata directly
+                self.update_md(gcmd._md_cache[path])
+            else:
+                # Get metadata from printer process, update when ready
+                app.reactor.cb(gcmd._obtain_md, data['path'],
+                               completion=self._update_md)
+
+    def _update_md(self, md):
+        """Move call from reactor thread to kivy thread.
+        Calling the update from the reactor thread leads to inconsistent states
+        within the widgets"""
+        Clock.schedule_once(lambda e: self.update_md(md))
+
+    def update_md(self, md):
+        """Set thumbnail and details once metadata has been generated"""
+        path = md.get_path()
+        # Add metadata to process-local cache
+        App.get_running_app().gcode_metadata._md_cache[path] = md
+        # Don't proceed if this widget already points to a different file
+        if path == self.path:
+            weight = md.get_material_amount(measure="weight")
+            if weight is not None:
+                precision = max(1-int(log10(weight)), 0)
+                self.details = f"{weight:.{precision}f}g"
+            self.thumbnail = md.get_thumbnail_path()
 
     def on_touch_down(self, touch):
         # Add selection on touch down

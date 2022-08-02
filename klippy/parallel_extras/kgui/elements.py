@@ -1,3 +1,4 @@
+import logging
 import shutil
 from os.path import join, basename
 from os import remove
@@ -221,7 +222,7 @@ class DeletePopup(BasePopup):
         remove(self.path)
         app = App.get_running_app()
         # Update the filechooser and print_history
-        app.reactor.cb(app.trim_history)
+        app.reactor.cb(printer_cmd.trim_history)
         if self.filechooser:
             self.filechooser.load_files(in_background=True)
         # Clear file form the metadata cache

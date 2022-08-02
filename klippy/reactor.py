@@ -19,11 +19,13 @@ class ReactorTimer:
 
 class ReactorCompletion:
     class sentinel: pass
-    def __init__(self, reactor):
+    def __init__(self, reactor, callback=None):
         self.reactor = reactor
         self.result = self.sentinel
         self.waiting = []
         self.foreign_thread = False
+        # Function to run when completed
+        self.callback = callback
     def test(self):
         return self.result is not self.sentinel
     def complete(self, result):
@@ -31,6 +33,8 @@ class ReactorCompletion:
         if not self.foreign_thread:
             for wait in self.waiting:
                 self.reactor.update_timer(wait.timer, self.reactor.NOW)
+        if self.callback:
+            self.callback(result)
     def wait(self, waketime=_NEVER, waketime_result=None):
         if threading.get_ident() != self.reactor.thread_id:
             self.foreign_thread = True
@@ -210,7 +214,9 @@ class SelectReactor:
         if wait or completion:
             waiting_process = self.process_name
             waketime = self.monotonic() # This gives unique reference to completion
-            mp_completion = ReactorCompletion(self)
+            # If completion is a function, schedule it to run
+            on_complete = completion if callable(completion) else None
+            mp_completion = ReactorCompletion(self, callback=on_complete)
             self._mp_completions[(callback.__name__, waketime, process)] = mp_completion
         self.mp_queues[process].put_nowait((callback, waketime,
                 waiting_process, execute_in_reactor, args, kwargs))
