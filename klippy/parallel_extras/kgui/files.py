@@ -129,20 +129,16 @@ class FilechooserItem(RecycleDataViewBehavior, Label):
             path = data['path']
             if path in gcmd._md_cache:
                 # Use cached metadata directly
-                self.update_md(gcmd._md_cache[path])
+                self.update_md(md=gcmd._md_cache[path])
             else:
                 # Get metadata from printer process, update when ready
                 app.reactor.cb(gcmd._obtain_md, data['path'],
-                               completion=self._update_md)
+                               completion=self.update_md)
 
-    def _update_md(self, md):
-        """Move call from reactor thread to kivy thread.
-        Calling the update from the reactor thread leads to inconsistent states
-        within the widgets"""
-        Clock.schedule_once(lambda e: self.update_md(md))
-
-    def update_md(self, md):
-        """Set thumbnail and details once metadata has been generated"""
+    def update_md(self, waketime=0, kgui=None, md=None):
+        """Set thumbnail and details once metadata has been generated
+        The arguments waketime and kgui are provided by mainapp.kivy_callback,
+        but are not used"""
         path = md.get_path()
         # Add metadata to process-local cache
         App.get_running_app().gcode_metadata._md_cache[path] = md

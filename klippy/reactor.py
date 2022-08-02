@@ -34,7 +34,8 @@ class ReactorCompletion:
             for wait in self.waiting:
                 self.reactor.update_timer(wait.timer, self.reactor.NOW)
         if self.callback:
-            self.callback(result)
+            self.reactor._mp_callback_handler(self.reactor, self.callback,
+                                              _NOW, None, result)
     def wait(self, waketime=_NEVER, waketime_result=None):
         if threading.get_ident() != self.reactor.thread_id:
             self.foreign_thread = True
