@@ -8,6 +8,7 @@ import greenlet
 import chelper, util
 import threading
 
+
 _NOW = 0.
 _NEVER = 9999999999999999.
 
@@ -26,10 +27,13 @@ class ReactorCompletion:
         self.foreign_thread = False
         # Function to run when completed
         self.callback = callback
+        self.condition = threading.Condition()
     def test(self):
         return self.result is not self.sentinel
     def complete(self, result):
-        self.result = result
+        with self.condition:
+            self.result = result
+            self.condition.notify_all()
         if not self.foreign_thread:
             for wait in self.waiting:
                 self.reactor.update_timer(wait.timer, self.reactor.NOW)
@@ -39,15 +43,19 @@ class ReactorCompletion:
     def wait(self, waketime=_NEVER, waketime_result=None):
         if threading.get_ident() != self.reactor.thread_id:
             self.foreign_thread = True
-            while self.result is self.sentinel:
-                time.sleep(0.01)
-        elif self.result is self.sentinel:
-            wait = greenlet.getcurrent()
-            self.waiting.append(wait)
-            self.reactor.pause(waketime)
-            self.waiting.remove(wait)
+            with self.condition:
+                if self.result is self.sentinel:
+                    timeout = (None if waketime == _NEVER
+                               else waketime - self.reactor.monotonic())
+                    self.condition.wait(timeout)
+        else:
             if self.result is self.sentinel:
-                return waketime_result
+                wait = greenlet.getcurrent()
+                self.waiting.append(wait)
+                self.reactor.pause(waketime)
+                self.waiting.remove(wait)
+        if self.result is self.sentinel:
+            return waketime_result
         return self.result
 
 class ReactorCallback:
