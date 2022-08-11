@@ -271,6 +271,37 @@ class MainApp(App, threading.Thread):
     def reboot(self):
         Popen(['sudo','systemctl', 'reboot'])
 
+    def benchmark(self):
+        logging.info("Running IPC benchmarks...")
+        timefunc = self.reactor.monotonic
+
+        sendt = []
+        proct = []
+        backt = []
+
+        for i in range(100):
+            start = timefunc()
+            now = self.reactor.monotonic()
+            etime, rtime = self.reactor.cb(printer_cmd.ipc_benchmark, wait=True)
+            end = timefunc()
+
+            sendt.append((etime-start)*1000)
+            proct.append((rtime-etime)*1000)
+            backt.append((end - rtime)*1000)
+
+        zipped = list(zip(sendt, proct, backt))
+        logging.info(zipped)
+        avg = [sum(sendt)/len(sendt),
+               sum(proct)/len(proct),
+               sum(backt)/len(backt)]
+        logging.info("Average times:")
+        logging.info(avg)
+        sums = [sum(e) for e in zipped]
+        logging.info("Total run times:")
+        logging.info(sums)
+        logging.info("Average total run time:")
+        logging.info(sum(avg))
+
 
 def run_callback(reactor, callback, waketime, waiting_process, *args, **kwargs):
     res = callback(reactor.monotonic(), reactor.root, *args, **kwargs)

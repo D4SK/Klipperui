@@ -358,3 +358,6 @@ def set_config(e, printer, section, key, value):
     configfile = printer.lookup_object('configfile')
     configfile.set(section, key, value)
     configfile.save_config(restart=False)
+
+def ipc_benchmark(e, printer):
+    return e, printer.reactor.monotonic()
