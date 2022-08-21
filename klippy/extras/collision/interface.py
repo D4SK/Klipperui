@@ -89,11 +89,14 @@ class CollisionInterface:
 
         printjob can be either a PrintJob object or metadata object.
         """
-        object_queue = [self.printjob_to_cuboid(pj) for pj in queue]
-        if isinstance(printjob, PrintJob):
-            cuboid = self.printjob_to_cuboid(printjob)
-        else:
-            cuboid = self.metadata_to_cuboid(printjob)
+        try:
+            object_queue = [self.printjob_to_cuboid(pj) for pj in queue]
+            if isinstance(printjob, PrintJob):
+                cuboid = self.printjob_to_cuboid(printjob)
+            else:
+                cuboid = self.metadata_to_cuboid(printjob)
+        except MissingMetadataError:
+            return False
         predict_collision = self.collision.replicate_with_objects(object_queue)
         available = not predict_collision.object_collides(cuboid)
         if not available and self.reposition:
