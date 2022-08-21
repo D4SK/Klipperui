@@ -7,6 +7,7 @@ import os, gc, select, math, time, logging, queue
 import greenlet
 import chelper, util
 import threading
+import uuid
 
 
 _NOW = 0.
@@ -39,7 +40,7 @@ class ReactorCompletion:
                 self.reactor.update_timer(wait.timer, self.reactor.NOW)
         if self.callback:
             self.reactor._mp_callback_handler(self.reactor, self.callback,
-                                              _NOW, None, result)
+                                              None, None, result)
     def wait(self, waketime=_NEVER, waketime_result=None):
         if threading.get_ident() != self.reactor.thread_id:
             self.foreign_thread = True
@@ -72,21 +73,19 @@ class ReactorCallback:
         self.completion.complete(res)
         return self.reactor.NEVER
 
-def mp_callback(reactor, callback, waketime, *args, **kwargs):
+def mp_callback(reactor, callback, *args, **kwargs):
     if threading.get_ident() == reactor.thread_id:
         # Most of the time this will be called from the reactor thread,
         # avoid the overhead of register_async_callback in that case.
-        ReactorCallback(reactor, run_mp_callback, waketime,
-                reactor, callback, waketime, *args, **kwargs)
+        run_mp_callback(reactor.monotonic(), reactor, callback, *args, **kwargs)
     else:
         reactor.register_async_callback(run_mp_callback,
-                reactor, callback, *args, waketime=waketime, **kwargs)
+                reactor, callback, *args, **kwargs)
 
-def run_mp_callback(e, reactor, callback, waketime, waiting_process, *args, **kwargs):
+def run_mp_callback(e, reactor, callback, completion_id, waiting_process, *args, **kwargs):
     res = callback(e, reactor.root, *args, **kwargs)
     if waiting_process:
-        reactor.cb(reactor.mp_complete,
-            (callback.__name__, waketime, reactor.process_name), res,
+        reactor.cb(reactor.mp_complete, completion_id, res,
             process=waiting_process, execute_in_reactor=True)
 
 class ReactorFileHandler:
@@ -223,17 +222,17 @@ class SelectReactor:
         rcb = ReactorCallback(self, callback, waketime)
         return rcb.completion
     # Multiprocessing (from another process) callbacks and completions
-    def cb(self, callback, *args, waketime=NOW, process='printer',
+    def cb(self, callback, *args, process='printer',
            wait=False, completion=False, execute_in_reactor=False, **kwargs):
-        waiting_process = None
+        completion_id = waiting_process = None
         if wait or completion:
             waiting_process = self.process_name
-            waketime = self.monotonic() # This gives unique reference to completion
+            completion_id = uuid.uuid4()
             # If completion is a function, schedule it to run
             on_complete = completion if callable(completion) else None
             mp_completion = ReactorCompletion(self, callback=on_complete)
-            self._mp_completions[(callback.__name__, waketime, process)] = mp_completion
-        self.mp_queues[process].put((callback, waketime,
+            self._mp_completions[completion_id] = mp_completion
+        self.mp_queues[process].put((callback, completion_id,
                 waiting_process, execute_in_reactor, args, kwargs))
         if wait:
             return mp_completion.wait()
@@ -241,7 +240,8 @@ class SelectReactor:
             return mp_completion
     @staticmethod
     def mp_complete(e, root, reference, result):
-        root.reactor.async_complete(root.reactor._mp_completions.pop(reference), result)
+        completion = root.reactor._mp_completions.pop(reference)
+        completion.complete(result)
     # Asynchronous (from another thread) callbacks and completions
     def register_async_callback(self, callback, *args, waketime=NOW, **kwargs):
         self._async_queue.put_nowait((ReactorCallback, (self, callback, waketime, *args), kwargs))
@@ -339,11 +339,11 @@ class SelectReactor:
             self.finalize()
     def _handle_mp_msg(self, eventtime):
         try:
-            cb, waketime, waiting_process, execute_in_reactor, args, kwargs = self.mp_queue.get_nowait()
+            cb, completion_id, waiting_process, execute_in_reactor, args, kwargs = self.mp_queue.get_nowait()
         except queue.Empty:
             return
         handler = mp_callback if execute_in_reactor else self._mp_callback_handler
-        handler(self, cb, waketime, waiting_process, *args, **kwargs)
+        handler(self, cb, completion_id, waiting_process, *args, **kwargs)
     def run(self):
         if self._async_pipe is None:
             self._setup_async_callbacks()

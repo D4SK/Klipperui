@@ -272,11 +272,11 @@ class MainApp(App, threading.Thread):
         Popen(['sudo','systemctl', 'reboot'])
 
 
-def run_callback(reactor, callback, waketime, waiting_process, *args, **kwargs):
+def run_callback(reactor, callback, completion_id, waiting_process, *args, **kwargs):
     res = callback(reactor.monotonic(), reactor.root, *args, **kwargs)
     if waiting_process:
-        reactor.cb(reactor.mp_complete, (callback.__name__, waketime, "kgui"),
-                res, process=waiting_process, execute_in_reactor=True)
+        reactor.cb(reactor.mp_complete, completion_id, res,
+                   process=waiting_process, execute_in_reactor=True)
 
 def kivy_callback(*args, **kwargs):
     Clock.schedule_del_safe(lambda: run_callback(*args, **kwargs))
