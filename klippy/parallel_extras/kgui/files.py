@@ -133,7 +133,7 @@ class FilechooserItem(RecycleDataViewBehavior, Label):
             else:
                 # Get metadata from printer process, update when ready
                 app.reactor.cb(gcmd._obtain_md, data['path'],
-                               completion=self.update_md)
+                               completion=self.update_md, process='gcode_metadata')
 
     def update_md(self, waketime=0, kgui=None, md=None):
         """Set thumbnail and details once metadata has been generated

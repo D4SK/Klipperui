@@ -36,6 +36,7 @@ class PrintJob:
             self.md = self.gcode_metadata.get_metadata(self.path)
             self.file_obj = self.md.get_gcode_stream()
             self.file_size = self.md.get_file_size()
+            logging.info(self.md.get_material_color())
         except (ValueError, FileNotFoundError) as e:
             self.reactor.send_event("klippy:error", f"Failed opening file {self.path}")
             logging.exception(f"Failed opening {ext} file: {e}")
@@ -185,7 +186,8 @@ class PrintJobManager:
         self.printer = config.get_printer()
         self.reactor = self.printer.get_reactor()
         self.gcode = self.printer.lookup_object('gcode')
-        self.gcode_metadata = self.printer.load_object(config, 'gcode_metadata')
+        self.printer.load_object(config, 'gcode_metadata')
+        self.gcode_metadata = self.printer.load_object(config, 'metadata_local')
         self.printer.load_object(config, 'print_stats')
         self.printer.register_event_handler("klippy:ready", self.handle_ready)
         self.printer.register_event_handler("klippy:shutdown", self.handle_shutdown)

@@ -149,7 +149,6 @@ class Printer:
     @staticmethod
     def start_process(config, init_func, section, mp_queues):
         os.nice(config.getint("nice", 10))
-        configfile.main_config = config
         # Delete all loaded klipper modules
         config.printer.objects.clear()
         # Reset logging module so that all processes can use the root logger
@@ -179,6 +178,7 @@ class Printer:
     def _read_config(self):
         self.objects['configfile'] = pconfig = configfile.PrinterConfig(self)
         config = pconfig.read_main_config()
+        configfile.main_config = config
         if self.bglogger is not None:
             pconfig.log_config(config)
         # Create printer components

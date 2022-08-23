@@ -97,7 +97,7 @@ class MainApp(App, threading.Thread):
         logging.info("Kivy app initializing...")
         self.network_manager = NetworkManager()
         self.notify = Notifications()
-        self.gcode_metadata = config.get_printer().load_object(config, "gcode_metadata")
+        self.gcode_metadata = config.get_printer().load_object(config, "metadata_local")
         self.temp = {'extruder': [0,0], 'extruder1': [0,0], 'heater_bed': [0,0]}
         self.kv_file = join(p.kgui_dir, "kv/main.kv") # Tell kivy where the root kv file is
 
@@ -291,8 +291,8 @@ class PopupExceptionHandler(ExceptionHandler):
             return ExceptionManager.PASS
 
 def handle_exception_in_thread(exception):
-    App.get_running_app().handle_critical_error(str(exception.exc_value))
     logging.exception("Thread-Exception, popup invoked \n\n" + str(exception.exc_value))
+    App.get_running_app().handle_critical_error(str(exception.exc_value))
 
 ExceptionManager.add_handler(PopupExceptionHandler())
 threading.excepthook = handle_exception_in_thread

@@ -115,26 +115,35 @@ class _UFPReader(metaclass=_UFPMetaClass):
         In case a material file isn't present yet on this system, it gets
         extracted and added to the filament manager.
         """
-        fm = self._module.filament_manager
-        if fm is None:
-            return
         material_paths = [e["Target"] for e in self._relationships
                           if e["Type"] == self._material_relationship_type]
+        self._material_guids = self._module.reactor.cb(
+                self._delegate_extract_materials, material_paths, zip_obj,
+                wait=True)
+    
+    @staticmethod
+    def _delegate_extract_materials(e, printer, material_paths, zip_obj):
+        #TODO: DOES NOT WORK: ZIP_OBJ IS NOT PICKLABLE
+        guids = []
+        fm = printer.lookup_object('filament_manager', None)
+        if fm is None:
+            return guids
+
         for material in material_paths:
-            material_file = zip_obj.open(material)
-            guid = fm.get_info(material_file, "./m:metadata/m:GUID")
-            material_file.seek(0)
-            version = fm.get_info(material_file, "./m:metadata/m:version")
-            if not (guid in fm.guid_to_path and
-                    version == fm.get_info(guid, "./m:metadata/m:version")):
-                # New material, needs to be extracted
-                new_material_path = os.path.join(fm.material_dir, os.path.basename(material))
+            with zip_obj.open(material) as material_file:
+                guid = fm.get_info(material_file, "./m:metadata/m:GUID")
                 material_file.seek(0)
-                with open(new_material_path, "wb") as fp:
-                    fp.write(material_file.read())
-                fm.read_single_file(new_material_path)
-            material_file.close()
-            self._material_guids.append(guid)
+                version = fm.get_info(material_file, "./m:metadata/m:version")
+                if not (guid in fm.guid_to_path and
+                        version == fm.get_info(guid, "./m:metadata/m:version")):
+                    # New material, needs to be extracted
+                    new_material_path = os.path.join(fm.material_dir, os.path.basename(material))
+                    material_file.seek(0)
+                    with open(new_material_path, "wb") as fp:
+                        fp.write(material_file.read())
+                    fm.read_single_file(new_material_path)
+            guids.append(guid)
+        return guids
 
     def get_filetype(self):
         return "ufp"
@@ -191,9 +200,11 @@ class _UFPReader(metaclass=_UFPMetaClass):
 
     @staticmethod
     def _restore_pickled(ParserClass):
-        from .gcode_metadata import MPMetadata
         from klippy import get_main_config
         UFPParserClass = _UFPReader.add_baseclass(ParserClass)
         ufp_parser = object.__new__(UFPParserClass)
-        ufp_parser._module = MPMetadata(get_main_config())
+        # Reattach to local metadata module
+        config = get_main_config()
+        printer = config.get_printer()
+        ufp_parser._module = printer.load_object(config, 'metadata_local')
         return ufp_parser
