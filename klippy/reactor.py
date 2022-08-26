@@ -7,6 +7,8 @@ import os, gc, select, math, time, logging, queue
 import greenlet
 import chelper, util
 import threading
+import uuid
+
 
 _NOW = 0.
 _NEVER = 9999999999999999.
@@ -26,28 +28,35 @@ class ReactorCompletion:
         self.foreign_thread = False
         # Function to run when completed
         self.callback = callback
+        self.condition = threading.Condition()
     def test(self):
         return self.result is not self.sentinel
     def complete(self, result):
-        self.result = result
+        with self.condition:
+            self.result = result
+            self.condition.notify_all()
         if not self.foreign_thread:
             for wait in self.waiting:
                 self.reactor.update_timer(wait.timer, self.reactor.NOW)
         if self.callback:
             self.reactor._mp_callback_handler(self.reactor, self.callback,
-                                              _NOW, None, result)
+                                              None, None, result)
     def wait(self, waketime=_NEVER, waketime_result=None):
         if threading.get_ident() != self.reactor.thread_id:
             self.foreign_thread = True
-            while self.result is self.sentinel:
-                time.sleep(0.01)
-        elif self.result is self.sentinel:
-            wait = greenlet.getcurrent()
-            self.waiting.append(wait)
-            self.reactor.pause(waketime)
-            self.waiting.remove(wait)
+            with self.condition:
+                if self.result is self.sentinel:
+                    timeout = (None if waketime == _NEVER
+                               else waketime - self.reactor.monotonic())
+                    self.condition.wait(timeout)
+        else:
             if self.result is self.sentinel:
-                return waketime_result
+                wait = greenlet.getcurrent()
+                self.waiting.append(wait)
+                self.reactor.pause(waketime)
+                self.waiting.remove(wait)
+        if self.result is self.sentinel:
+            return waketime_result
         return self.result
 
 class ReactorCallback:
@@ -64,14 +73,19 @@ class ReactorCallback:
         self.completion.complete(res)
         return self.reactor.NEVER
 
-def mp_callback(reactor, *args, **kwargs):
-    reactor.register_async_callback(run_mp_callback, reactor, *args, **kwargs)
+def mp_callback(reactor, callback, *args, **kwargs):
+    if threading.get_ident() == reactor.thread_id:
+        # Most of the time this will be called from the reactor thread,
+        # avoid the overhead of register_async_callback in that case.
+        run_mp_callback(reactor.monotonic(), reactor, callback, *args, **kwargs)
+    else:
+        reactor.register_async_callback(run_mp_callback,
+                reactor, callback, *args, **kwargs)
 
-def run_mp_callback(e, reactor, callback, waketime, waiting_process, *args, **kwargs):
+def run_mp_callback(e, reactor, callback, completion_id, waiting_process, *args, **kwargs):
     res = callback(e, reactor.root, *args, **kwargs)
     if waiting_process:
-        reactor.cb(reactor.mp_complete,
-            (callback.__name__, waketime, reactor.process_name), res,
+        reactor.cb(reactor.mp_complete, completion_id, res,
             process=waiting_process, execute_in_reactor=True)
 
 class ReactorFileHandler:
@@ -154,8 +168,7 @@ class SelectReactor:
         mp_queues = queues.copy()
         self.mp_queue = mp_queues.pop(self.process_name)
         self.mp_queues = mp_queues
-        self._mp_dispatch_thread = threading.Thread(target=self._mp_dispatch_loop)
-        self._mp_dispatch_thread.start()
+        self.register_fd(self.mp_queue._reader.fileno(), self._handle_mp_msg)
     def get_gc_stats(self):
         return tuple(self._last_gc_times)
     # Timers
@@ -209,17 +222,17 @@ class SelectReactor:
         rcb = ReactorCallback(self, callback, waketime)
         return rcb.completion
     # Multiprocessing (from another process) callbacks and completions
-    def cb(self, callback, *args, waketime=NOW, process='printer',
+    def cb(self, callback, *args, process='printer',
            wait=False, completion=False, execute_in_reactor=False, **kwargs):
-        waiting_process = None
+        completion_id = waiting_process = None
         if wait or completion:
             waiting_process = self.process_name
-            waketime = self.monotonic() # This gives unique reference to completion
+            completion_id = uuid.uuid4()
             # If completion is a function, schedule it to run
             on_complete = completion if callable(completion) else None
             mp_completion = ReactorCompletion(self, callback=on_complete)
-            self._mp_completions[(callback.__name__, waketime, process)] = mp_completion
-        self.mp_queues[process].put_nowait((callback, waketime,
+            self._mp_completions[completion_id] = mp_completion
+        self.mp_queues[process].put((callback, completion_id,
                 waiting_process, execute_in_reactor, args, kwargs))
         if wait:
             return mp_completion.wait()
@@ -227,7 +240,8 @@ class SelectReactor:
             return mp_completion
     @staticmethod
     def mp_complete(e, root, reference, result):
-        root.reactor.async_complete(root.reactor._mp_completions.pop(reference), result)
+        completion = root.reactor._mp_completions.pop(reference)
+        completion.complete(result)
     # Asynchronous (from another thread) callbacks and completions
     def register_async_callback(self, callback, *args, waketime=NOW, **kwargs):
         self._async_queue.put_nowait((ReactorCallback, (self, callback, waketime, *args), kwargs))
@@ -323,11 +337,13 @@ class SelectReactor:
         self._g_dispatch = None
         if self.process_name != 'printer':
             self.finalize()
-    def _mp_dispatch_loop(self):
-        while self._process:
-            cb, waketime, waiting_process, execute_in_reactor, args, kwargs = self.mp_queue.get()
-            handler = mp_callback if execute_in_reactor else self._mp_callback_handler
-            handler(self, cb, waketime, waiting_process, *args, **kwargs)
+    def _handle_mp_msg(self, eventtime):
+        try:
+            cb, completion_id, waiting_process, execute_in_reactor, args, kwargs = self.mp_queue.get_nowait()
+        except queue.Empty:
+            return
+        handler = mp_callback if execute_in_reactor else self._mp_callback_handler
+        handler(self, cb, completion_id, waiting_process, *args, **kwargs)
     def run(self):
         if self._async_pipe is None:
             self._setup_async_callbacks()
@@ -340,9 +356,6 @@ class SelectReactor:
     def finalize(self):
         self._g_dispatch = None
         self._greenlets = []
-        if self.mp_queue is not None:
-            self.mp_queue.put_nowait((self.run_event, self.NOW, None, False, ("trigger_mp_dispatch", []), {}))
-            self._mp_dispatch_thread.join()
         if self._async_pipe is not None:
             os.close(self._async_pipe[0])
             os.close(self._async_pipe[1])
