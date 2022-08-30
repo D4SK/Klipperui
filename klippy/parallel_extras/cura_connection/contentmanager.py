@@ -19,7 +19,7 @@ class ContentManager:
             firmware_version=self.module.VERSION,
             friendly_name=self.module.NAME, # hostname
             ip_address=self.module.ADDRESS,
-            machine_variant="Ultimaker 3",
+            machine_variant=module.machine_variant,
             # One of: idle, printing, error, maintenance, booting
             status="idle",
             unique_name=self.get_mac_address(),
@@ -61,7 +61,7 @@ class ContentManager:
         return ClusterPrintJobStatus(
             created_at=self.get_time_str(),
             force=False,
-            machine_variant="Ultimaker 3",
+            machine_variant=self.module.machine_variant,
             name=os.path.basename(klippy_pj.path),
             started=False,
             # One of: wait_cleanup, finished, sent_to_printer, pre_print,

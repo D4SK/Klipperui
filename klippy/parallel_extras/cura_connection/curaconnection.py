@@ -42,6 +42,7 @@ class CuraConnectionModule:
         self.ADDRESS = None
 
         self.bom_number = config.get('bom_number', "213482") # Use Ultimaker 3 if not provided
+        self.machine_variant = config.get('machine_variant', "Ultimaker 3")
         self.content_manager = None
         self.zeroconf_handler = None
         self.server = None
