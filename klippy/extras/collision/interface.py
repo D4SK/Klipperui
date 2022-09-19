@@ -1,8 +1,11 @@
 import logging
+from typing import Optional, Union
 
 from .collision_check import BoxCollision
 from .geometry import Rectangle, Cuboid
 from ..virtual_sdcard import PrintJob
+
+from ..gcode_metadata.base_parser import BaseParser
 
 
 # Default padding, if not specified in config, in mm
@@ -10,24 +13,25 @@ DEFAULT_PADDING = 5
 
 class CollisionInterface:
 
-    def __init__(self, config):
+    def __init__(self, config) -> None:
         self._config = config
         self.printer = config.get_printer()
 
         # Read config
-        self.continuous_printing = config.getboolean('continuous_printing', False)
-        self.reposition = config.getboolean('reposition', False)
-        self.printbed = Cuboid(*[0]*6)  # Received after klippy:connect
-        self.printhead = self._read_printhead()
-        self.gantry_x_oriented = config.getchoice("gantry_orientation",
-                                                  {"x": True, "y": False})
-        self.gantry = self._read_gantry(self.printbed)  # Preliminary
-        self.gantry_height = config.getfloat("gantry_z_min")
-        self.padding = config.getfloat("padding", DEFAULT_PADDING)
+        self.continuous_printing: bool = config.getboolean(
+                'continuous_printing', False)
+        self.reposition: bool = config.getboolean('reposition', False)
+        self.printbed: Cuboid = Cuboid(*[0]*6)  # Received after klippy:connect
+        self.printhead: Rectangle = self._read_printhead()
+        self.gantry_x_oriented: bool = config.getchoice("gantry_orientation",
+                                                        {"x": True, "y": False})
+        self.gantry: Rectangle = self._read_gantry(self.printbed)  # Preliminary
+        self.gantry_height: float = config.getfloat("gantry_z_min")
+        self.padding: float = config.getfloat("padding", DEFAULT_PADDING)
 
         self.printer.register_event_handler("klippy:connect", self.handle_connect)
 
-    def handle_connect(self):
+    def handle_connect(self) -> None:
         """Get printbed size later and update gantry"""
         self.printbed = self._read_printbed()
         self.gantry = self._read_gantry(self.printbed)
@@ -37,14 +41,14 @@ class CollisionInterface:
         self.printer.register_event_handler(
                 "virtual_sdcard:print_end", self._handle_print_end)
 
-    def _read_printbed(self):
+    def _read_printbed(self) -> Cuboid:
         """Read the printer size from the config and return it as a Cuboid"""
         rails = self.printer.objects['toolhead'].kin.rails
         min_ = [rail.position_min for rail in rails]
         max_ = [rail.position_max for rail in rails]
         return Cuboid(*min_, *max_)
 
-    def _read_printhead(self):
+    def _read_printhead(self) -> Rectangle:
         """Return a Rectangle representing the size of the print head
         as viewed from above. The printing nozzle would be at (0, 0).
         """
@@ -55,7 +59,7 @@ class CollisionInterface:
             self._config.getfloat("printhead_y_max"),
         )
 
-    def _read_gantry(self, printbed):
+    def _read_gantry(self, printbed: Cuboid) -> Rectangle:
         """Return a Rectangle representing the size of the gantry as viewed
         from above as well as if it is oriented parallel to the X-Axis or not.
         The printing nozzle would be at the 0-coordinate on the other axis.
@@ -70,12 +74,14 @@ class CollisionInterface:
                                xy_max, printbed.height)
         return gantry
 
-    def check_available(self, printjob):
+    def check_available(
+        self, printjob: PrintJob
+    ) -> tuple[bool, Optional[tuple[float, float]]]:
         if not self.continuous_printing:
             return not self.collision.current_objects, (0, 0)
         try:
             available = not self.printjob_collides(printjob)
-            offset = (0, 0)
+            offset: Optional[tuple[float, float]] = (0, 0)
             if not available and self.reposition:
                 offset = self.find_offset(printjob)
                 available = offset is not None
@@ -83,7 +89,9 @@ class CollisionInterface:
         except MissingMetadataError:
             return False, None
 
-    def predict_availability(self, printjob, queue):
+    def predict_availability(
+        self, printjob: Union[PrintJob, BaseParser], queue: list[PrintJob]
+    ) -> bool:
         """Look in the future and predict if printjob will be printable without
         collisions if everything in queue is printed first.
 
@@ -104,7 +112,7 @@ class CollisionInterface:
             available = offset is not None
         return available
 
-    def _handle_print_end(self, printjobs, printjob):
+    def _handle_print_end(self, _printjobs, printjob: PrintJob) -> None:
         try:
             self.add_printjob(printjob)
         except MissingMetadataError:
@@ -116,7 +124,7 @@ class CollisionInterface:
     ##
     ## Conversion functions
     ##
-    def metadata_to_cuboid(self, metadata):
+    def metadata_to_cuboid(self, metadata: BaseParser) -> Cuboid:
         """From a gcode metadata object return a Cuboid of the size of the print
         object. If the size isn't specified in the metadata, a ValueError is
         raised.
@@ -130,7 +138,7 @@ class CollisionInterface:
                       dimensions["MinZ"], dimensions["MaxX"],
                       dimensions["MaxY"], dimensions["MaxZ"])
 
-    def printjob_to_cuboid(self, printjob):
+    def printjob_to_cuboid(self, printjob: PrintJob) -> Cuboid:
         """Create a Cuboid from a virtual_sdcard.PrintJob object.
         A ValueError can be propagated from metadata_to_cuboid.
         """
@@ -139,26 +147,26 @@ class CollisionInterface:
     ##
     ## Wrapper functions that take care of converting printjobs to cuboids
     ##
-    def printjob_collides(self, printjob):
+    def printjob_collides(self, printjob: PrintJob) -> bool:
         cuboid = self.printjob_to_cuboid(printjob)
         return self.collision.object_collides(cuboid)
 
-    def add_printjob(self, printjob):
+    def add_printjob(self, printjob: PrintJob) -> None:
         cuboid = self.printjob_to_cuboid(printjob)
         self.collision.add_object(cuboid)
 
-    def clear_printjobs(self):
+    def clear_printjobs(self) -> None:
         self.collision.clear_objects()
 
-    def find_offset(self, printjob):
+    def find_offset(self, printjob: PrintJob) -> Optional[tuple[float, float]]:
         cuboid = self.printjob_to_cuboid(printjob)
         return self.collision.find_offset(cuboid)
 
 
-    def get_config(self):
+    def get_config(self) -> tuple[bool, bool]:
         return self.continuous_printing, self.reposition
 
-    def set_config(self, continuous_printing, reposition):
+    def set_config(self, continuous_printing: bool, reposition: bool) -> None:
         self.continuous_printing = continuous_printing
         self.reposition = reposition
         configfile = self.printer.lookup_object('configfile')

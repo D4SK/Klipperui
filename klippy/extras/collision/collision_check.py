@@ -1,4 +1,5 @@
 import copy
+from typing import Optional, Union
 
 from .geometry import Rectangle, Cuboid
 
@@ -8,8 +9,14 @@ class BoxCollision:
     At this level all objects are abstracted to boxes from the geometry module.
     """
 
-    def __init__(self, printbed, printhead, gantry, gantry_x_oriented,
-                 gantry_height, padding, current_objects=None):
+    def __init__(self,
+                 printbed: Cuboid,
+                 printhead: Rectangle,
+                 gantry: Rectangle,
+                 gantry_x_oriented: bool,
+                 gantry_height: float,
+                 padding: float,
+                 current_objects: list[Cuboid] = None) -> None:
         self.printbed = printbed
         self.printhead = printhead
         self.gantry = gantry
@@ -18,7 +25,9 @@ class BoxCollision:
         self.padding = padding
         self.current_objects = current_objects or []
 
-    def replicate_with_objects(self, objects, expand=True):
+    def replicate_with_objects(
+        self, objects: list[Cuboid], expand: bool = True
+    ) -> "BoxCollision":
         """Return a copy of this collision instance but with an expanded (or
         replaced) object list.
         """
@@ -28,7 +37,9 @@ class BoxCollision:
         new_collision.current_objects = objects
         return new_collision
 
-    def moving_parts(self, print_object):
+    def moving_parts(
+        self, print_object: Union[Rectangle, Cuboid]
+    ) -> tuple[Rectangle, Cuboid]:
         """Return collision boxes for the moving parts (printhead and gantry)
         when printing this object. These areas will include all the space
         that these parts could move in when printing the given object.
@@ -61,14 +72,14 @@ class BoxCollision:
             )
         return moving_printhead, moving_gantry
 
-    def fits_in_printer(self, new_object):
+    def fits_in_printer(self, new_object: Cuboid) -> bool:
         """Return True if the object is situated within the printer boundaries
 
         new_object must be a Cuboid
         """
         return self.printbed.intersection(new_object) == new_object
 
-    def object_collides(self, new_object):
+    def object_collides(self, new_object: Cuboid) -> bool:
         """Return True if printing this object would cause a collision, False
         if it can be safely printed (without any offset).
 
@@ -86,7 +97,7 @@ class BoxCollision:
                 return True
         return False
     
-    def add_object(self, new_object):
+    def add_object(self, new_object: Cuboid) -> None:
         """Add an object, like a finished print job, to be considered in the
         future.
 
@@ -94,12 +105,12 @@ class BoxCollision:
         """
         self.current_objects.append(new_object)
 
-    def clear_objects(self):
+    def clear_objects(self) -> None:
         """Empty the list of print objects to keep track of"""
         self.current_objects.clear()
 
 
-    def find_offset(self, object_cuboid):
+    def find_offset(self, object_cuboid: Cuboid) -> Optional[tuple[float, float]]:
         """For a given object search for an offset where it can be printed
 
         object_cuboid is a Cuboid.
@@ -107,18 +118,18 @@ class BoxCollision:
         If successful, a 2-tuple containing the x and y offset is returned,
         otherwise returns None.
         """
-        new_object = object_cuboid.projection()
         if not self.object_collides(object_cuboid):
             # Fits without any offset
             return (0, 0)
 
+        new_object = object_cuboid.projection()
         if (object_cuboid.width > self.printbed.width or
             object_cuboid.height > self.printbed.height or
             object_cuboid.z_height > self.printbed.z_height):
             # Object is larger than printer, not possible
             return None
 
-        centering_offset = (0, 0)
+        centering_offset: tuple[float, float] = (0, 0)
         if not self.fits_in_printer(object_cuboid):
             # Object is not within printer bounds,
             # but we can fix that by centering it
@@ -150,14 +161,18 @@ class BoxCollision:
                     offset[1] + centering_offset[1])
         return None
 
-    def get_centering_offset(self, new_object):
+    def get_centering_offset(
+        self, new_object: Union[Rectangle, Cuboid]
+    ) -> tuple[float, float]:
         """Return an offset that centers new_object on the printbed
         Works with Rectangles as well as Cuboids.
         """
         return (self.printbed.width/2 - new_object.width/2 - new_object.x,
                 self.printbed.height/2 - new_object.height/2 - new_object.y)
 
-    def get_gantry_collisions(self, new_object=None):
+    def get_gantry_collisions(self,
+        new_object: Optional[Union[Rectangle, Cuboid]] = None
+    ) -> list[Rectangle]:
         """Return a list of stripes (Rectangles) parallel to the gantry that
         cannot be moved into because the gantry would collide with existing
         objects.
@@ -194,7 +209,9 @@ class BoxCollision:
         return boxes
 
     @staticmethod
-    def _condense_ranges(ranges, min_space=0):
+    def _condense_ranges(
+        ranges: list[list[float]], min_space: float = 0
+    ) -> list[list[float]]:
         """Consolidate ranges so that none of them overlap/border each other
         ranges must be a 2-dimensional list with shape (n, 2).
         WARNING: This function may mutate the ranges list as well as its
@@ -212,7 +229,12 @@ class BoxCollision:
                 condensed.append(r)
         return condensed
 
-    def _get_side_offsets(self, new_object, space, boxes):
+    def _get_side_offsets(
+        self,
+        new_object: Union[Rectangle, Cuboid],
+        space: Rectangle,
+        boxes: list[Rectangle]
+    ) -> list[float]:
         """Return a list of all possible side offsets to be checked.
         The list is sorted by absolute values.
         Not all sides need to be accounted for: Upper sides that lie below the
@@ -226,7 +248,7 @@ class BoxCollision:
                 not self.gantry_x_oriented)
         # Put offsets in a set initially to remove any duplicates
         # Add 0 manually to search without any side offset first
-        unique_offsets = {0}
+        unique_offsets: set[float] = {0}
         for r in boxes:
             r_min, r_max = r.get_range_for_axis(not self.gantry_x_oriented)
             if r_max > space_min:
@@ -246,8 +268,14 @@ class BoxCollision:
         offsets.sort(key=abs)
         return offsets
 
-    def _iterate_offset(self, new_object, needed_space,
-                        gantry_blocked, objects, side_offsets):
+    def _iterate_offset(
+        self,
+        new_object: Rectangle,
+        needed_space: Rectangle,
+        gantry_blocked: list[Rectangle],
+        objects: list[Rectangle],
+        side_offsets: list[float]
+    ) -> Optional[tuple[float, float]]:
         """Iterate over all possible offsets that were found for the secondary
         axis (the one parallel to the gantry) and execute a sweep for all of
         them.
@@ -256,11 +284,11 @@ class BoxCollision:
         new_object  Rectangle representing the space needed by the print object
         needed_space Rectangle similar to new_object but with expanded size to
                     accommodate the print head and includes padding
-        objects     List of Rectangles representing all currently present print
-                    objects
         gantry_blocked List of Rectangles specifying where new_object can't be
                     at because the gantry would then interfer with other
                     objects.
+        objects     List of Rectangles representing all currently present print
+                    objects
         side_offsets List of offsets to iterate over
 
         Returns:
@@ -278,7 +306,13 @@ class BoxCollision:
                 return (result[0] + offsets[0], result[1] + offsets[1])
         return None
 
-    def _sweep(self, new_object, space, gantry_blocked, objects):
+    def _sweep(
+        self,
+        new_object: Rectangle,
+        space: Rectangle,
+        gantry_blocked: list[Rectangle],
+        objects: list[Rectangle]
+    ) -> Optional[list[float]]:
         """The main, innermost searching function.
         Scans along the main axis (the one perpendicular to the gantry) by
         iteratively increasing the offset just enough to clear all objects we
@@ -294,7 +328,7 @@ class BoxCollision:
         component of the main axis is set, the other will always be 0. If no
         space was found, None is returned.
         """
-        offset = [0, 0]
+        offset: list[float] = [0, 0]
         # Set to True when reaching the printer boundaries without success
         reached_end_min = reached_end_max = False
 
@@ -354,6 +388,8 @@ class BoxCollision:
         return offset
 
     @staticmethod
-    def _get_colliding_objects(one, other):
+    def _get_colliding_objects(
+        one: Rectangle, other: list[Rectangle]
+    ) -> list[Rectangle]:
         """Return a list of all objects in other that collide with one"""
         return [r for r in other if one.collides_with(r)]
