@@ -21,7 +21,8 @@ class Rectangle:
         return bool(self.width and self.height)
 
     def __eq__(self, other) -> bool:
-        return (self.x == other.x and
+        return (isinstance(other, Rectangle) and
+                self.x == other.x and
                 self.y == other.y and
                 self.max_x == other.max_x and
                 self.max_y == other.max_y)
@@ -64,6 +65,12 @@ class Rectangle:
             return self.y, self.max_y
         return self.x, self.max_x  # X-Axis
 
+    def get_corners(self) -> list[tuple[float, float]]:
+        return [(self.x, self.y),
+                (self.x, self.max_y),
+                (self.max_x, self.y),
+                (self.max_x, self.max_y)]
+
 
 class Cuboid:
 
@@ -93,7 +100,8 @@ class Cuboid:
         return bool(self.width and self.height and self.z_height)
 
     def __eq__(self, other) -> bool:
-        return (self.x == other.x and
+        return (isinstance(other, Cuboid) and
+                self.x == other.x and
                 self.y == other.y and
                 self.z == other.z and
                 self.max_x == other.max_x and
