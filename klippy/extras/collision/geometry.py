@@ -71,6 +71,18 @@ class Rectangle:
                 (self.max_x, self.y),
                 (self.max_x, self.max_y)]
 
+    def contains(self, point, include_edges: bool = True) -> bool:
+        """Test wether a point lies inside this rectangle"""
+        try:
+            x, y = point
+            if include_edges:
+                return (self.x <= x <= self.max_x and
+                        self.y <= y <= self.max_y)
+            else:
+                return (self.x < x < self.max_x and
+                        self.y < y < self.max_y)
+        except (ValueError, TypeError):
+            return False
 
 class Cuboid:
 
@@ -161,3 +173,18 @@ class Cuboid:
         if axis == 1:  # Y-Axis
             return self.y, self.max_y
         return self.x, self.max_x  # X-Axis
+
+    def contains(self, point, include_edges: bool = True) -> bool:
+        """Test wether a point lies inside this rectangle"""
+        try:
+            x, y, z = point
+            if include_edges:
+                return (self.x <= x <= self.max_x and
+                        self.y <= y <= self.max_y and
+                        self.z <= z <= self.max_z)
+            else:
+                return (self.x < x < self.max_x and
+                        self.y < y < self.max_y and
+                        self.z < z < self.max_z)
+        except (ValueError, TypeError):
+            return False

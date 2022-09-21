@@ -1,8 +1,5 @@
 """
 TODO:
-  * Get from print dimensions to needed space (add padding and printhead size)
-  * Filter out corners that lie outside the printbed
-  * Maybe filter out corners that lie inside another object's space
   * Add support for static objects (screws), possibly for collision as well
   * Check for gantry collisions in path
   * Add Z-scanning in case of failure
@@ -10,6 +7,7 @@ TODO:
   * Add custom G-Code command for finding a path
 """
 from heapq import heappop, heappush
+from itertools import chain
 from math import sqrt
 from typing import Optional, TypeVar, Generic, Any, cast
 
@@ -23,6 +21,51 @@ class PathFinderManager:
     def __init__(self, printer: PrinterBoxes) -> None:
         self.printer = printer
 
+    def find_path(
+        self, start: PointType, goal: PointType
+    ) -> Optional[list[PointType]]:
+        #TODO Z-scanning etc.
+        return self.find_path_at_height(start, goal, 0)
+
+    def find_path_at_height(
+        self, start: PointType, goal: PointType, height: float
+    ) -> Optional[list[PointType]]:
+        # Discard everything that is lower than height, and keep rectangles
+        objects = iter(o.projection() for o in self.printer.objects
+                       if o.max_z > height)
+        # Add space for printhead to move around and padding
+        spaces = [self.occupied_space(o) for o in objects]
+        all_corners = chain.from_iterable(iter(o.get_corners() for o in spaces))
+        vertices = [c for c in all_corners if self.filter_corner(c, spaces)]
+
+        pf = PathFinder(vertices, spaces, start, goal)
+        return pf.shortest_path()
+
+    def occupied_space(self, obj: Rectangle) -> Rectangle:
+        """Return the space for an object that we can't move into, including
+        the size of the printhead as well as padding.
+        """
+        ph = self.printer.printhead
+        pad = self.printer.padding
+        return Rectangle(obj.x - ph.max_x - pad,
+                         obj.y - ph.max_y - pad,
+                         obj.max_x - ph.x + pad,
+                         obj.max_y - ph.y + pad)
+
+    def filter_corner(self, p: PointType, objects: list[Rectangle]) -> bool:
+        # Reject points that lie outside the printbed
+        if not self.printer.printbed.contains(p):
+            return False
+        # Reject points that lie strictly within a different object.
+        # This isn't technically necessary as those points couldn't connect to
+        # any others in the graph, but filtering that here should be faster as
+        # it reduces the amount of vertices.
+        for o in objects:
+            if o.contains(p, include_edges=False):
+                return False
+        return True
+
+
 class PathFinder:
     """
     Find a path between two points by avoiding a given set of objects in the
@@ -33,60 +76,24 @@ class PathFinder:
     found by applying the A*-algorithm on that graph.
     """
 
-    def __init__(self, objects: list[Rectangle]):
+    def __init__(self, vertices: list[PointType], objects: list[Rectangle],
+                 start: PointType, goal: PointType):
         self.objects = objects
 
-        # Vertices are mostly referenced by their integer index.
+        # Vertices are generally referenced by their integer index.
         # This list serves mostly as a symbol table.
-        self.vertices: list[PointType] = []
-        for o in self.objects:
-            self.vertices.extend(o.get_corners())
+        self.vertices = vertices + [start, goal]
         self.n: int = len(self.vertices)
 
         # Indices of start/goal vertex, if set
-        self.start: Optional[int] = None
-        self.goal: Optional[int] = None
+        self.start: int = self.n - 2
+        self.goal: int = self.n - 1
 
         # Adjacency lists, one for each node. Each adjacent node is represented
         # together with the weight of that edge. The edge relation is lazily
         # evaluated through self.adjacent(). This list serves as a cache for
         # that function.
         self.adj: list[Optional[list[tuple[int, float]]]] = [None] * self.n
-
-    def set_route(self, start: PointType, goal: PointType) -> None:
-        equal = 0
-        if self.start is not None:
-            if self.vertices[self.start] == start:
-                equal += 1
-            else:
-                # Simply replace old vertex
-                self.vertices[self.start] = start
-        else:
-            self.vertices.append(start)
-            self.start = self.n
-            self.n += 1
-
-        if self.goal is not None:
-            if self.vertices[self.goal] == goal:
-                equal += 1
-            else:
-                self.vertices[self.goal] = goal
-        else:
-            self.vertices.append(goal)
-            self.goal = self.n
-            self.n += 1
-
-        if equal < 2:
-            self.flush_caches()
-
-    def add_object(self, obj: Rectangle) -> None:
-        self.vertices.extend(obj.get_corners())
-        self.n = len(self.vertices)
-        self.flush_caches()
-
-    def flush_caches(self) -> None:
-        #TODO: Maybe don't throw everything away on graph changes
-        self.adj = [None] * self.n
 
     def adjacent(self, v: int) -> list[tuple[int, float]]:
         """Return all vertices adjacent to v.
@@ -144,12 +151,11 @@ class PathFinder:
         return True
 
     def weight(self, v: int, w: int) -> float:
-        """Calculate the weight of an edge"""
-        return self.dist(self.vertices[v], self.vertices[w])
-
-    @staticmethod
-    def dist(p1: PointType, p2: PointType) -> float:
-        """Euclidean distance between two points"""
+        """Calculate the weight of an edge as the euclidean distance between
+        its end points.
+        """
+        p1 = self.vertices[v]
+        p2 = self.vertices[w]
         return sqrt((p2[0] - p1[0])**2 + (p2[1] - p1[1])**2)
 
     def astar(self) -> tuple[float, list[Optional[int]]]:
@@ -174,19 +180,21 @@ class PathFinder:
                     pq.push(w, dist[w] + self.weight(w, self.goal))
         return float('inf'), parent
 
-    def shortest_path(self) -> Optional[list[int]]:
+    def shortest_path(self) -> Optional[list[PointType]]:
+        """Resolve the parent relation into a path and convert indices back to
+        actual points.
+        """
         dist, parents = self.astar()
         if dist == float('inf'):
             return None
         # self.goal can't be None here, as that would have raised in astar()
         cur = cast(int, self.goal)
-        path = [cur]
+        path = [self.vertices[cur]]
         while cur != self.start:
             new = parents[cur]
             assert new is not None
-            path.append(new)
+            path.append(self.vertices[new])
             cur = new
-
         path.reverse()
         return path
 

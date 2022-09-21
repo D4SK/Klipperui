@@ -113,6 +113,18 @@ class GeometryTest(unittest.TestCase):
         self.assertTrue(r6.collides_with(r1, 1))
         self.assertFalse(r1.collides_with(r7, 1))
 
+    def test_rectangle_contains(self):
+        r = Rectangle(1, 1, 5, 3)
+        self.assertTrue(r.contains((3, 2)))
+        self.assertTrue(r.contains((3, 2), include_edges=False))
+        self.assertTrue(r.contains((3, 1)))
+        self.assertTrue(r.contains((1, 1)))
+
+        self.assertFalse(r.contains((3, 0)))
+        self.assertFalse(r.contains((0, 0)))
+        self.assertFalse(r.contains((3, 1), include_edges=False))
+        self.assertFalse(r.contains((1, 1), include_edges=False))
+
 
     def test_cuboid(self):
         cuboid = Cuboid(10, 15, 20, 30, 40, 30)
@@ -188,6 +200,21 @@ class GeometryTest(unittest.TestCase):
         self.assertTrue(c1.collides_with(c6, 5))
         self.assertTrue(c6.collides_with(c1, 5))
         self.assertFalse(c1.collides_with(c7, 5))
+
+    def test_cuboid_contains(self):
+        c = Cuboid(1, 1, 1, 5, 3, 3)
+        self.assertTrue(c.contains((3, 2, 2)))
+        self.assertTrue(c.contains((3, 2, 2), include_edges=False))
+        self.assertTrue(c.contains((3, 2, 1)))
+        self.assertTrue(c.contains((3, 1, 1)))
+        self.assertTrue(c.contains((1, 1, 1)))
+
+        self.assertFalse(c.contains((3, 2, 0)))
+        self.assertFalse(c.contains((3, 0, 0)))
+        self.assertFalse(c.contains((0, 0, 0)))
+        self.assertFalse(c.contains((3, 2, 1), include_edges=False))
+        self.assertFalse(c.contains((3, 1, 1), include_edges=False))
+        self.assertFalse(c.contains((1, 1, 1), include_edges=False))
 
 
 class CollisionTest(unittest.TestCase):
@@ -595,14 +622,20 @@ class PathFinderTest(unittest.TestCase):
                 Rectangle(5, 3, 9, 5)]   #-5-
         start = (7, 0)
         goal = (6, 9)
-        self.pf = PathFinder(objs)
-        self.pf.set_route(start, goal)
+        self.pf = PathFinder(self._get_vertices(objs), objs, start, goal)
+
+    def _get_vertices(self, objects):
+        # Include all corners as vertices
+        vertices = []
+        for o in objects:
+            vertices.extend(o.get_corners())
+        return vertices
 
     def test_edge_small(self):
         objs = [Rectangle(2, 4, 3, 6),
                 Rectangle(1, 1, 2, 2),
                 Rectangle(5, 1, 6, 6)]
-        pf = PathFinder(objs)
+        pf = PathFinder(self._get_vertices(objs), objs, (0,0), (0,0))
 
         self.assertTrue(pf.edge(6, 8))
         self.assertTrue(pf.edge(7, 9))
@@ -643,7 +676,9 @@ class PathFinderTest(unittest.TestCase):
     def test_astar(self):
         path = self.pf.shortest_path()
         # 24 = start, 25 = goal
-        self.assertEqual(path, [24, 0, 20, 12, 13, 25])
+        expected = [24, 0, 20, 12, 13, 25]
+        # Convert from indices to points
+        self.assertEqual(path, [self.pf.vertices[v] for v in expected])
 
 
 if __name__ == '__main__':
