@@ -14,6 +14,7 @@ import configfile
 
 from extras.collision.geometry import Rectangle, Cuboid
 from extras.collision.interface import CollisionInterface
+from extras.collision.collision_check import BoxCollision
 from extras.collision.pathfinder import PathFinder
 
 
@@ -195,48 +196,56 @@ class CollisionTest(unittest.TestCase):
         fileconfig = configparser.RawConfigParser(strict=False)
         with open(CONFIG_FILE, "r") as fp:
             fileconfig.read_file(fp)
-        config = configfile.ConfigWrapper(
-            _DummyPrinter(), fileconfig, {}, "collision")
+        config = configfile.ConfigWrapper(_DummyPrinter(),
+                                          fileconfig, {}, "collision")
         self.collision = TestInterface(config).collision
+        self.printer = self.collision.printer
 
         # Make another collision object but with an x-oriented gantry
         fc_x = copy.deepcopy(fileconfig)
         fc_x.set("collision", "gantry_orientation", "x")
-        config_x = configfile.ConfigWrapper(
-            _DummyPrinter(), fc_x, {}, "collision")
+        config_x = configfile.ConfigWrapper(_DummyPrinter(),
+                                            fc_x, {}, "collision")
         self.collision_x = TestInterface(config_x).collision
+        self.printer_x = self.collision_x.printer
 
     def test_attributes(self):
-        c = self.collision
-        self.assertIsInstance(c.printbed, Cuboid)
-        self.assertIsInstance(c.printhead, Rectangle)
-        self.assertIsInstance(c.gantry, Rectangle)
-        self.assertIsInstance(c.gantry_x_oriented, bool)
-        self.assertIsInstance(c.gantry_height, float)
-        self.assertGreaterEqual(c.gantry_height, 0)
-        self.assertEqual(c.current_objects, [])
+        p = self.collision.printer
+        self.assertIsInstance(p.printbed, Cuboid)
+        self.assertIsInstance(p.printhead, Rectangle)
+        self.assertIsInstance(p.gantry, Rectangle)
+        self.assertIsInstance(p.gantry_x_oriented, bool)
+        self.assertIsInstance(p.gantry_height, float)
+        self.assertGreaterEqual(p.gantry_height, 0)
+        self.assertEqual(p.objects, [])
 
-        self.assertFalse(c.gantry_x_oriented)
-        self.assertTrue(self.collision_x.gantry_x_oriented)
+        self.assertFalse(p.gantry_x_oriented)
+        self.assertTrue(self.collision_x.printer.gantry_x_oriented)
 
     def test_moving_parts(self):
-        cy = self.collision
-        cx = self.collision_x
+        py = self.printer
+        px = self.printer_x
         new_object = Cuboid(70, 100, 0, 150, 180, 60)
-        self.assertEqual(cy.moving_parts(new_object),
-                         (Rectangle(-10, 50.1, 176, 252),
-                         Cuboid(41.5, 0, 84, 182, 1000, float('inf'))))
-        self.assertEqual(cx.moving_parts(new_object),
-                         (Rectangle(-10, 50.1, 176, 252),
-                          Cuboid(0, 71.5, 84, 500, 212, float('inf'))))
+        self.assertEqual(py.printhead_space(new_object),
+                         Rectangle(-10, 50.1, 176, 252))
+        self.assertEqual(py.gantry_space(new_object),
+                         Cuboid(41.5, 0, 84, 182, 1000, float('inf')))
+        self.assertEqual(px.printhead_space(new_object),
+                         Rectangle(-10, 50.1, 176, 252))
+        self.assertEqual(px.gantry_space(new_object),
+                         Cuboid(0, 71.5, 84, 500, 212, float('inf')))
         # Rectangle works too
-        self.assertEqual(cy.moving_parts(new_object.projection()),
-                         (Rectangle(-10, 50.1, 176, 252),
-                         Cuboid(41.5, 0, 84, 182, 1000, float('inf'))))
+        self.assertEqual(py.printhead_space(new_object),
+                         Rectangle(-10, 50.1, 176, 252))
+        self.assertEqual(py.gantry_space(new_object),
+                         Cuboid(41.5, 0, 84, 182, 1000, float('inf')))
 
     def test_collision(self):
         cy = self.collision
         cx = self.collision_x
+        py = self.printer
+        px = self.printer_x
+
         # Objects well distributed on X-Axis, only fits with cy
         objects0 = [Cuboid(10, 10, 0, 150, 100, 120),
                     Cuboid(250, 10, 0, 400, 200, 150)]
@@ -260,66 +269,68 @@ class CollisionTest(unittest.TestCase):
         o_large = Cuboid(10, 20, 0, 1500, 2000, 899)
         self.assertTrue(cy.object_collides(o_large))
 
-        cy.add_object(objects0[0])
-        cx.add_object(objects0[0])
+        py.add_object(objects0[0])
+        px.add_object(objects0[0])
         self.assertFalse(cy.object_collides(objects0[1]))
         # Gantry collides
         self.assertTrue(cx.object_collides(objects0[1]))
-        cy.clear_objects()
-        cx.clear_objects()
+        py.clear_objects()
+        px.clear_objects()
 
-        cy.add_object(objects1[0])
-        cx.add_object(objects1[0])
+        py.add_object(objects1[0])
+        px.add_object(objects1[0])
         self.assertFalse(cy.object_collides(objects1[1]))
         # Gantry passes over
         self.assertFalse(cx.object_collides(objects1[1]))
-        cy.clear_objects()
-        cx.clear_objects()
+        py.clear_objects()
+        px.clear_objects()
 
-        cy.add_object(objects2[0])
-        cx.add_object(objects2[0])
+        py.add_object(objects2[0])
+        px.add_object(objects2[0])
         # Printhead collides
         self.assertTrue(cy.object_collides(objects2[1]))
         self.assertTrue(cx.object_collides(objects2[1]))
-        cy.clear_objects()
-        cx.clear_objects()
+        py.clear_objects()
+        px.clear_objects()
 
-        cy.add_object(objects3[0])
-        cx.add_object(objects3[0])
+        py.add_object(objects3[0])
+        px.add_object(objects3[0])
         # Everything collides
         self.assertTrue(cy.object_collides(objects3[1]))
         self.assertTrue(cx.object_collides(objects3[1]))
-        cy.clear_objects()
-        cx.clear_objects()
+        py.clear_objects()
+        px.clear_objects()
 
-        cy.add_object(objects4[0])
-        cx.add_object(objects4[0])
+        py.add_object(objects4[0])
+        px.add_object(objects4[0])
         # Nothing collides
         self.assertFalse(cy.object_collides(objects4[1]))
         self.assertFalse(cx.object_collides(objects4[1]))
-        cy.clear_objects()
-        cx.clear_objects()
+        py.clear_objects()
+        px.clear_objects()
 
-        cy.add_object(objects5[0])
-        cx.add_object(objects5[0])
+        py.add_object(objects5[0])
+        px.add_object(objects5[0])
         # The padding isn't kept
         self.assertTrue(cy.object_collides(objects5[1]))
         self.assertTrue(cx.object_collides(objects5[1]))
         # Test that it would work with padding set from 5 to 3
-        cy_no_pad = copy.copy(cy)
-        cx_no_pad = copy.copy(cx)
-        cy_no_pad.padding = 3
-        cx_no_pad.padding = 3
+        py_no_pad = copy.copy(py)
+        px_no_pad = copy.copy(px)
+        py_no_pad.padding = 3
+        px_no_pad.padding = 3
+        cy_no_pad = BoxCollision(py_no_pad)
+        cx_no_pad = BoxCollision(px_no_pad)
         self.assertFalse(cy_no_pad.object_collides(objects5[1]))
         self.assertFalse(cx_no_pad.object_collides(objects5[1]))
-        cy.clear_objects()
-        cx.clear_objects()
+        py.clear_objects()
+        px.clear_objects()
 
         # The entire printbed shouldn't collide
-        self.assertFalse(cy.object_collides(cy.printbed))
-        self.assertFalse(cx.object_collides(cx.printbed))
-        cy.clear_objects()
-        cx.clear_objects()
+        self.assertFalse(cy.object_collides(py.printbed))
+        self.assertFalse(cx.object_collides(px.printbed))
+        py.clear_objects()
+        px.clear_objects()
 
 
 class FinderTest(unittest.TestCase):
@@ -340,17 +351,17 @@ class FinderTest(unittest.TestCase):
         c = self.collision
         uncondensed = [[-2, 0], [-1, 0], [4, 10], [5, 8], [9, 12], [13, 18]]
         self.assertEqual(c._condense_ranges(uncondensed),
-            [[-2, 0], [4, 12], [13, 18]])
+                         [[-2, 0], [4, 12], [13, 18]])
         # Redefine the list because it might get mutated
         uncondensed = [[-2, 0], [-1, 0], [4, 10], [5, 8], [9, 12], [13, 18]]
         self.assertEqual(c._condense_ranges(uncondensed, 1),
-            [[-2, 0], [4, 18]])
+                         [[-2, 0], [4, 18]])
 
         # Unsorted list
         uncondensed = [[-2, 0], [-1, 0], [4, 10], [5, 8], [9, 12], [13, 18]]
         random.shuffle(uncondensed)
         self.assertEqual(c._condense_ranges(uncondensed),
-            [[-2, 0], [4, 12], [13, 18]])
+                         [[-2, 0], [4, 12], [13, 18]])
 
         # Special inputs
         self.assertEqual(c._condense_ranges([]), [])
@@ -359,6 +370,8 @@ class FinderTest(unittest.TestCase):
     def test_get_gantry_collisions(self):
         cy = self.collision
         cx = self.collision_x
+        py = self.printer
+        px = self.printer_x
         objects = [Cuboid(0, 0, 0, 50, 100, 100),
                    Cuboid(10, 580, 0, 70, 590, 100),
                    Cuboid(350, 10, 0, 370, 120, 100),
@@ -371,8 +384,8 @@ class FinderTest(unittest.TestCase):
         new_object = Rectangle(380, 800, 400, 820)
 
         for o in objects:
-            cy.add_object(o)
-            cx.add_object(o)
+            py.add_object(o)
+            px.add_object(o)
 
         # First don't specify object size
         self.assertEqual(cy.get_gantry_collisions(),
@@ -395,6 +408,7 @@ class FinderTest(unittest.TestCase):
     def test_get_side_offsets(self):
         cy = self.collision
         cx = self.collision_x
+        p = self.printer
         objects = [Rectangle(0, 0, 10, 10),
                    Rectangle(100, 100, 150, 180),  # Too far out
                    Rectangle(120, 150, 150, 200),
@@ -404,8 +418,8 @@ class FinderTest(unittest.TestCase):
 
         # Construct object in center
         new_object = Rectangle(235, 454.9, 319, 523)
-        mv_printhead, _ = cy.moving_parts(new_object)
-        space = mv_printhead.grow(cy.padding)
+        mv_printhead = p.printhead_space(new_object)
+        space = mv_printhead.grow(p.padding)
         self.assertEqual(space, Rectangle(150, 400, 350, 600))
 
         self.assertEqual(set(cx._get_side_offsets(new_object, space, objects)),
@@ -416,11 +430,12 @@ class FinderTest(unittest.TestCase):
     def test_find_offset(self):
         cy = self.collision
         cx = self.collision_x
+        py = self.printer
+        px = self.printer_x
 
         # SPECIAL CASES:
         # No objects at all
-        new0 = self._object_from_space(Cuboid(
-                200, 400, 0, 400, 600, 100))
+        new0 = self._object_from_space(Cuboid( 200, 400, 0, 400, 600, 100))
         self.assertEqual(_round_tuple(cy.find_offset(new0)), (0, 0))
         self.assertEqual(_round_tuple(cx.find_offset(new0)), (0, 0))
 
@@ -440,82 +455,81 @@ class FinderTest(unittest.TestCase):
         objects0 = [Cuboid(0, 0, 0, 500, 600, 50),
                     Cuboid(0, 650, 0, 300, 1000, 50)]
         for o in objects0:
-            cy.add_object(o)
-            cx.add_object(o)
+            py.add_object(o)
+            px.add_object(o)
         expected = (100, 200)
         self.assertEqual(cy.find_offset(new0), expected)
         self.assertEqual(cx.find_offset(new0), expected)
         self.assertTrue(cy.object_collides(new0))
-        self.assertFalse(cy.object_collides(
-            new0.translate(*expected, 0)))
-        cy.clear_objects()
-        cx.clear_objects()
+        self.assertFalse(cy.object_collides(new0.translate(*expected, 0)))
+        py.clear_objects()
+        px.clear_objects()
 
         # Negative offsets in both dimensions needed
         objects1 = [Cuboid(300, 0, 0, 500, 1000, 50),
                     Cuboid(0, 500, 0, 300, 1000, 50)]
         for o in objects1:
-            cy.add_object(o)
-            cx.add_object(o)
+            py.add_object(o)
+            px.add_object(o)
         self.assertEqual(cy.find_offset(new0), (-100, -100))
         self.assertEqual(cx.find_offset(new0), (-100, -100))
-        cy.clear_objects()
-        cx.clear_objects()
+        py.clear_objects()
+        px.clear_objects()
 
         # Move in one dimension needed
         object2 = Cuboid(200, 0, 0, 300, 750, 50)
-        cy.add_object(object2)
-        cx.add_object(object2)
+        py.add_object(object2)
+        px.add_object(object2)
         self.assertEqual(cy.find_offset(new0), (100, 0))
         self.assertEqual(cx.find_offset(new0), (0, 350))
-        cy.clear_objects()
-        cx.clear_objects()
+        py.clear_objects()
+        px.clear_objects()
 
         # Barely space left
         objects3 = [Cuboid(0, 0, 0, 331, 1000, 50),  # Just enough
                     Cuboid(0, 0, 0, 332, 1000, 50)]  # Doesn't fit
-        cy.add_object(objects3[0])
-        cx.add_object(objects3[0])
+        py.add_object(objects3[0])
+        px.add_object(objects3[0])
         self.assertEqual(cy.find_offset(new0), (131, 0))
         self.assertEqual(cx.find_offset(new0), (131, 0))
-        cy.add_object(objects3[1])
-        cx.add_object(objects3[1])
+        py.add_object(objects3[1])
+        px.add_object(objects3[1])
         self.assertIsNone(cy.find_offset(new0))
         self.assertIsNone(cx.find_offset(new0))
-        cy.clear_objects()
-        cx.clear_objects()
+        py.clear_objects()
+        px.clear_objects()
 
         # GANTRY TESTS
         # Move in one dimension needed, but with gantry
         object4 = Cuboid(200, 100, 0, 400, 600, 100)
-        cy.add_object(object4)
-        cx.add_object(object4)
+        py.add_object(object4)
+        px.add_object(object4)
         # -206 because the gantry is 6 wider than the printhead here
         self.assertEqual(cy.find_offset(new0), (-206, 0))
         # In this case the gantry does not affect the result
         self.assertEqual(cx.find_offset(new0), (0, 200))
-        cy.clear_objects()
-        cx.clear_objects()
+        py.clear_objects()
+        px.clear_objects()
 
         # A negative offset is needed only in Y-orientation
         object5 = Cuboid(200, 100, 0, 500, 300, 100)
-        cy.add_object(object5)
-        cx.add_object(object5)
+        py.add_object(object5)
+        px.add_object(object5)
         # Gantry requires additional offset
         self.assertEqual(cy.find_offset(new0), (-206, 0))
         self.assertEqual(cx.find_offset(new0), (0, 0))
-        cy.clear_objects()
-        cx.clear_objects()
+        py.clear_objects()
+        px.clear_objects()
 
         # A positive offset is needed only in Y-orientation
         object6 = Cuboid(0, 100, 0, 300, 300, 100)
-        cy.add_object(object6)
-        cx.add_object(object6)
+        py.add_object(object6)
+        px.add_object(object6)
         # Gantry allows lower offset
         self.assertEqual(cy.find_offset(new0), (48.5, 0))
         self.assertEqual(cx.find_offset(new0), (0, 0))
-        cy.clear_objects()
-        cx.clear_objects()
+        py.clear_objects()
+        px.clear_objects()
 
 
     def _object_from_space(self, space):
@@ -523,17 +537,17 @@ class FinderTest(unittest.TestCase):
         create an object that would need this space by removing padding and
         printhead borders.
         """
-        c = self.collision
-        no_padding = space.grow(-c.padding)
-        if (no_padding.width < c.printhead.width or
-            no_padding.height < c.printhead.height):
+        p = self.printer
+        no_padding = space.grow(-p.padding)
+        if (no_padding.width < p.printhead.width or
+            no_padding.height < p.printhead.height):
             raise ValueError("Space too small!")
         return Cuboid(
-                round(no_padding.x - c.printhead.x, 4),
-                round(no_padding.y - c.printhead.y, 4),
+                round(no_padding.x - p.printhead.x, 4),
+                round(no_padding.y - p.printhead.y, 4),
                 round(no_padding.z, 4),
-                round(no_padding.max_x - c.printhead.max_x, 4),
-                round(no_padding.max_y - c.printhead.max_y, 4),
+                round(no_padding.max_x - p.printhead.max_x, 4),
+                round(no_padding.max_y - p.printhead.max_y, 4),
                 round(no_padding.max_z, 4))
 
 def _round_tuple(numbers, ndigits=4):
@@ -557,7 +571,7 @@ class PathFinderTest(unittest.TestCase):
            |                12############14
            |
            6
-           |#-1-####
+           |#-1-###7
            |#//////#
            |#//////#            21-5-###########    #-2-
            4#######6            #//////////////#    #//#
@@ -573,23 +587,21 @@ class PathFinderTest(unittest.TestCase):
                                        start           x
 
         """
-        objs = [
-            Rectangle(6, 0, 8, 1),   #-0-
-            Rectangle(0, 4, 2, 6),   #-1-
-            Rectangle(10, 3, 11, 5), #-2-
-            Rectangle(4, 7, 8, 8),   #-3-
-            Rectangle(3, 0, 4, 1),   #-4-
-            Rectangle(5, 3, 9, 5)]   #-5-
+        objs = [Rectangle(6, 0, 8, 1),   #-0-
+                Rectangle(0, 4, 2, 6),   #-1-
+                Rectangle(10, 3, 11, 5), #-2-
+                Rectangle(4, 7, 8, 8),   #-3-
+                Rectangle(3, 0, 4, 1),   #-4-
+                Rectangle(5, 3, 9, 5)]   #-5-
         start = (7, 0)
         goal = (6, 9)
         self.pf = PathFinder(objs)
         self.pf.set_route(start, goal)
 
     def test_edge_small(self):
-        objs = [
-            Rectangle(2, 4, 3, 6),
-            Rectangle(1, 1, 2, 2),
-            Rectangle(5, 1, 6, 6)]
+        objs = [Rectangle(2, 4, 3, 6),
+                Rectangle(1, 1, 2, 2),
+                Rectangle(5, 1, 6, 6)]
         pf = PathFinder(objs)
 
         self.assertTrue(pf.edge(6, 8))

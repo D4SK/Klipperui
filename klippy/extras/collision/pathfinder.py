@@ -1,20 +1,36 @@
+"""
+TODO:
+  * Get from print dimensions to needed space (add padding and printhead size)
+  * Filter out corners that lie outside the printbed
+  * Maybe filter out corners that lie inside another object's space
+  * Add support for static objects (screws), possibly for collision as well
+  * Check for gantry collisions in path
+  * Add Z-scanning in case of failure
+  * Generate G1-Code from path
+  * Add custom G-Code command for finding a path
+"""
 from heapq import heappop, heappush
 from math import sqrt
 from typing import Optional, TypeVar, Generic, Any, cast
 
 from .geometry import Rectangle
-
+from .printerboxes import PrinterBoxes
 
 PointType = tuple[float, float]
+
+class PathFinderManager:
+
+    def __init__(self, printer: PrinterBoxes) -> None:
+        self.printer = printer
 
 class PathFinder:
     """
     Find a path between two points by avoiding a given set of objects in the
     form of rectangles in a plane. This is done by constructing a graph from
-    all corners of the rectangles as well as the two points for which we want a
-    path. Two such vertices are connected in the graph if the straight line
-    between them collides with no objects. The final path is found by applying
-    the A*-algorithm on that graph.
+    all corners of the rectangles as well as the two points between which we
+    want a path. Two such vertices are connected by an edge in the graph if the
+    straight line between them collides with no objects. The final path is
+    found by applying the A*-algorithm on that graph.
     """
 
     def __init__(self, objects: list[Rectangle]):
@@ -85,7 +101,6 @@ class PathFinder:
                     for w in range(self.n)
                     if self.edge(v, w)]
         self.adj[v] = adjacent
-
         return adjacent
 
     def edge(self, v: int, w: int) -> bool:

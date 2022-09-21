@@ -1,11 +1,12 @@
 import logging
 from typing import Optional, Union
 
-from .collision_check import BoxCollision
-from .geometry import Rectangle, Cuboid
+from ..gcode_metadata.base_parser import BaseParser
 from ..virtual_sdcard import PrintJob
 
-from ..gcode_metadata.base_parser import BaseParser
+from .collision_check import BoxCollision
+from .geometry import Rectangle, Cuboid
+from .printerboxes import PrinterBoxes
 
 
 # Default padding, if not specified in config, in mm
@@ -21,23 +22,25 @@ class CollisionInterface:
         self.continuous_printing: bool = config.getboolean(
                 'continuous_printing', False)
         self.reposition: bool = config.getboolean('reposition', False)
-        self.printbed: Cuboid = Cuboid(*[0]*6)  # Received after klippy:connect
-        self.printhead: Rectangle = self._read_printhead()
-        self.gantry_x_oriented: bool = config.getchoice("gantry_orientation",
-                                                        {"x": True, "y": False})
-        self.gantry: Rectangle = self._read_gantry(self.printbed)  # Preliminary
-        self.gantry_height: float = config.getfloat("gantry_z_min")
-        self.padding: float = config.getfloat("padding", DEFAULT_PADDING)
+
+        printbed: Cuboid = Cuboid(*[0]*6)  # Received after klippy:connect
+        printhead: Rectangle = self._read_printhead()
+        gantry: Rectangle = Rectangle(*[0]*4)  # Received after klippy:connect
+        gantry_x_oriented: bool = config.getchoice("gantry_orientation",
+                                                   {"x": True, "y": False})
+        gantry_height: float = config.getfloat("gantry_z_min")
+        padding: float = config.getfloat("padding", DEFAULT_PADDING)
+        self.dimensions = PrinterBoxes(printbed, printhead, gantry,
+                                       gantry_x_oriented, gantry_height,
+                                       padding, [])
 
         self.printer.register_event_handler("klippy:connect", self.handle_connect)
 
     def handle_connect(self) -> None:
         """Get printbed size later and update gantry"""
-        self.printbed = self._read_printbed()
-        self.gantry = self._read_gantry(self.printbed)
-        self.collision = BoxCollision(self.printbed, self.printhead,
-                                      self.gantry, self.gantry_x_oriented,
-                                      self.gantry_height, self.padding)
+        self.dimensions.printbed = self._read_printbed()
+        self.dimensions.gantry = self._read_gantry(self.dimensions)
+        self.collision = BoxCollision(self.dimensions)
         self.printer.register_event_handler(
                 "virtual_sdcard:print_end", self._handle_print_end)
 
@@ -56,29 +59,28 @@ class CollisionInterface:
             -self._config.getfloat("printhead_x_min"),
             -self._config.getfloat("printhead_y_min"),
             self._config.getfloat("printhead_x_max"),
-            self._config.getfloat("printhead_y_max"),
-        )
+            self._config.getfloat("printhead_y_max"))
 
-    def _read_gantry(self, printbed: Cuboid) -> Rectangle:
+    def _read_gantry(self, printer: PrinterBoxes) -> Rectangle:
         """Return a Rectangle representing the size of the gantry as viewed
         from above as well as if it is oriented parallel to the X-Axis or not.
         The printing nozzle would be at the 0-coordinate on the other axis.
         """
         xy_min = self._config.getfloat("gantry_xy_min")
         xy_max = self._config.getfloat("gantry_xy_max")
-        if self.gantry_x_oriented:
-            gantry = Rectangle(printbed.x, -xy_min,
-                               printbed.width, xy_max)
+        if printer.gantry_x_oriented:
+            gantry = Rectangle(printer.printbed.x, -xy_min,
+                               printer.printbed.width, xy_max)
         else:
-            gantry = Rectangle(-xy_min, printbed.y,
-                               xy_max, printbed.height)
+            gantry = Rectangle(-xy_min, printer.printbed.y,
+                               xy_max, printer.printbed.height)
         return gantry
 
     def check_available(
         self, printjob: PrintJob
     ) -> tuple[bool, Optional[tuple[float, float]]]:
         if not self.continuous_printing:
-            return not self.collision.current_objects, (0, 0)
+            return not self.dimensions.objects, (0, 0)
         try:
             available = not self.printjob_collides(printjob)
             offset: Optional[tuple[float, float]] = (0, 0)
@@ -119,7 +121,7 @@ class CollisionInterface:
             logging.warning("Collision: Couldn't read print dimensions for"
                     + printjob.path)
             # Save as entire printbed to force collision with all other prints
-            self.collision.add_object(self.collision.printbed)
+            self.dimensions.add_object(self.dimensions.printbed)
 
     ##
     ## Conversion functions
@@ -153,10 +155,10 @@ class CollisionInterface:
 
     def add_printjob(self, printjob: PrintJob) -> None:
         cuboid = self.printjob_to_cuboid(printjob)
-        self.collision.add_object(cuboid)
+        self.dimensions.add_object(cuboid)
 
     def clear_printjobs(self) -> None:
-        self.collision.clear_objects()
+        self.dimensions.clear_objects()
 
     def find_offset(self, printjob: PrintJob) -> Optional[tuple[float, float]]:
         cuboid = self.printjob_to_cuboid(printjob)
