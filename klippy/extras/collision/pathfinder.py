@@ -1,47 +1,84 @@
 """
 TODO:
   * Add support for static objects (screws), possibly for collision as well
-  * Check for gantry collisions in path
-  * Add Z-scanning in case of failure
   * Generate G1-Code from path
   * Add custom G-Code command for finding a path
 """
+import copy
 from heapq import heappop, heappush
 from itertools import chain
 from math import sqrt
-from typing import Optional, TypeVar, Generic, Any, cast
+from typing import Union, Optional, TypeVar, Generic, Any, cast, Sequence
 
-from .geometry import Rectangle
+from .geometry import Rectangle, Cuboid
 from .printerboxes import PrinterBoxes
 
 PointType = tuple[float, float]
+Point3DType = tuple[float, float, float]
 
 class PathFinderManager:
 
     def __init__(self, printer: PrinterBoxes) -> None:
         self.printer = printer
 
-    def find_path(
-        self, start: PointType, goal: PointType
-    ) -> Optional[list[PointType]]:
-        #TODO Z-scanning etc.
-        return self.find_path_at_height(start, goal, 0)
+    def find_path(self,
+        start: Point3DType,
+        goal: Point3DType,
+    ) -> Optional[list[Point3DType]]:
+        min_height = max(start[2], goal[2])
+        inner_space = Cuboid(*start, *goal)
+        min_gantry_space = self.printer.gantry_space(inner_space)
+        gantry_collision_heights = iter(o.max_z for o in self.printer.objects
+                                        if o.collides_with(min_gantry_space))
+        min_gantry_height = max(gantry_collision_heights,
+                                default=self.printer.gantry_height)
+        move_height = max(min_height,
+                          min_gantry_height - self.printer.gantry_height)
+        to_avoid = sorted(copy.copy(self.printer.objects), reverse=True,
+                          key=lambda o: o.max_z)
+        while to_avoid and to_avoid[-1].max_z < move_height:
+            to_avoid.pop()
+
+        while True:
+            path = self.find_path_at_height(start[:2], goal[:2], to_avoid)
+            if path is not None:
+                return self.add_height_to_path(start, goal, path, move_height)
+
+            if to_avoid:
+                # Couldn't find path, move up above next object
+                move_height = to_avoid.pop().max_z
+            else:
+                return None
 
     def find_path_at_height(
-        self, start: PointType, goal: PointType, height: float
+        self, start: PointType, goal: PointType,
+        objects: Sequence[Union[Rectangle, Cuboid]]
     ) -> Optional[list[PointType]]:
-        # Discard everything that is lower than height, and keep rectangles
-        objects = iter(o.projection() for o in self.printer.objects
-                       if o.max_z > height)
         # Add space for printhead to move around and padding
         spaces = [self.occupied_space(o) for o in objects]
         all_corners = chain.from_iterable(iter(o.get_corners() for o in spaces))
         vertices = [c for c in all_corners if self.filter_corner(c, spaces)]
-
         pf = PathFinder(vertices, spaces, start, goal)
         return pf.shortest_path()
 
-    def occupied_space(self, obj: Rectangle) -> Rectangle:
+    def add_height_to_path(
+        self, start: Point3DType, goal: Point3DType,
+        path: list[PointType], move_height: float
+    ) -> list[Point3DType]:
+        """Set the path to run at move_height.
+        If start or goal aren't at that height, a vertical move up to that
+        height is added at that end.
+
+        TODO: Maybe add safe diagonal height changes
+        """
+        path_3d = [(x, y, move_height) for x, y in path]
+        if start[2] != move_height:
+            path_3d.insert(0, start)
+        if goal[2] != move_height:
+            path_3d.append(goal)
+        return path_3d
+
+    def occupied_space(self, obj: Union[Rectangle, Cuboid]) -> Rectangle:
         """Return the space for an object that we can't move into, including
         the size of the printhead as well as padding.
         """
@@ -53,8 +90,8 @@ class PathFinderManager:
                          obj.max_y - ph.y + pad)
 
     def filter_corner(self, p: PointType, objects: list[Rectangle]) -> bool:
-        # Reject points that lie outside the printbed
-        if not self.printer.printbed.contains(p):
+        # Reject points that lie outside the printbed plane
+        if not self.printer.printbed.projection().contains(p):
             return False
         # Reject points that lie strictly within a different object.
         # This isn't technically necessary as those points couldn't connect to

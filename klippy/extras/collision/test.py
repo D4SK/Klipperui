@@ -15,7 +15,7 @@ import configfile
 from extras.collision.geometry import Rectangle, Cuboid
 from extras.collision.interface import CollisionInterface
 from extras.collision.collision_check import BoxCollision
-from extras.collision.pathfinder import PathFinder
+from extras.collision.pathfinder import PathFinderManager, PathFinder
 
 
 # Needed to create ConfigWrapper
@@ -78,6 +78,11 @@ class GeometryTest(unittest.TestCase):
 
         r3 = Rectangle(4, 6, 8, 7)
         self.assertNotEqual(r1, r3)
+
+    def test_rectangle_repr(self):
+        r1 = Rectangle(4, 6, 8, 10)
+        self.assertEqual(repr(r1), "Rectangle(x=4, y=6, max_x=8, max_y=10)")
+        self.assertEqual(r1, eval(repr(r1)))
 
     def test_rectangle_intersection(self):
         r1 = Rectangle(0, 0, 8, 4)
@@ -166,6 +171,12 @@ class GeometryTest(unittest.TestCase):
         c3 = Cuboid(1, 1, 3, 4, 5, 6)
         self.assertEqual(c1, c2)
         self.assertNotEqual(c1, c3)
+
+    def test_cuboid_repr(self):
+        r1 = Cuboid(4, 6, 8, 10, 12, 14)
+        self.assertEqual(repr(r1),
+            "Cuboid(x=4, y=6, z=8, max_x=10, max_y=12, max_z=14)")
+        self.assertEqual(r1, eval(repr(r1)))
 
     def test_cuboid_intersection(self):
         c1 = Cuboid(0, 0, 0, 20, 15, 10)
@@ -679,6 +690,69 @@ class PathFinderTest(unittest.TestCase):
         expected = [24, 0, 20, 12, 13, 25]
         # Convert from indices to points
         self.assertEqual(path, [self.pf.vertices[v] for v in expected])
+
+
+class PathFinderManagerTest(unittest.TestCase):
+
+    def setUp(self):
+        CollisionTest.setUp(self)
+        self.pfm = PathFinderManager(self.printer)
+        self.pfm_x = PathFinderManager(self.printer_x)
+
+    def test_occupied_space(self):
+        c = Cuboid(-30, 20, -5, 120, 250, 300)
+        bigger = self.pfm.occupied_space(c)
+        # occupied_space returns a rectangle, add Z-axis with padding
+        bigger_cuboid = Cuboid(bigger.x, bigger.y, -10,
+                               bigger.max_x, bigger.max_y, 305)
+        self.assertEqual(c, self._object_from_space(bigger_cuboid))
+        self.assertEqual(c.projection(),
+             self.pfm.occupied_space(
+                 self._object_from_space(c).projection()))
+
+    def test_find_path(self):
+        py = self.printer
+        px = self.printer_x
+
+        # Requires snake pattern
+        objects = [
+            self._object_from_space(Cuboid(-100, 50, 0, 400, 200, 50)),
+            self._object_from_space(Cuboid(260, 100, 0, 400, 600, 50)),
+            self._object_from_space(Cuboid(100, 800, 0, 600, 950, 50)),
+            self._object_from_space(Cuboid(100, 400, 0, 240, 900, 50))]
+        for o in objects:
+            py.add_object(o)
+            px.add_object(o)
+        expected = [(0, 0, 0),
+                    (400.0, 50.0, 0),
+                    (400.0, 600.0, 0),
+                    (260.0, 600.0, 0),
+                    (240.0, 400.0, 0),
+                    (100.0, 400.0, 0),
+                    (100.0, 950.0, 0),
+                    (500, 1000, 0)]
+        self.assertEqual(self.pfm.find_path((0, 0, 0), (500, 1000, 0)),
+                         expected)
+
+    def _object_from_space(self, space):
+        """Take a Cuboid of a space that should be avoided by path finding and
+        create an object that would need this space by removing padding and
+        printhead borders. Note that this is different than
+        FinderTest._object_from_space, as that expects a space to print, not a
+        space to avoid.
+        """
+        p = self.printer
+        no_padding = space.grow(-p.padding)
+        if (no_padding.width < p.printhead.width or
+            no_padding.height < p.printhead.height):
+            raise ValueError("Space too small!")
+        return Cuboid(
+                round(no_padding.x + p.printhead.max_x, 4),
+                round(no_padding.y + p.printhead.max_y, 4),
+                round(no_padding.z, 4),
+                round(no_padding.max_x + p.printhead.x, 4),
+                round(no_padding.max_y + p.printhead.y, 4),
+                round(no_padding.max_z, 4))
 
 
 if __name__ == '__main__':

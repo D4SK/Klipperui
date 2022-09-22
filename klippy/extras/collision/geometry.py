@@ -27,6 +27,10 @@ class Rectangle:
                 self.max_x == other.max_x and
                 self.max_y == other.max_y)
 
+    def __repr__(self) -> str:
+        return (f"Rectangle(x={self.x}, y={self.y}, "
+                f"max_x={self.max_x}, max_y={self.max_y})")
+
     def intersection(self, other: "Rectangle") -> "Rectangle":
         """Return the intersection between two rectangles.
         This is always a rectangle, but may have no area if both rectangles are
@@ -119,6 +123,10 @@ class Cuboid:
                 self.max_x == other.max_x and
                 self.max_y == other.max_y and
                 self.max_z == other.max_z)
+
+    def __repr__(self) -> str:
+        return (f"Cuboid(x={self.x}, y={self.y}, z={self.z}, "
+                f"max_x={self.max_x}, max_y={self.max_y}, max_z={self.max_z})")
 
     def intersection(self, other: "Cuboid") -> "Cuboid":
         x = max(self.x, other.x)
