@@ -6,6 +6,7 @@ from ..virtual_sdcard import PrintJob
 
 from .collision_check import BoxCollision
 from .geometry import Rectangle, Cuboid
+from .pathfinder import PathFinderManager
 from .printerboxes import PrinterBoxes
 
 
@@ -41,6 +42,7 @@ class CollisionInterface:
         self.dimensions.printbed = self._read_printbed()
         self.dimensions.gantry = self._read_gantry(self.dimensions)
         self.collision = BoxCollision(self.dimensions)
+        self.pathfinder = PathFinderManager(self.dimensions)
         self.printer.register_event_handler(
                 "virtual_sdcard:print_end", self._handle_print_end)
 

@@ -93,16 +93,9 @@ class PathFinderManager:
         """Return True if the printhead being at p would cause a collision.
         This is used to check for invalid start/goal points of a path search.
         """
-        # Assure that p lies inside the printbed
-        #NOTE: PrinterBoxes.fits assumes cuboids with nonzero volume
-        pb = self.printer.printbed
-        if not (pb.x <= p[0] <= pb.max_x and
-                pb.y <= p[1] <= pb.max_y and
-                pb.z <= p[2] <= pb.max_z):
-            return True
-
         as_cube = Cuboid(*p, *p)
-        return self.printer.cuboid_collides(as_cube)
+        return (not self.printer.printbed.contains(p)
+                ) or self.printer.cuboid_collides(as_cube)
 
     def occupied_space(self, obj: Union[Rectangle, Cuboid]) -> Rectangle:
         """Return the space for an object that we can't move into, including
