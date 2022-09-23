@@ -710,7 +710,21 @@ class PathFinderManagerTest(unittest.TestCase):
              self.pfm.occupied_space(
                  self._object_from_space(c).projection()))
 
-    def test_find_path(self):
+    def test_find_path_edge_cases(self):
+        # No objects
+        path = [(0, 0, 0), (500, 1000, 0)]
+        self.assertEqual(self.pfm.find_path(*path), path)
+        self.assertEqual(self.pfm_x.find_path(*path), path)
+
+        # Equal endpoints
+        p = (40, 50, 60)
+        self.assertEqual(self.pfm.find_path(p, p), [p, p])
+
+        # Endpoints outside printbed
+        self.assertEqual(self.pfm.find_path((-100, 0, 0), (50, 50, 50)), None)
+        self.assertEqual(self.pfm.find_path((0, 0, 0), (5000, 50, 50)), None)
+
+    def test_find_path_snake(self):
         py = self.printer
         px = self.printer_x
 
@@ -733,6 +747,85 @@ class PathFinderManagerTest(unittest.TestCase):
                     (500, 1000, 0)]
         self.assertEqual(self.pfm.find_path((0, 0, 0), (500, 1000, 0)),
                          expected)
+        self.assertEqual(self.pfm_x.find_path((0, 0, 0), (500, 1000, 0)),
+                         expected)
+
+    def test_find_path_hurdle(self):
+        py = self.printer
+        px = self.printer_x
+
+        obj = self._object_from_space(Cuboid(-100, 200, 0, 600, 400, 200))
+        py.add_object(obj)
+        px.add_object(obj)
+
+        # Can't move lower than z=200 because the y gantry is blocked
+        self.assertEqual(self.pfm.find_path((250, 0, 0), (250, 1000, 0)), None)
+        self.assertEqual(self.pfm.find_path((250, 0, 0), (250, 1000, 200)), None)
+        self.assertEqual(self.pfm.find_path((250, 0, 200), (250, 1000, 0)), None)
+        # Direct path with endpoints above z=200
+        self.assertEqual(self.pfm.find_path((250, 0, 200), (250, 1000, 200)),
+                         [(250, 0, 200), (250, 1000, 200)])
+        # Gantry fits, printhead must be lifted
+        self.assertEqual(self.pfm.find_path((250, 0, 116), (250, 1000, 116)),
+                         [(250, 0, 116), (250, 0, 200),
+                          (250, 1000, 200), (250, 1000, 116)])
+        self.assertEqual(self.pfm_x.find_path((250, 0, 0), (250, 1000, 0)),
+                         [(250, 0, 0), (250, 0, 200),
+                         (250, 1000, 200), (250, 1000, 0)])
+
+        self.assertEqual(self.pfm.find_path((0, 0, 0), (500, 0, 0)), None)
+        # Direct path with x gantry
+        self.assertEqual(self.pfm_x.find_path((0, 0, 0), (500, 0, 0)),
+                         [(0, 0, 0), (500, 0, 0)])
+
+    def test_find_path_hurdle_and_obstacle(self):
+        py = self.printer
+        px = self.printer_x
+
+        objects = [
+            self._object_from_space(Cuboid(-100, 100, 0, 600, 300, 20)),
+            self._object_from_space(Cuboid(100, 300, 0, 220, 500, 50)),
+            # Only affects x gantry
+            self._object_from_space(Cuboid(300, 300, 0, 600, 500, 200))]
+        for o in objects:
+            py.add_object(o)
+            px.add_object(o)
+
+        # z=20 is enough to clear the hurdle
+        self.assertEqual(self.pfm.find_path((150, 0, 0), (150, 1000, 0)),
+                         [(150, 0, 0), (150, 0, 20),
+                          (100, 300, 20), (100, 500, 20),
+                          (150, 1000, 20), (150, 1000, 0)])
+        # x gantry requires going up to z=116. The obstacle becomes irrelevant
+        self.assertEqual(self.pfm_x.find_path((150, 0, 0), (150, 1000, 0)),
+                         [(150, 0, 0), (150, 0, 116),
+                          (150, 1000, 116), (150, 1000, 0)])
+
+    def test_find_path_very_high_hurdle(self):
+        """If the object that needs to be cleared by going above is too high,
+        no path is possible.
+        """
+        # An object with height 299 could technically be printed in a 300 high
+        # printbed, but padding disallows clearing it in a path
+        obj = Cuboid(0, 400, 0, 500, 600, 299)
+        self.printer.add_object(obj)
+        self.printer_x.add_object(obj)
+        # Fails due to y gantry
+        self.assertEqual(self.pfm.find_path((250, 0, 0), (250, 1000, 0)), None)
+        # Fails because the hurdle is too high
+        self.assertEqual(self.pfm_x.find_path((250, 0, 0), (250, 1000, 0)),
+                         None)
+
+    def test_find_path_very_high_tower(self):
+        obj = Cuboid(300, 400, 0, 500, 600, 1000)
+        self.printer.add_object(obj)
+        self.printer_x.add_object(obj)
+
+        # y gantry has no problem
+        self.assertEqual(self.pfm.find_path((0, 0, 0), (0, 1000, 0)),
+                         [(0, 0, 0), (0, 1000, 0)])
+        # x gantry can't clear the tower
+        self.assertEqual(self.pfm_x.find_path((0, 0, 0), (0, 1000, 0)), None)
 
     def _object_from_space(self, space):
         """Take a Cuboid of a space that should be avoided by path finding and

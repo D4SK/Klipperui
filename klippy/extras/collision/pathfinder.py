@@ -25,28 +25,39 @@ class PathFinderManager:
         start: Point3DType,
         goal: Point3DType,
     ) -> Optional[list[Point3DType]]:
+        # Verify that both points can be moved into
+        if self.point_collides(start) or self.point_collides(goal):
+            return None
+
+        padding = self.printer.padding
         min_height = max(start[2], goal[2])
         inner_space = Cuboid(*start, *goal)
         min_gantry_space = self.printer.gantry_space(inner_space)
         gantry_collision_heights = iter(o.max_z for o in self.printer.objects
                                         if o.collides_with(min_gantry_space))
         min_gantry_height = max(gantry_collision_heights,
-                                default=self.printer.gantry_height)
+                                default=self.printer.gantry_height-padding)
+        min_gantry_height += padding
         move_height = max(min_height,
                           min_gantry_height - self.printer.gantry_height)
         to_avoid = sorted(copy.copy(self.printer.objects), reverse=True,
                           key=lambda o: o.max_z)
-        while to_avoid and to_avoid[-1].max_z < move_height:
+        # Remove all objects that are too low to be relevant
+        while to_avoid and to_avoid[-1].max_z + padding < move_height:
             to_avoid.pop()
 
         while True:
+            # Must move higher than possible
+            if move_height > self.printer.printbed.max_z:
+                return None
+
             path = self.find_path_at_height(start[:2], goal[:2], to_avoid)
             if path is not None:
                 return self.add_height_to_path(start, goal, path, move_height)
 
             if to_avoid:
                 # Couldn't find path, move up above next object
-                move_height = to_avoid.pop().max_z
+                move_height = to_avoid.pop().max_z + padding
             else:
                 return None
 
@@ -77,6 +88,21 @@ class PathFinderManager:
         if goal[2] != move_height:
             path_3d.append(goal)
         return path_3d
+
+    def point_collides(self, p: Point3DType) -> bool:
+        """Return True if the printhead being at p would cause a collision.
+        This is used to check for invalid start/goal points of a path search.
+        """
+        # Assure that p lies inside the printbed
+        #NOTE: PrinterBoxes.fits assumes cuboids with nonzero volume
+        pb = self.printer.printbed
+        if not (pb.x <= p[0] <= pb.max_x and
+                pb.y <= p[1] <= pb.max_y and
+                pb.z <= p[2] <= pb.max_z):
+            return True
+
+        as_cube = Cuboid(*p, *p)
+        return self.printer.cuboid_collides(as_cube)
 
     def occupied_space(self, obj: Union[Rectangle, Cuboid]) -> Rectangle:
         """Return the space for an object that we can't move into, including

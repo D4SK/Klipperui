@@ -31,19 +31,8 @@ class BoxCollision:
 
         new_object should be a Cuboid outlining the space needed by the object.
         """
-        if not self.printer.fits(new_object):
-            # Doesn't fit in the printer at all!
-            return True
-
-        mv_printhead = self.printer.printhead_space(new_object)
-        mv_gantry = self.printer.gantry_space(new_object)
-        padding = self.printer.padding
-        for obj in self.printer.objects:
-            if (new_object.collides_with(obj, padding) or
-                mv_printhead.collides_with(obj.projection(), padding) or
-                mv_gantry.collides_with(obj, padding)):
-                return True
-        return False
+        return (not self.printer.fits(new_object)) or (
+                self.printer.cuboid_collides(new_object))
 
     def find_offset(self, object_cuboid: Cuboid) -> Optional[tuple[float, float]]:
         """For a given object search for an offset where it can be printed
