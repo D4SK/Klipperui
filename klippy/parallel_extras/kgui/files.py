@@ -123,6 +123,9 @@ class FilechooserItem(RecycleDataViewBehavior, Label):
         # Catch and handle the view changes
         self.index = index
         super().refresh_view_attrs(rv, index, data)
+        # Skip requesting metadata if it's a directory
+        if data['item_type'] != 'file':
+            return
         app = App.get_running_app()
         gcmd = app.gcode_metadata
         if gcmd:
