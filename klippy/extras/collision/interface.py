@@ -34,6 +34,9 @@ class CollisionInterface:
         self.dimensions = PrinterBoxes(printbed, printhead, gantry,
                                        gantry_x_oriented, gantry_height,
                                        padding, [])
+        # Mark config values as needed
+        self._config.getfloat("gantry_xy_min")
+        self._config.getfloat("gantry_xy_max")
 
         self.printer.register_event_handler("klippy:connect", self.handle_connect)
 
