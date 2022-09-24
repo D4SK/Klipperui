@@ -38,7 +38,7 @@ class ConfigWrapper:
                         % (option, self.section))
         try:
             v = parser(self.section, option)
-        except self.error as e:
+        except self.error:
             raise
         except:
             raise error("Unable to parse option '%s' in section '%s'"
@@ -149,6 +149,7 @@ class PrinterConfig:
         self.status_settings = {}
         self.status_warnings = []
         self.save_config_pending = False
+        self.has_backed_up = False
         gcode = self.printer.lookup_object('gcode')
         gcode.register_command("SAVE_CONFIG", self.cmd_SAVE_CONFIG,
                                desc=self.cmd_SAVE_CONFIG_help)
@@ -190,7 +191,6 @@ class PrinterConfig:
     comment_r = re.compile('[#;].*$')
     value_r = re.compile('[^A-Za-z0-9_].*$')
     def _strip_duplicates(self, data, config):
-        fileconfig = config.fileconfig
         # Comment out fields in 'data' that are defined in 'config'
         lines = data.split('\n')
         section = None
@@ -394,14 +394,27 @@ class PrinterConfig:
         try:
             data = self._read_config_file(cfgname)
             regular_data, old_autosave_data = self._find_autosave_data(data)
-            config = self._build_config_wrapper(regular_data, cfgname)
-        except error as e:
+            self._build_config_wrapper(regular_data, cfgname)
+        except error:
             msg = "Unable to parse existing config on SAVE_CONFIG"
             logging.exception(msg)
             raise gcode.error(msg)
         regular_data = self._strip_duplicates(regular_data, self.autosave)
         self._disallow_include_conflicts(regular_data, cfgname, gcode)
         data = regular_data.rstrip() + autosave_data
+        self.write_config(data, cfgname)
+
+        # Request a restart
+        if restart:
+            gcode.request_restart('restart')
+
+    def write_config(self, data, cfgname):
+        if self.has_backed_up:
+            logging.info("SAVE_CONFIG to '%s'", cfgname)
+            with open(cfgname, 'w') as file:
+                file.write(data)
+            return
+
         # Determine filenames
         datestr = time.strftime("-%Y%m%d_%H%M%S")
         backup_name = cfgname + datestr
@@ -413,15 +426,13 @@ class PrinterConfig:
         logging.info("SAVE_CONFIG to '%s' (backup in '%s')",
                      cfgname, backup_name)
         try:
-            f = open(temp_name, 'w')
-            f.write(data)
-            f.close()
+            with open(temp_name, 'w') as f:
+                f.write(data)
             os.rename(cfgname, backup_name)
             os.rename(temp_name, cfgname)
         except:
             msg = "Unable to write config file during SAVE_CONFIG"
             logging.exception(msg)
+            gcode = self.printer.lookup_object('gcode')
             raise gcode.error(msg)
-        # Request a restart
-        if restart:
-            gcode.request_restart('restart')
+        self.has_backed_up = True
