@@ -25,7 +25,6 @@ from kivy.app import App
 from kivy.base import ExceptionHandler, ExceptionManager
 from kivy.clock import Clock
 from kivy.lang import Builder
-from kivy.logger import Logger
 from kivy.properties import (OptionProperty, BooleanProperty, DictProperty,
                             NumericProperty, ListProperty, StringProperty)
 from .elements import UltraKeyboard, CriticalErrorPopup, ErrorPopup
@@ -95,12 +94,10 @@ class MainApp(App, threading.Thread):
     material_tolerance = NumericProperty()
 
     def __init__(self, config, **kwargs):
-        printer = config.get_printer()
-        Logger.setLevel(printer.get_start_args().get("debuglevel", logging.INFO))
         logging.info("Kivy app initializing...")
         self.network_manager = NetworkManager()
         self.notify = Notifications()
-        self.gcode_metadata = printer.load_object(config, "gcode_metadata")
+        self.gcode_metadata = config.get_printer().load_object(config, "gcode_metadata")
         self.temp = {'extruder': [0,0], 'extruder1': [0,0], 'heater_bed': [0,0]}
         self.kv_file = join(p.kgui_dir, "kv/main.kv") # Tell kivy where the root kv file is
 
@@ -112,7 +109,7 @@ class MainApp(App, threading.Thread):
 
         self.reactor = config.get_reactor()
         self.reactor.register_mp_callback_handler(kivy_callback)
-        self.fd = printer.get_start_args().get("gcode_fd")
+        self.fd = config.get_printer().get_start_args().get("gcode_fd")
         # Read config
         self.config_pressure_advance = config.getsection('extruder').getfloat("pressure_advance", 0)
         self.config_acceleration = config.getsection('printer').getfloat("max_accel", 0)

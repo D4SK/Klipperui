@@ -28,9 +28,7 @@ class CuraConnectionModule:
     CONNECTION_TIMEOUT = 4.2
 
     def __init__(self, config):
-        printer = config.get_printer()
-        loglevel = printer.get_start_args().get("debuglevel", logging.INFO)
-        self._log_queue = queuelogger.setup_bg_logging(LOGFILE, loglevel)
+        self._log_queue = queuelogger.setup_bg_logging(LOGFILE, logging.INFO)
         self._log_queue.setFormatter(logging.Formatter(
                 fmt="%(levelname)s: \t[%(asctime)s] %(message)s"))
         self.testing = config is None
