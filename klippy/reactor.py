@@ -161,6 +161,7 @@ class SelectReactor:
         self._greenlets = []
         self._all_greenlets = []
         self.thread_id = threading.get_ident()
+        self.logger = None
     def register_mp_callback_handler(self, handler):
         self._mp_callback_handler = handler
     # Start dispatching mp tasks, execute after run()
@@ -352,6 +353,8 @@ class SelectReactor:
         self._all_greenlets.append(g_next)
         g_next.switch()
     def end(self, e=None):
+        if self.logger:
+            self.logger.stop()
         self._process = False
     def finalize(self):
         self._g_dispatch = None

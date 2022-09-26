@@ -6,6 +6,7 @@ from os.path import join, dirname
 from subprocess import Popen
 
 os.environ['KIVY_NO_CONSOLELOG'] = '1'  # Only use file logging
+os.environ['KIVY_LOG_MODE'] = 'PYTHON'
 
 from kivy.config import Config
 

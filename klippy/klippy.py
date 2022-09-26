@@ -7,7 +7,7 @@
 import sys, os, gc, optparse, logging, time, collections, importlib
 import util, reactor, queuelogger, msgproto
 import gcode, configfile, pins, mcu, toolhead, webhooks
-import signal, traceback, multiprocessing
+import signal, traceback, multiprocessing, datetime
 from os.path import join, exists, dirname
 
 message_ready = "Printer is ready"
@@ -155,12 +155,14 @@ class Printer:
         # Reset logging module so that all processes can use the root logger
         logging.shutdown()
         importlib.reload(logging)
+        config.reactor = reactor.Reactor(process=section, gc_checking=True)
+        config.printer.reactor = config.reactor
+        config.reactor.logger = queuelogger.setup_bg_logging("/tmp/"+section.split()[-1]+".log", debuglevel)
         # Avoid active imports changing environment - import in target process
         mod = importlib.import_module('parallel_extras.' + section.split()[0])
         init_func = getattr(mod, init_func, None)
-        config.reactor = reactor.Reactor(process=section, gc_checking=True)
-        config.printer.reactor = config.reactor
         def start(e):
+            logging.info(f"\nRestart {datetime.datetime.now()}\n")
             config.reactor.setup_mp_queues(mp_queues)
             config.reactor.root = init_func(config)
             config.reactor.cb(Printer._report_access_tracking,
@@ -386,7 +388,7 @@ def main():
         opts.error("Incorrect number of arguments")
     start_args = {'config_file': args[0], 'apiserver': options.apiserver,
                   'start_reason': 'startup'}
-
+    global debuglevel
     debuglevel = logging.INFO
     if options.verbose:
         debuglevel = logging.DEBUG
@@ -405,7 +407,7 @@ def main():
         bglogger = queuelogger.setup_bg_logging(options.logfile, debuglevel)
     else:
         logging.getLogger().setLevel(debuglevel)
-    logging.info("Starting Klippy...")
+    logging.info(f"\nRestart {datetime.datetime.now()}\n")
     start_args['software_version'] = util.get_git_version()
     start_args['cpu_info'] = util.get_cpu_info()
     if bglogger is not None:

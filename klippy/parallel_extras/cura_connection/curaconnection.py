@@ -13,13 +13,10 @@ import platform
 import socket
 import time
 
-import queuelogger
-
 from .contentmanager import ContentManager
 from . import server
 from .zeroconfhandler import ZeroConfHandler
 
-LOGFILE = "/tmp/cura_connection.log"
 
 class CuraConnectionModule:
 
@@ -28,8 +25,8 @@ class CuraConnectionModule:
     CONNECTION_TIMEOUT = 4.2
 
     def __init__(self, config):
-        self._log_queue = queuelogger.setup_bg_logging(LOGFILE, logging.INFO)
-        self._log_queue.setFormatter(logging.Formatter(
+        self.reactor = config.get_reactor()
+        self.reactor.logger.setFormatter(logging.Formatter(
                 fmt="%(levelname)s: \t[%(asctime)s] %(message)s"))
         self.testing = config is None
 
@@ -46,7 +43,6 @@ class CuraConnectionModule:
         self.content_manager = None
         self.zeroconf_handler = None
         self.server = None
-        self.reactor = config.get_reactor()
         self.metadata = config.get_printer().load_object(config, "gcode_metadata")
         # These are loaded a bit late, they sometimes miss the klippy:connect event
         # klippy:ready works since it only occurs after kguis handle_connect reports back
@@ -54,7 +50,6 @@ class CuraConnectionModule:
         self.reactor.cb(self.load_object, "print_history")
         self.reactor.register_event_handler("klippy:ready", self.handle_ready)
         self.reactor.register_event_handler("klippy:disconnect", self.handle_disconnect)
-        logging.info(" === Cura Connection Module initialized ===")
 
     def handle_ready(self):
         """
@@ -102,7 +97,6 @@ class CuraConnectionModule:
                 self.server.join()
                 logging.debug("Cura Connection Server shut down")
         self.reactor.register_async_callback(self.reactor.end)
-        self._log_queue.stop()
 
     def is_connected(self):
         """
