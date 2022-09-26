@@ -46,7 +46,9 @@ install_packages()
     python3-dev \
     python3-venv \
     python3-setuptools \
-    python3-pip"
+    python3-pip \
+    libreadline-gplv2-dev libncursesw5-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev \
+    libgirepository1.0-dev libcairo2-dev libjpeg-dev libgif-dev" # some stuff thats needed for installing gi
 
     # Kivy Raspberry 4 specifics
     PKGLIST="${PKGLIST} \
@@ -112,17 +114,30 @@ install_packages()
 
 
 
+install_python()
+{
+    report_status "Installing Python 3.10..."
+    cd ~
+    wget https://www.python.org/ftp/python/3.10.7/Python-3.10.7.tgz
+    tar -zxvf Python-3.10.7.tgz Python-3.10.7/
+    cd Python-3.10.7/
+    ./configure --enable-optimizations --with-ensurepip --enable-shared LDFLAGS="-Wl,-rpath /usr/local/lib"
+    sudo make altinstall
+}
+
+
+
 # Step 2: Create python virtual environment
 create_virtualenv()
 {
     report_status "Updating python virtual environment..."
     # Create virtualenv if it doesn't already exist
-    [ ! -d ${PYTHONDIR} ] && python3 -m venv ${PYTHONDIR}
+    [ ! -d ${PYTHONDIR} ] && python3.10 -m venv ${PYTHONDIR}
     report_status "Installing pip packages..."
     # Install/update dependencies                      v  custom KGUI list of pip packages
     ${PYTHONDIR}/bin/pip3 install -q -r ${SRCDIR}/scripts/klippo-requirements.txt
-    # Use the python-gi module from the system installation
-    ln -sf /usr/lib/python3/dist-packages/gi ${PYTHONDIR}/lib/python3.?/site-packages/
+    # install kivy from source
+    python3 -m pip install "kivy[base] @ https://github.com/kivy/kivy/archive/master.zip"
 }
 
 
@@ -147,7 +162,7 @@ Requires=start_xorg.service
 Type=simple
 User=$USER
 Environment=DISPLAY=:0
-ExecStart=$PYTHONDIR/bin/python3 $SRCDIR/klippy/klippy.py $HOME/printer.cfg -v -l /tmp/klippy.log
+ExecStart=$PYTHONDIR/bin/python3.10 $SRCDIR/klippy/klippy.py $HOME/printer.cfg -v -l /tmp/klippy.log
 Nice=-19
 Restart=always
 RestartSec=10
@@ -222,6 +237,7 @@ set -e
 # Run installation steps defined above
 verify_ready
 install_packages
+install_python
 create_virtualenv
 setup_kivy_config
 install_klipper_service

@@ -8,8 +8,9 @@ greenlet==1.1.2
 Jinja2==3.0.3
 
 #KGUI
-Cython==0.29.17
+Cython==0.29.32
 requests==2.27.1
-kivy==2.0.0
+#kivy==2.1.0
 #Wifi
 pydbus==0.6.0
+PyGObject
