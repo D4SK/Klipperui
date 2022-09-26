@@ -1,3 +1,5 @@
+import ast
+import configparser
 import logging
 from typing import Optional, Union
 
@@ -31,9 +33,10 @@ class CollisionInterface:
                                                    {"x": True, "y": False})
         gantry_height: float = config.getfloat("gantry_z_min")
         padding: float = config.getfloat("padding", DEFAULT_PADDING)
+        static_objects = self._read_static_objects()
         self.dimensions = PrinterBoxes(printbed, printhead, gantry,
                                        gantry_x_oriented, gantry_height,
-                                       padding, [])
+                                       padding, static_objects)
         # Mark config values as needed
         self._config.getfloat("gantry_xy_min")
         self._config.getfloat("gantry_xy_max")
@@ -48,6 +51,23 @@ class CollisionInterface:
         self.pathfinder = PathFinderManager(self.dimensions)
         self.printer.register_event_handler(
                 "virtual_sdcard:print_end", self._handle_print_end)
+
+    def _read_static_objects(self) -> list[Cuboid]:
+        value = self._config.get("static_objects", None)
+        if value is None:
+            return []
+        try:
+            figures = ast.literal_eval(value)
+            objects = []
+            for e in figures:
+                for x in e:
+                    assert isinstance(x, (int, float))
+                objects.append(Cuboid(*e))
+        except (ValueError, TypeError, SyntaxError, MemoryError,
+                RecursionError, KeyError, AssertionError):
+            raise configparser.Error(
+                "Invalid object list: Should be a sequence of 6-tuples")
+        return objects
 
     def _read_printbed(self) -> Cuboid:
         """Read the printer size from the config and return it as a Cuboid"""

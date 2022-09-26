@@ -11,14 +11,15 @@ class PrinterBoxes:
                  gantry_x_oriented: bool,
                  gantry_height: float,
                  padding: float,
-                 objects: list[Cuboid] = None) -> None:
+                 static_objects: list[Cuboid] = None) -> None:
         self.printbed = printbed
         self.printhead = printhead
         self.gantry = gantry
         self.gantry_x_oriented = gantry_x_oriented
         self.gantry_height = gantry_height
         self.padding = padding
-        self.objects = objects or []
+        self.objects = static_objects or []
+        self.n_static = len(self.objects)
     
     def add_object(self, new_object: Cuboid) -> None:
         """Add an object, like a finished print job, to be considered in the
@@ -27,8 +28,10 @@ class PrinterBoxes:
         self.objects.append(new_object)
 
     def clear_objects(self) -> None:
-        """Empty the list of print objects to keep track of"""
-        self.objects.clear()
+        """Empty the list of print objects to keep track of.
+        Only static objects are kept.
+        """
+        del self.objects[self.n_static:]
 
     def printhead_space(
         self, print_object: Union[Rectangle, Cuboid]

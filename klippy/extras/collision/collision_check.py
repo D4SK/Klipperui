@@ -13,16 +13,12 @@ class BoxCollision:
     def __init__(self, printer: PrinterBoxes):
         self.printer = printer
 
-    def replicate_with_objects(
-        self, objects: list[Cuboid], expand: bool = True
-    ) -> "BoxCollision":
+    def replicate_with_objects(self, objects: list[Cuboid]) -> "BoxCollision":
         """Return a new collision instance but with an expanded (or replaced)
         object list.
         """
         new_printer = copy.copy(self.printer)
-        if expand:
-            objects = copy.copy(self.printer.objects) + objects
-        new_printer.objects = objects
+        new_printer.objects = copy.copy(self.printer.objects) + objects
         return BoxCollision(new_printer)
 
     def object_collides(self, new_object: Cuboid) -> bool:

@@ -1,6 +1,5 @@
 """
 TODO:
-  * Add support for static objects (screws), possibly for collision as well
   * Generate G1-Code from path
   * Add custom G-Code command for finding a path
 """
