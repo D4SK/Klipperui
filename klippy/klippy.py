@@ -390,6 +390,7 @@ def main():
     debuglevel = logging.INFO
     if options.verbose:
         debuglevel = logging.DEBUG
+    start_args['debuglevel'] = debuglevel
     if options.debuginput:
         start_args['debuginput'] = options.debuginput
         debuginput = open(options.debuginput, 'rb')
