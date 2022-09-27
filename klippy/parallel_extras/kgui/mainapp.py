@@ -7,6 +7,7 @@ from subprocess import Popen
 
 os.environ['KIVY_NO_CONSOLELOG'] = '1'  # Only use file logging
 os.environ['KIVY_LOG_MODE'] = 'PYTHON'
+os.environ['KIVY_NO_ARGS'] = '1'  # Disable kivy argument parsing
 
 from kivy.config import Config
 

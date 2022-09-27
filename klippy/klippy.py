@@ -384,10 +384,12 @@ def main():
     options, args = opts.parse_args()
     if options.import_test:
         import_test()
-    if len(args) != 1:
+    start_args = {'apiserver': options.apiserver, 'start_reason': 'startup'}
+    if len(args) == 1:
+        start_args['config_file'] = args[0]
+    elif len(args) > 1:
         opts.error("Incorrect number of arguments")
-    start_args = {'config_file': args[0], 'apiserver': options.apiserver,
-                  'start_reason': 'startup'}
+
     global debuglevel
     debuglevel = logging.INFO
     if options.verbose:

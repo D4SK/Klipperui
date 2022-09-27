@@ -142,6 +142,7 @@ AUTOSAVE_HEADER = """
 class PrinterConfig:
     def __init__(self, printer):
         self.printer = printer
+        self.config_path = self._get_config_path()
         self.autosave = None
         self.deprecated = {}
         self.status_raw_config = {}
@@ -153,6 +154,21 @@ class PrinterConfig:
         gcode = self.printer.lookup_object('gcode')
         gcode.register_command("SAVE_CONFIG", self.cmd_SAVE_CONFIG,
                                desc=self.cmd_SAVE_CONFIG_help)
+
+    def _get_config_path(self):
+        if 'config_file' in self.printer.get_start_args():
+            path = self.printer.get_start_args()['config_file']
+            if os.path.exists(path):
+                return path
+        if 'XDG_CONFIG_HOME' in os.environ:
+            path = os.path.join(os.environ['XDG_CONFIG_HOME'], 'klippo/config')
+            if os.path.exists(path):
+                return path
+        path = os.path.expanduser("~/.config/klippo/config")
+        if os.path.exists(path):
+            return path
+        raise error("No config file found")
+
     def get_printer(self):
         return self.printer
     def _read_config_file(self, filename):
@@ -276,13 +292,12 @@ class PrinterConfig:
         return self._build_config_wrapper(self._read_config_file(filename),
                                           filename)
     def read_main_config(self):
-        filename = self.printer.get_start_args()['config_file']
-        data = self._read_config_file(filename)
+        data = self._read_config_file(self.config_path)
         regular_data, autosave_data = self._find_autosave_data(data)
-        regular_config = self._build_config_wrapper(regular_data, filename)
+        regular_config = self._build_config_wrapper(regular_data, self.config_path)
         autosave_data = self._strip_duplicates(autosave_data, regular_config)
-        self.autosave = self._build_config_wrapper(autosave_data, filename)
-        cfg = self._build_config_wrapper(regular_data + autosave_data, filename)
+        self.autosave = self._build_config_wrapper(autosave_data, self.config_path)
+        cfg = self._build_config_wrapper(regular_data + autosave_data, self.config_path)
         return cfg
     def check_unused_options(self, config):
         fileconfig = config.fileconfig
@@ -307,9 +322,9 @@ class PrinterConfig:
         # Setup get_status()
         self._build_status(config)
     def log_config(self, config):
-        lines = ["===== Config file =====",
+        lines = [f"===== Config file: {self.config_path} =====",
                  self._build_config_string(config),
-                 "======================="]
+                 "="*50]
         self.printer.set_rollover_info("config", "\n".join(lines))
     # Status reporting
     def deprecate(self, section, option, value=None, msg=None):
@@ -390,19 +405,18 @@ class PrinterConfig:
         lines.append("")
         autosave_data = '\n'.join(lines)
         # Read in and validate current config file
-        cfgname = self.printer.get_start_args()['config_file']
         try:
-            data = self._read_config_file(cfgname)
+            data = self._read_config_file(self.config_path)
             regular_data, old_autosave_data = self._find_autosave_data(data)
-            self._build_config_wrapper(regular_data, cfgname)
+            self._build_config_wrapper(regular_data, self.config_path)
         except error:
             msg = "Unable to parse existing config on SAVE_CONFIG"
             logging.exception(msg)
             raise gcode.error(msg)
         regular_data = self._strip_duplicates(regular_data, self.autosave)
-        self._disallow_include_conflicts(regular_data, cfgname, gcode)
+        self._disallow_include_conflicts(regular_data, self.config_path, gcode)
         data = regular_data.rstrip() + autosave_data
-        self.write_config(data, cfgname)
+        self.write_config(data, self.config_path)
 
         # Request a restart
         if restart:
