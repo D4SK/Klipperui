@@ -56,6 +56,7 @@ class PrinterStats:
         self.stats_timer = reactor.register_timer(self.generate_stats)
         self.stats_cb = []
         self.printer.register_event_handler("klippy:ready", self.handle_ready)
+        self.subscribers = {}
     def handle_ready(self):
         self.stats_cb = [o.stats for n, o in self.printer.lookup_objects()
                          if hasattr(o, 'stats')]
@@ -67,6 +68,8 @@ class PrinterStats:
         if max([s[0] for s in stats]):
             logging.info("Stats %.1f: %s", eventtime,
                          ' '.join([s[1] for s in stats]))
+        for func in self.subscribers.values():
+            func(stats)
         return eventtime + 1.
 
 def load_config(config):

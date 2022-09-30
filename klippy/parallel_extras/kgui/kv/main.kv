@@ -12,6 +12,13 @@ FloatLayout:
         id: tabs
         height: root.height - p.status_bar_height
         size_hint_y: None
+    Label:
+        text: app.stats
+        halign: 'left'
+        valign: 'top'
+        size_hint: 1, 1
+        text_size: self.size
+        font_size: p.small_font
 
 <MainTabs@TabbedPanel>:
     tab_pos: 'bottom_mid'

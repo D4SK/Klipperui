@@ -332,6 +332,18 @@ def receive_event_history(e, kgui, events):
     for event, params in events:
         kgui.reactor.run_event(e, kgui, event, params)
 
+def setup_commands(e, printer):
+    def cmd_SHOW_STATS(gcmd):
+        statistics = printer.lookup_object('statistics')
+        statistics.subscribers['kgui'] = lambda stats: printer.reactor.cb(set_attribute, 'stats', '\n'.join([s[1] for s in stats]), process='kgui')
+    def cmd_HIDE_STATS(gcmd):
+        statistics = printer.lookup_object('statistics')
+        statistics.subscribers.pop("kgui", None)
+        printer.reactor.cb(set_attribute, 'stats', "", process='kgui')
+    gcode = printer.lookup_object('gcode')
+    gcode.register_command('SHOW_STATS', cmd_SHOW_STATS)
+    gcode.register_command('HIDE_STATS', cmd_HIDE_STATS)
+
 def move_print(e, printer, idx, uuid, move):
     printer.objects['virtual_sdcard'].move_print(idx, uuid, move)
 
