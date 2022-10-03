@@ -197,6 +197,13 @@ class PrintJobManager:
         self.continuous_index = 0
         self.jobs = [] # Print jobs, first is current
 
+    def get_status(self, eventtime):
+        status = {"MinX": None, "MinY": None, "MinZ": None,
+                  "MaxX": None, "MaxY": None, "MaxZ": None}
+        if self.jobs:
+            status.update(self.jobs[0].md.get_print_dimensions())
+        return status
+
     def add_print(self, path, assume_clear_after=None, no_material_check_when_first=False):
         """Add new print job to queue
 
