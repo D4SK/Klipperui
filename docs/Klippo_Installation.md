@@ -30,7 +30,7 @@ sudo raspi-config
 ```bash
 cd ~
 
-git clone https://github.com/D4SK/klippo
+git clone -b stable https://github.com/D4SK/klippo
 
 ./klippo/scripts/install-klippo-x11.sh
 ```
@@ -72,12 +72,12 @@ condition: any # exact | type | any
 # This module allows controlling your printer from cura within the local network
 [cura_connection]
 
-# Main UI module 
+# Main UI module
 # set [stepper_z] to allow for at least 0.5mm of additional movement
 [kgui]
 
 # Provide these Gcode macros when using filament_manager.
-# The FORCE parameter is needed for all G1 moves to 
+# The FORCE parameter is needed for all G1 moves to
 # avoid "Extrude below minimum temp" and "Extrude only move too long" errors.
 # This is an example for a bowden printer with 600mm tube length.
 [gcode_macro UNLOAD_FILAMENT]
