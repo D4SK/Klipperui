@@ -168,6 +168,9 @@ clock_setup(void)
     while ((RCC->CFGR & RCC_CFGR_SWS_Msk) != RCC_CFGR_SWS_PLL1)
         ;
 
+    SCB_EnableICache();
+    SCB_EnableDCache();
+
     // Configure HSI48 clock for USB
     if (CONFIG_USBSERIAL) {
         SET_BIT(RCC->CR, RCC_CR_HSI48ON);
