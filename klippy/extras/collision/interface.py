@@ -233,7 +233,7 @@ class CollisionInterface:
                     raise gcmd.error("Invalid speed in '%s'"
                                      % (gcmd.get_commandline(),))
                 gmove.speed = gcode_speed * gmove.speed_factor
-        except ValueError as e:
+        except ValueError:
             raise gcmd.error("Unable to parse collision avoidance move '%s'"
                              % (gcmd.get_commandline(),))
 

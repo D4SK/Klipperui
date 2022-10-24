@@ -23,6 +23,12 @@ class _DummyPrinter:
     reactor = None
     def register_event_handler(self, _, __):
         pass
+    def lookup_object(self, section):
+        if section == 'gcode':
+            class GCode:
+                def register_command(self, _, __):
+                    pass
+            return GCode()
 
 class TestInterface(CollisionInterface):
 

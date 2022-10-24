@@ -6,8 +6,8 @@ TODO:
 import copy
 from heapq import heappop, heappush
 from itertools import chain
-from math import sqrt
-from typing import Union, Optional, TypeVar, Generic, Any, cast, Sequence
+import math
+from typing import Union, Optional, TypeVar, Generic, Any, Sequence
 
 from .geometry import Rectangle, Cuboid
 from .printerboxes import PrinterBoxes
@@ -56,7 +56,11 @@ class PathFinderManager:
 
             if to_avoid:
                 # Couldn't find path, move up above next object
-                move_height = to_avoid.pop().max_z + padding
+                next_height = to_avoid.pop().max_z
+                # If multiple objects have the same height, skip all of them
+                while to_avoid and to_avoid[-1].max_z == next_height:
+                    to_avoid.pop()
+                move_height = next_height + padding
             else:
                 return None
 
@@ -176,20 +180,17 @@ class PathFinder:
         try:
             # Inclination of the line between p1 and p2
             m = (p2[1] - p1[1]) / (p2[0] - p1[0])
-            # Function for line(x) = y on that line
-            line = lambda x: m * (x - p1[0]) + p1[1]
         except ZeroDivisionError:
             # p1 and p2 lie on a vertical line (have the same x value)
-            m = float('inf')
-
-        for o in self.objects:
-            if m == float('inf'):
+            for o in self.objects:
                 y = max(line_box.y, o.y)
                 max_y = min(line_box.max_y, o.max_y)
                 if o.x < line_box.x < o.max_x and max_y > y:
                     return False
-                continue
+            return True
 
+        x1, y1 = p1
+        for o in self.objects:
             intersection = line_box.intersection(o)
             if not intersection:
                 continue
@@ -197,8 +198,8 @@ class PathFinder:
             # Critical values: y values of the line at the x-values of the
             # intersection boundaries. These must lie either both above or
             # both below the object for the line to fit.
-            c1 = line(intersection.x)
-            c2 = line(intersection.max_x)
+            c1 = m * (intersection.x - x1) + y1
+            c2 = m * (intersection.max_x - x1) + y1
             if not ((c1 <= o.y and c2 <= o.y) or
                     (c1 >= o.max_y and c2 >= o.max_y)):
                 return False
@@ -209,9 +210,7 @@ class PathFinder:
         """Calculate the weight of an edge as the euclidean distance between
         its end points.
         """
-        p1 = self.vertices[v]
-        p2 = self.vertices[w]
-        return sqrt((p2[0] - p1[0])**2 + (p2[1] - p1[1])**2)
+        return math.dist(self.vertices[v], self.vertices[w])
 
     def astar(self) -> tuple[float, list[Optional[int]]]:
         if self.start is None or self.goal is None:
@@ -224,12 +223,13 @@ class PathFinder:
         pq.push(self.start, self.weight(self.start, self.goal))
         while pq.queue:
             v = pq.pop()
+            dist_v = dist[v]
             if v == self.goal:
-                return dist[v], parent
+                return dist_v, parent
             for w, weight in self.adjacent(v):
-                if dist[w] > dist[v] + weight:
+                if dist[w] > dist_v + weight:
                     parent[w] = v
-                    dist[w] = dist[v] + weight
+                    dist[w] = dist_v + weight
                     # pq.push either adds w or updates its priority if w is
                     # already in the queue
                     pq.push(w, dist[w] + self.weight(w, self.goal))
@@ -243,7 +243,7 @@ class PathFinder:
         if dist == float('inf'):
             return None
         # self.goal can't be None here, as that would have raised in astar()
-        cur = cast(int, self.goal)
+        cur = self.goal
         path = [self.vertices[cur]]
         while cur != self.start:
             new = parents[cur]
