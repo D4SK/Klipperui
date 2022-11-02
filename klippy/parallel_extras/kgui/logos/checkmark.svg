@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="23.994402mm"
+   height="23.994534mm"
+   viewBox="0 0 23.994402 23.994534"
+   version="1.1"
+   id="svg5"
+   sodipodi:docname="checkmark.svg"
+   inkscape:version="1.2.1 (9c6d41e410, 2022-07-14)"
+   inkscape:export-filename="checkmark.png"
+   inkscape:export-xdpi="105.85803"
+   inkscape:export-ydpi="105.85803"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:pageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="false"
+     inkscape:document-units="mm"
+     showgrid="false"
+     units="px"
+     inkscape:zoom="16"
+     inkscape:cx="26.78125"
+     inkscape:cy="47.75"
+     inkscape:window-width="3840"
+     inkscape:window-height="2054"
+     inkscape:window-x="2149"
+     inkscape:window-y="1344"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="g910"
+     inkscape:showpageshadow="0"
+     inkscape:deskcolor="#505050" />
+  <defs
+     id="defs2">
+    <filter
+       id="mask-powermask-path-effect1624_inverse"
+       inkscape:label="filtermask-powermask-path-effect1624"
+       style="color-interpolation-filters:sRGB"
+       height="100"
+       width="100"
+       x="-50"
+       y="-50">
+      <feColorMatrix
+         id="mask-powermask-path-effect1624_primitive1"
+         values="1"
+         type="saturate"
+         result="fbSourceGraphic" />
+      <feColorMatrix
+         id="mask-powermask-path-effect1624_primitive2"
+         values="-1 0 0 0 1 0 -1 0 0 1 0 0 -1 0 1 0 0 0 1 0 "
+         in="fbSourceGraphic" />
+    </filter>
+    <filter
+       id="mask-powermask-path-effect1629_inverse"
+       inkscape:label="filtermask-powermask-path-effect1629"
+       style="color-interpolation-filters:sRGB"
+       height="100"
+       width="100"
+       x="-50"
+       y="-50">
+      <feColorMatrix
+         id="mask-powermask-path-effect1629_primitive1"
+         values="1"
+         type="saturate"
+         result="fbSourceGraphic" />
+      <feColorMatrix
+         id="mask-powermask-path-effect1629_primitive2"
+         values="-1 0 0 0 1 0 -1 0 0 1 0 0 -1 0 1 0 0 0 1 0 "
+         in="fbSourceGraphic" />
+    </filter>
+  </defs>
+  <g
+     inkscape:label="Layer 1 copy copy copy copy"
+     inkscape:groupmode="layer"
+     id="g910"
+     style="display:inline"
+     transform="translate(-1.2319656,-1.2319656)">
+    <path
+       id="circle906"
+       style="opacity:1;fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:0;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       d="M 13.229166 1.2319656 A 11.997352 11.997352 0 0 0 1.2319656 13.229166 A 11.997352 11.997352 0 0 0 13.229166 25.226367 A 11.997352 11.997352 0 0 0 25.226367 13.229166 A 11.997352 11.997352 0 0 0 13.229166 1.2319656 z M 19.852534 8.7581212 A 1.336145 1.336145 0 0 1 20.650419 9.1369094 A 1.336145 1.336145 0 0 1 20.662304 11.025683 L 12.12329 19.679935 A 1.3362787 1.3362787 0 0 1 10.218497 19.677868 L 5.5877721 14.958776 A 1.336145 1.336145 0 0 1 5.6053421 13.068452 A 1.336145 1.336145 0 0 1 7.4961827 13.088089 L 11.173994 16.836181 L 18.759578 9.1482783 A 1.336145 1.336145 0 0 1 19.852534 8.7581212 z " />
+  </g>
+  <g
+     inkscape:label="Layer 1 copy copy copy copy copy"
+     inkscape:groupmode="layer"
+     id="g3696"
+     style="display:none"
+     transform="translate(-1.2319656,-1.2319656)">
+    <circle
+       style="opacity:1;fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:0;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       id="circle3692"
+       r="11.997352"
+       cy="13.229167"
+       cx="13.229167" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:2.67229;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:normal"
+       d="m 6.5417893,14.022916 4.6306947,4.719053 8.538974,-8.65473"
+       id="path3694"
+       sodipodi:nodetypes="ccc" />
+  </g>
+  <g
+     inkscape:groupmode="layer"
+     id="layer2"
+     inkscape:label="Helper"
+     style="display:inline"
+     transform="translate(-1.2319656,-1.2319656)" />
+</svg>

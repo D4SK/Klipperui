@@ -209,6 +209,7 @@ class ToolHead:
         self.commanded_pos = [0., 0., 0., 0.]
         self.printer.register_event_handler("klippy:shutdown",
                                             self._handle_shutdown)
+        self.distance_tracker = [0, 0, 0, 0]
         # Velocity and acceleration control
         self.max_velocity = config.getfloat('max_velocity', above=0.)
         self.max_accel = config.getfloat('max_accel', above=0.)
@@ -410,6 +411,8 @@ class ToolHead:
         self.printer.send_event("toolhead:set_position")
     def move(self, newpos, speed, force=False):
         move = Move(self, self.commanded_pos, newpos, speed)
+        for i in (0, 1, 2, 3):
+            self.distance_tracker[i] += abs(move.axes_d[i])
         if not move.move_d:
             return
         if move.is_kinematic_move and not force:

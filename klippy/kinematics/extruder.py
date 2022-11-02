@@ -147,7 +147,7 @@ class PrinterExtruder:
     def __init__(self, config, extruder_num):
         self.printer = config.get_printer()
         self.name = config.get_name()
-        self.untracked_extruded_length = 0
+        self.distance_tracker = [0]
         self.last_position = 0.
         # Setup hotend heater
         shared_heater = config.get('shared_heater', None)
@@ -268,7 +268,7 @@ class PrinterExtruder:
                           move.start_pos[3], 0., 0.,
                           1., can_pressure_advance, 0.,
                           start_v, cruise_v, accel)
-        self.untracked_extruded_length += move.axes_d[3]
+        self.distance_tracker[0] += move.axes_d[3]
         self.last_position = move.end_pos[3]
     def find_past_position(self, print_time):
         if self.extruder_stepper is None:

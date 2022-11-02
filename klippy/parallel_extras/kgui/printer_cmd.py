@@ -142,6 +142,9 @@ def update(e, printer):
     get_fan(e, printer)
     get_chamber_fan(e, printer)
 
+def save_config(e, printer):
+    printer.objects['configfile'].cmd_SAVE_CONFIG(None)
+
 def write_config(e, printer, section, option, value):
     printer.objects['configfile'].set(section, option, value)
     printer.objects['configfile'].cmd_SAVE_CONFIG(None)
@@ -171,6 +174,11 @@ def send_home(e, printer, axis):
 def send_motors_off(e, printer):
     printer.objects['gcode'].run_script("M18")
     get_homing_state(e, printer)
+
+def get_usage(e, printer):
+    usage = printer.lookup_object('usage', None)
+    if usage:
+        printer.reactor.cb(set_attribute, 'usage', usage.get_status(), process='kgui')
 
 def get_pos(e, printer):
     status = printer.objects['motion_report'].get_status(e)
@@ -252,8 +260,6 @@ def get_tbc(e, printer):
         return
     printer.reactor.cb(set_attribute, 'tbc_to_guid', fm.get_tbc(), process='kgui')
 
-def send_calibrate(e, printer):
-    printer.objects['bed_mesh'].calibrate.cmd_BED_MESH_CALIBRATE(None)
 
 def send_print(e, printer, filepath):
     printer.objects['virtual_sdcard'].add_print(filepath, assume_clear_after=0)

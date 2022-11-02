@@ -46,7 +46,7 @@ FloatLayout:
             rgba: (1,1,1,1)
         Rectangle:
             size: dp(300), dp(3)
-            pos: self.animation_pos - dp(300), self.y
+            pos: self.animation_pos - dp(300), self.top - dp(3)
     StackLayout:
         id: left
         orientation: 'lr-tb'
@@ -59,6 +59,7 @@ FloatLayout:
             size: self.texture_size
             font_size: p.normal_font
             padding_x: dp(7)
+            color: p.status_bar
     StackLayout:
         id: right
         orientation: 'rl-tb'

@@ -32,7 +32,8 @@
                 'WifiScreen': "Wifi",
                 "ContinuousPrintingScreen": "Continuous Printing",
                 "MoveScreen": "Move Printhead",
-                "SetupScreen": "Setup"}[screen_man.current]
+                "SetupScreen": "Setup",
+                "AboutScreen": "About"}[screen_man.current]
             pos_hint: {'x': 0, 'top': 1}
             size_hint: None, None
         BtnBack:
@@ -65,22 +66,19 @@
                 id: continuous_printing_screen
             SetupScreen:
                 id: setup_screen
+            AboutScreen:
+                id: about_screen
 
 <SettingScreen@Screen>:
     name: 'SettingScreen'
     ScrollView:
-        always_overscroll: False
-        canvas.before:
-            Color:
-                rgba: p.background
-            Rectangle:
-                pos: self.pos
-                size: self.size
+        always_overscroll: True
         BoxLayout:
             orientation:'vertical'
             height: self.minimum_height
             pos: 0, root.height - self.height
             size_hint_y: None
+
             Divider:
                 pos_hint: {'center_x': 0.5}
             # SetItem:
@@ -116,6 +114,9 @@
             SetItem:
                 left_title: "Setup"
                 on_release: root.manager.current = "SetupScreen"
+            SetItem:
+                left_title: "About"
+                on_release: root.manager.current = "AboutScreen"
 
 <SetupScreen@Screen>:
     name: 'SetupScreen'
@@ -248,10 +249,10 @@
         XyField:
             id: xy_field
             size_hint: None, None
-            height: p.btn_height*4
             width: p.btn_height*4
+            height: self.width*(app.pos_max[1] - app.pos_min[1])/(0.000001 + app.pos_max[0] - app.pos_min[0])
             right: root.right - p.h_padding
-            top: root.height - p.small_padding # screens are relative layouts
+            top: root.height - p.padding # screens are relative layouts
             enabled: app.state == "ready" and 'x' in app.homed and 'y' in app.homed
         Btn4x:
             id: btn_4x
@@ -306,7 +307,7 @@
             y: btn_4x.y
         BtnHome:
             id: btn_z
-            axis_id: 'Z'
+            axis_id: 'Z' if app.xy_homing_controls else ''
             size: p.btn_height, p.btn_height
             right: btn_4x.right - p.btn_height
             y: btn_4x.y
@@ -318,6 +319,45 @@
             top: xy_field.top
             x: p.padding
             spacing: 0
+
+<AboutScreen>:
+    name: "AboutScreen"
+    canvas.before:
+        Color:
+            rgba: p.background
+        Rectangle:
+            pos: 0, 0
+            size: self.size
+    BoxLayout:
+        id: setting_box
+        orientation:'vertical'
+        height: self.minimum_height
+        y: root.height - self.minimum_height
+        x: 0
+        size_hint_y: None
+        Label:
+            id: title_label
+            text: f"{platform.node()}"
+            halign: 'center'
+            valign: 'top'
+            padding: p.padding, 2*p.padding
+            size_hint_y: None
+            text_size: self.width, None
+            height: self.texture_size[1]
+            font_size: p.large_font
+            color: (1,1,1,1)
+        Label:
+            id: details_label
+            text: "".join([f"{key}: {value}\n" for key, value in app.usage.items()]) if app.usage else ""
+            halign: 'left'
+            valign: 'top'
+            padding: 2*p.padding, p.padding
+            line_height: 1.5
+            size_hint_y: None
+            text_size: self.width, None
+            height: self.texture_size[1]
+            font_size: p.normal_font
+            color: p.medium_light_gray
 
 <CoordinateInput>:
     enabled:

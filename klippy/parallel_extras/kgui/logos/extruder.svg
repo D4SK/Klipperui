@@ -5,9 +5,9 @@
    viewBox="0 0 60 60"
    version="1.1"
    id="svg8"
-   inkscape:version="1.1.2 (b8e25be833, 2022-02-05)"
+   inkscape:version="1.2.1 (9c6d41e410, 2022-07-14)"
    sodipodi:docname="extruder.svg"
-   inkscape:export-filename="C:\Users\konst\Desktop\extruder2.png"
+   inkscape:export-filename="extruder2.png"
    inkscape:export-xdpi="256"
    inkscape:export-ydpi="256"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
@@ -19,6 +19,15 @@
    xmlns:dc="http://purl.org/dc/elements/1.1/">
   <defs
      id="defs2">
+    <inkscape:path-effect
+       effect="powerclip"
+       id="path-effect1224"
+       is_visible="true"
+       lpeversion="1"
+       inverse="true"
+       flatten="false"
+       hide_clip="false"
+       message="Use fill-rule evenodd on &lt;b&gt;fill and stroke&lt;/b&gt; dialog if no flatten result after convert clip to paths." />
     <inkscape:path-effect
        effect="powermask"
        id="path-effect5624"
@@ -281,10 +290,6 @@
     <mask
        maskUnits="userSpaceOnUse"
        id="mask-powermask-path-effect2315">
-      <path
-         id="mask-powermask-path-effect2315_box"
-         style="fill:#ffffff;fill-opacity:1"
-         d="m 10.301225,2.3012249 h 39.39755 V 58.698686 h -39.39755 z" />
       <text
          xml:space="preserve"
          style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:29.345px;line-height:1.25;font-family:Roboto;-inkscape-font-specification:'Roboto, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;display:inline;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.787248"
@@ -299,31 +304,9 @@
            y="39.281094"
            style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:29.345px;font-family:Roboto;-inkscape-font-specification:'Roboto, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;stroke-width:0.787248">2</tspan></text>
     </mask>
-    <filter
-       id="mask-powermask-path-effect2315_inverse"
-       inkscape:label="filtermask-powermask-path-effect2315"
-       style="color-interpolation-filters:sRGB"
-       height="100"
-       width="100"
-       x="-50"
-       y="-50">
-      <feColorMatrix
-         id="mask-powermask-path-effect2315_primitive1"
-         values="1"
-         type="saturate"
-         result="fbSourceGraphic" />
-      <feColorMatrix
-         id="mask-powermask-path-effect2315_primitive2"
-         values="-1 0 0 0 1 0 -1 0 0 1 0 0 -1 0 1 0 0 0 1 0 "
-         in="fbSourceGraphic" />
-    </filter>
     <mask
        maskUnits="userSpaceOnUse"
        id="mask-powermask-path-effect5624">
-      <path
-         id="mask-powermask-path-effect5624_box"
-         style="fill:#ffffff;fill-opacity:1"
-         d="m 10.301225,2.3012249 h 39.39755 V 58.698686 h -39.39755 z" />
       <text
          xml:space="preserve"
          style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:29.345px;line-height:1.25;font-family:Roboto;-inkscape-font-specification:'Roboto, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;display:inline;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.787248"
@@ -338,24 +321,31 @@
            y="39.281094"
            style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:29.345px;font-family:Roboto;-inkscape-font-specification:'Roboto, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;stroke-width:0.787248">1</tspan></text>
     </mask>
-    <filter
-       id="mask-powermask-path-effect5624_inverse"
-       inkscape:label="filtermask-powermask-path-effect5624"
-       style="color-interpolation-filters:sRGB"
-       height="100"
-       width="100"
-       x="-50"
-       y="-50">
-      <feColorMatrix
-         id="mask-powermask-path-effect5624_primitive1"
-         values="1"
-         type="saturate"
-         result="fbSourceGraphic" />
-      <feColorMatrix
-         id="mask-powermask-path-effect5624_primitive2"
-         values="-1 0 0 0 1 0 -1 0 0 1 0 0 -1 0 1 0 0 0 1 0 "
-         in="fbSourceGraphic" />
-    </filter>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath1216">
+      <g
+         style="display:none"
+         inkscape:label="Number copy"
+         id="g1222"
+         inkscape:groupmode="layer">
+        <g
+           aria-label="1"
+           id="g1220"
+           style="font-weight:bold;font-size:29.345px;line-height:1.25;font-family:Roboto;-inkscape-font-specification:'Roboto, Bold';display:inline;stroke-width:0.787248"
+           inkscape:transform-center-x="4.5443885e-06"
+           inkscape:transform-center-y="-2.1836752">
+          <path
+             d="m 33.116473,37.343594 h -4.14097 V 21.381519 l -4.943371,1.533161 v -3.367224 l 8.640154,-3.09498 h 0.444187 z"
+             id="path1218" />
+        </g>
+      </g>
+      <path
+         id="lpe_path-effect1224"
+         style="display:inline"
+         class="powerclip"
+         d="M 6.1699219,-1.7460937 H 53.830078 V 62.495114 H 6.1699219 Z M 33.116473,37.343594 V 16.452476 h -0.444187 l -8.640154,3.09498 v 3.367224 l 4.943371,-1.533161 v 15.962075 z" />
+    </clipPath>
   </defs>
   <sodipodi:namedview
      inkscape:snap-others="true"
@@ -378,13 +368,13 @@
      inkscape:cx="25.0625"
      inkscape:cy="43.5"
      inkscape:document-units="px"
-     inkscape:current-layer="g2307"
+     inkscape:current-layer="g1131"
      showgrid="true"
      units="px"
      inkscape:window-width="3840"
      inkscape:window-height="2054"
-     inkscape:window-x="-11"
-     inkscape:window-y="-11"
+     inkscape:window-x="2149"
+     inkscape:window-y="1344"
      inkscape:window-maximized="1"
      inkscape:pagecheckerboard="true"
      inkscape:document-rotation="0"
@@ -393,7 +383,8 @@
      inkscape:snap-bbox="true"
      showborder="true"
      inkscape:showpageshadow="false"
-     borderlayer="false">
+     borderlayer="false"
+     inkscape:deskcolor="#8a8a8a">
     <inkscape:grid
        type="xygrid"
        id="grid106426"
@@ -420,45 +411,48 @@
   </metadata>
   <g
      style="display:none"
-     inkscape:label="Nozzle"
-     id="layer3"
+     inkscape:label="Nozzle copy"
+     id="g201"
      inkscape:groupmode="layer">
     <path
-       style="fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:7.39755;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-       d="M 45,7 H 15 V 43 L 30,54 45,43 V 7"
-       id="path26201"
+       style="display:none;fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:8.4;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       d="M 44.629934,7.4548167 H 15.370066 V 42.566659 L 30,53.295277 44.629934,42.566659 V 7.4548167"
+       id="path199"
        sodipodi:nodetypes="cccccc" />
   </g>
   <g
-     style="display:inline"
-     inkscape:label="Nozzle copy 1"
-     id="g2307"
-     inkscape:groupmode="layer">
-    <path
-       style="fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:7.39755;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-       d="M 45,7 H 15 V 43 L 30,54 45,43 V 7"
-       id="path2305"
-       sodipodi:nodetypes="cccccc"
-       mask="url(#mask-powermask-path-effect5624)"
-       inkscape:path-effect="#path-effect5624"
-       inkscape:original-d="M 45,7 H 15 V 43 L 30,54 45,43 V 7"
-       inkscape:export-filename="C:\Users\konst\Desktop\klippo\klippy\parallel_extras\kgui\logos\extruder1.png"
-       inkscape:export-xdpi="256"
-       inkscape:export-ydpi="256" />
+     inkscape:label="Nozzle copy copy 1"
+     id="g1131"
+     inkscape:groupmode="layer"
+     clip-path="url(#clipPath1216)"
+     inkscape:path-effect="#path-effect1224"
+     style="display:none">
+    <g
+       id="path1129">
+      <path
+         style="color:#000000;fill:#ffffff;stroke-width:8.4;stroke-linecap:round;stroke-linejoin:round;-inkscape-stroke:none"
+         d="M 44.629934,7.4548167 H 15.370066 V 42.566659 L 30,53.295277 44.629934,42.566659 V 7.4548167"
+         id="path1204"
+         inkscape:original-d="M 44.629934,7.4548167 H 15.370066 V 42.566659 L 30,53.295277 44.629934,42.566659 V 7.4548167" />
+      <path
+         style="color:#000000;fill:#ffffff;stroke-linecap:round;stroke-linejoin:round;-inkscape-stroke:none"
+         d="M 15.369141,3.2539063 A 4.2004198,4.2004198 0 0 0 11.169922,7.4550781 V 42.566406 a 4.2004198,4.2004198 0 0 0 1.716797,3.386719 l 14.628906,10.728516 a 4.2004198,4.2004198 0 0 0 4.96875,0 L 47.113281,45.953125 a 4.2004198,4.2004198 0 0 0 1.716797,-3.386719 V 7.4550781 A 4.1999998,4.1999998 0 0 0 48.509766,5.8476562 4.1999998,4.1999998 0 0 0 47.599609,4.484375 4.1999998,4.1999998 0 0 0 46.236328,3.5742188 4.1999998,4.1999998 0 0 0 44.630859,3.2539063 Z m 4.201171,8.4003907 H 40.429687 V 40.4375 L 30,48.087891 19.570312,40.4375 Z"
+         id="path1206"
+         inkscape:original-d="M 15.369141,3.2539063 A 4.2004198,4.2004198 0 0 0 11.169922,7.4550781 V 42.566406 a 4.2004198,4.2004198 0 0 0 1.716797,3.386719 l 14.628906,10.728516 a 4.2004198,4.2004198 0 0 0 4.96875,0 L 47.113281,45.953125 a 4.2004198,4.2004198 0 0 0 1.716797,-3.386719 V 7.4550781 A 4.1999998,4.1999998 0 0 0 48.509766,5.8476562 4.1999998,4.1999998 0 0 0 47.599609,4.484375 4.1999998,4.1999998 0 0 0 46.236328,3.5742188 4.1999998,4.1999998 0 0 0 44.630859,3.2539063 Z m 4.201171,8.4003907 H 40.429687 V 40.4375 L 30,48.087891 19.570312,40.4375 Z" />
+    </g>
   </g>
   <g
-     style="display:none"
-     inkscape:label="Nozzle copy"
-     id="g2303"
+     style="display:inline"
+     inkscape:label="Nozzle copy copy"
+     id="g1115"
      inkscape:groupmode="layer">
-    <path
-       style="fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:7.39755;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-       d="M 45,7 H 15 V 43 L 30,54 45,43 V 7"
-       id="path2301"
-       sodipodi:nodetypes="cccccc"
-       mask="url(#mask-powermask-path-effect2315)"
-       inkscape:path-effect="#path-effect2315"
-       inkscape:original-d="M 45,7 H 15 V 43 L 30,54 45,43 V 7" />
+    <g
+       id="path1113">
+      <path
+         id="path1168"
+         style="color:#000000;display:inline;fill:#ffffff;stroke-width:8.4;stroke-linecap:round;stroke-linejoin:round;-inkscape-stroke:none"
+         d="M 15.369141,3.2539062 A 4.2004198,4.2004198 0 0 0 11.169922,7.4550781 V 42.566406 a 4.2004198,4.2004198 0 0 0 1.716797,3.386719 l 14.628906,10.728516 a 4.2004198,4.2004198 0 0 0 4.96875,0 L 47.113281,45.953125 a 4.2004198,4.2004198 0 0 0 1.716797,-3.386719 V 7.4550781 A 4.1999998,4.1999998 0 0 0 48.509766,5.8476562 4.1999998,4.1999998 0 0 0 47.599609,4.484375 4.1999998,4.1999998 0 0 0 46.236328,3.5742188 4.1999998,4.1999998 0 0 0 44.630859,3.2539062 Z M 29.892578,16.195312 c 2.149288,0 3.815504,0.515218 5,1.546876 1.194049,1.031656 1.791016,2.487319 1.791016,4.36914 0,1.031658 -0.265847,2.082476 -0.800782,3.152344 -0.534933,1.069868 -1.452827,2.316929 -2.751953,3.740234 l -4.742187,5.001953 h 8.96875 V 37.34375 H 23.058594 v -2.837891 l 6.748047,-7.191406 c 0.926581,-1.012553 1.609417,-1.897704 2.048828,-2.652344 0.448961,-0.754638 0.673828,-1.470217 0.673828,-2.148437 0,-0.926582 -0.235059,-1.652353 -0.703125,-2.177734 -0.468068,-0.534935 -1.136592,-0.802735 -2.00586,-0.802735 -0.936134,0 -1.676216,0.325048 -2.220703,0.974609 -0.534933,0.640011 -0.802734,1.484393 -0.802734,2.535157 h -4.154297 c 0,-1.270469 0.300543,-2.429706 0.902344,-3.480469 0.611352,-1.050763 1.472001,-1.872595 2.580078,-2.464844 1.108078,-0.6018 2.363378,-0.902343 3.767578,-0.902344 z" />
+    </g>
   </g>
   <g
      style="display:none"
@@ -469,24 +463,14 @@
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:29.345px;line-height:1.25;font-family:Roboto;-inkscape-font-specification:'Roboto, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;display:inline;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.787248"
        x="21.639254"
-       y="39.281094"
+       y="37.343594"
        id="text18338"
        inkscape:transform-center-x="4.5443885e-06"
        inkscape:transform-center-y="-2.1836752"><tspan
          sodipodi:role="line"
          id="tspan18336"
          x="21.639254"
-         y="39.281094"
+         y="37.343594"
          style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:29.345px;font-family:Roboto;-inkscape-font-specification:'Roboto, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;stroke-width:0.787248">2</tspan></text>
   </g>
-  <g
-     style="display:none"
-     inkscape:label="Number copy 1"
-     id="g2299"
-     inkscape:groupmode="layer" />
-  <g
-     style="display:none"
-     inkscape:label="Number copy"
-     id="g2293"
-     inkscape:groupmode="layer" />
 </svg>

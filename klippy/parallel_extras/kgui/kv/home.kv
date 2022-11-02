@@ -183,13 +183,6 @@
                 else app.material['loaded'][self.tool_idx]
             y: p.padding*2 + p.btn_height
             right: p.screen_width - p.h_padding
-        BtnOutline:
-            id: btn_calibrate
-            on_release: Factory.CalibrationPopup().open()
-            enabled: app.state == "ready"
-            text: "Calibration"
-            size: btn_tr_T0.size
-            pos: btn_tr_T0.x, 3*p.padding + 2*p.btn_height
 
 <PrintingScreen@Screen>:
     name: "printingscreen"
@@ -586,16 +579,28 @@
             pos: root.center_x, root.y
             on_release: app.reactor.cb(printer_cmd.send_temp, slider.val, 'heater_bed'); root.dismiss()
 
-<CalibrationPopup>:
-    size_hint: 0.92, 0.7
-    title: "Calibration"
-    FloatLayout:
-        BtnPCancel:
-            text: "Close"
-            width: root.width
-            pos: root.pos
-            on_release: root.dismiss()
-
+<StateLabel@Widget>:
+    size: dp(600), dp(70)
+    state: 'green'
+    text: ""
+    canvas:
+        Color:
+            rgba: p.green if self.state == 'green' else p.yellow if self.state == 'yellow' else p.red
+        Rectangle:
+            source: p.kgui_dir + ('/logos/x.png' if self.state == 'red_x' else '/logos/warning.png' if self.state == 'red' else '/logos/checkmark.png')
+            size: dp(30*p.disp_vertical_stretch), dp(30)
+            pos: self.x, self.center_y - dp(15)
+    Label:
+        size: root.width - dp(52), root.height
+        size_hint: None, None
+        y: root.y
+        x: root.x + dp(48)
+        text: root.text
+        text_size: self.size
+        font_size: p.normal_font - sp(3)
+        halign: 'left'
+        valign: 'middle'
+        multiline: True
 <MaterialMismatchPopup>:
     size_hint: 0.92, 0.54
     FloatLayout:

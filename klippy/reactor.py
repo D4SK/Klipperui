@@ -233,7 +233,7 @@ class SelectReactor:
             on_complete = completion if callable(completion) else None
             mp_completion = ReactorCompletion(self, callback=on_complete)
             self._mp_completions[completion_id] = mp_completion
-        self.mp_queues[process].put((callback, completion_id,
+        self.mp_queues[process].put_nowait((callback, completion_id,
                 waiting_process, execute_in_reactor, args, kwargs))
         if wait:
             return mp_completion.wait()

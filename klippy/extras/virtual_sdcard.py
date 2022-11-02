@@ -320,7 +320,13 @@ class PrintJobManager:
         return i
 
     def get_status(self, eventtime=None):
-        return {'jobs': self.jobs}
+        status = {'jobs': self.jobs, 'state': 'no printjob',
+            "MinX": None, "MinY": None, "MinZ": None,
+            "MaxX": None, "MaxY": None, "MaxZ": None}
+        if self.jobs:
+            status.update(self.jobs[0].md.get_print_dimensions())
+            status['state'] = self.jobs[0].state
+        return status
 
     def handle_ready(self):
         self.toolhead = self.printer.lookup_object('toolhead')

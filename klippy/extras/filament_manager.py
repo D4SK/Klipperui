@@ -46,6 +46,7 @@ class FilamentManager:
                 extruder_count = i
                 break
         self.extruders = {}
+        self.distance_trackers = {}
         self.printer.register_event_handler("klippy:ready", self.handle_ready)
         self.printer.register_event_handler("klippy:shutdown", self.handle_shutdown)
         self.printer.register_event_handler("filament_switch_sensor:runout", self.handle_runout)
@@ -84,6 +85,8 @@ class FilamentManager:
             extruder = self.printer.lookup_object(extruder_id, None)
             if extruder:
                 self.extruders[extruder_id] = extruder
+                self.distance_trackers[extruder_id] = [0]
+                self.extruders[extruder_id].distance_tracker = self.distance_trackers[extruder_id]
 
     def handle_runout(self, extruder_id):
         virtual_sdcard = self.printer.objects['virtual_sdcard']
@@ -263,7 +266,6 @@ class FilamentManager:
 
     def _finalize_loading(self, extruder_id):
         idx = self.idx(extruder_id)
-        self.extruders[extruder_id].untracked_extruded_length = 0
         material = self.preselected_material[extruder_id]
         self.material['loaded'][idx].update(
             {'guid': material['guid'],
@@ -352,8 +354,8 @@ class FilamentManager:
         for extruder_id in self.extruders:
             idx = self.idx(extruder_id)
             mat = self.material['loaded'][idx]
-            extruded_length = self.extruders[extruder_id].untracked_extruded_length
-            self.extruders[extruder_id].untracked_extruded_length = 0
+            extruded_length = self.distance_trackers[extruder_id][0]
+            self.distance_trackers[extruder_id][0] = 0
             guid = mat['guid']
             if guid:
                 density = float(self.get_info(guid, './m:properties/m:density', '1.24'))

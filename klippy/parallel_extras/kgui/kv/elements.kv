@@ -1,4 +1,5 @@
 #:import Factory kivy.factory.Factory
+#:import basename os.path.basename
 
 #:import p parallel_extras.kgui.parameters
 #:import printer_cmd parallel_extras.kgui.printer_cmd
@@ -307,7 +308,7 @@
         Color:
             rgba: (1,1,1,1) if self.enabled else (0,0,0,0)
         Ellipse:
-            pos: self.center_x - dp(c_rad),   self.center_y - dp(c_rad) - dp(c_dist) 
+            pos: self.center_x - dp(c_rad),   self.center_y - dp(c_rad) - dp(c_dist)
             size: dp(c_rad)*2, dp(c_rad)*2
         Ellipse:
             pos: self.center_x - dp(c_rad),   self.center_y - dp(c_rad) + dp(c_dist)
@@ -575,7 +576,6 @@
             x: root.x + p.padding + dp(30) + dp(60)
             text_size: self.size
             font_size: p.large_font
-            color: p.red
         BtnPCancel:
             id: btn_cancel
             width: root.width/2

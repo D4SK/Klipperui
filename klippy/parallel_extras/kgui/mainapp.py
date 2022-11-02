@@ -76,6 +76,7 @@ class MainApp(App, threading.Thread):
     thumbnail = StringProperty(p.kgui_dir + '/logos/transparent.png')
     led_brightness = NumericProperty()
     extruder_id = StringProperty("extruder")
+    usage = DictProperty()
     # Tuning
     speed = NumericProperty(0)
     speed_factor = NumericProperty(100)
@@ -305,6 +306,6 @@ threading.excepthook = handle_exception_in_thread
 # load a custom style.kv with changes to popup and more
 Builder.unload_file(join(kivy_data_dir, "style.kv"))
 # All files to read (order is important), main.kv is read first, automatically
-for fname in ("style.kv", "overwrites.kv", "elements.kv", "home.kv",
+for fname in ("style.kv", "elements.kv", "home.kv",
               "timeline.kv", "files.kv", "settings.kv"):
     Builder.load_file(join(p.kgui_dir, "kv", fname))

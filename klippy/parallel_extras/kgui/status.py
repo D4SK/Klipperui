@@ -106,7 +106,7 @@ class ConnectionIcon(Widget):
         self.wifi.size = [d * self.signal, d * self.signal]
 
         self.width = d - 2*cutoff + padding
-        self.wifi_color.rgba = (1,1,1,1)
+        self.wifi_color.rgba = p.status_bar
         self.eth_color.rgba = (0,0,0,0)
 
     def draw_eth(self):
@@ -116,7 +116,7 @@ class ConnectionIcon(Widget):
         self.eth.pos = [self.topright[0] - size[0] - self.icon_padding,
                         self.topright[1] - size[1] - self.icon_padding]
         self.eth.size = size
-        self.eth_color.rgba = (1,1,1,1)
+        self.eth_color.rgba = p.status_bar
         self.wifi_color.rgba = (0,0,0,0)
 
     def draw_nothing(self):

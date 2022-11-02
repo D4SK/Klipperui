@@ -110,6 +110,21 @@ class MoveScreen(Screen):
     def on_leave(self):
         Clock.unschedule(self.updating)
 
+class AboutScreen(Screen):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def on_pre_enter(self):
+        self.update()
+        self.updating = Clock.schedule_interval(self.update, 1)
+
+    def update(self, dt=None):
+        App.get_running_app().reactor.cb(printer_cmd.get_usage)
+
+    def on_leave(self):
+        Clock.unschedule(self.updating)
+
 class XyField(Widget):
 
     pressed = BooleanProperty(False)
@@ -163,15 +178,15 @@ class XyField(Widget):
         self.mm = mm[:3]
 
     def apply_bounds(self, x, y):
-        if x < self.origin[0]:
-            x = self.origin[0]
-        elif x > self.limits[0]:
-            x = self.limits[0]
+        # if x < self.origin[0]:
+        #     x = self.origin[0]
+        # elif x > self.limits[0]:
+        #     x = self.limits[0]
 
-        if y < self.origin[1]:
-            y = self.origin[1]
-        elif y > self.limits[1]:
-            y = self.limits[1]
+        # if y < self.origin[1]:
+        #     y = self.origin[1]
+        # elif y > self.limits[1]:
+        #     y = self.limits[1]
         return [x, y]
 
     def set_mm_with_px(self, px):
