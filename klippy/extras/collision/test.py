@@ -705,17 +705,6 @@ class PathFinderManagerTest(unittest.TestCase):
         self.pfm = PathFinderManager(self.printer)
         self.pfm_x = PathFinderManager(self.printer_x)
 
-    def test_occupied_space(self):
-        c = Cuboid(-30, 20, -5, 120, 250, 300)
-        bigger = self.pfm.occupied_space(c)
-        # occupied_space returns a rectangle, add Z-axis with padding
-        bigger_cuboid = Cuboid(bigger.x, bigger.y, -10,
-                               bigger.max_x, bigger.max_y, 305)
-        self.assertEqual(c, self._object_from_space(bigger_cuboid))
-        self.assertEqual(c.projection(),
-             self.pfm.occupied_space(
-                 self._object_from_space(c).projection()))
-
     def test_find_path_edge_cases(self):
         # No objects
         path = [(0, 0, 0), (500, 1000, 0)]
@@ -832,6 +821,25 @@ class PathFinderManagerTest(unittest.TestCase):
                          [(0, 0, 0), (0, 1000, 0)])
         # x gantry can't clear the tower
         self.assertEqual(self.pfm_x.find_path((0, 0, 0), (0, 1000, 0)), None)
+
+    def test_move_out(self):
+        objects = [
+            self._object_from_space(Cuboid(-100, 400, 0, 200, 550, 50)),
+            self._object_from_space(Cuboid(50, 200, 0, 200, 550, 50)),
+            Cuboid(400, 0, 0, 500, 200, 95)]
+        for o in objects:
+            self.printer.add_object(o)
+            self.printer_x.add_object(o)
+
+        self.assertEqual(self.pfm.find_path((0, 300, 0), (0, 1000, 0)),
+                         [(0, 300, 0), (50, 200, 0),
+                          (200, 200, 0), (200, 550, 0),
+                          (0, 1000, 0)])
+        self.assertEqual(self.pfm_x.find_path((0, 300, 0), (0, 1000, 0)),
+                         [(0, 300, 0), (0, 300, 16),
+                          (50, 200, 16), (200, 200, 16),
+                          (200, 550, 16), (0, 1000, 16),
+                          (0, 1000, 0)])
 
     def _object_from_space(self, space):
         """Take a Cuboid of a space that should be avoided by path finding and

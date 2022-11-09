@@ -1,13 +1,8 @@
-"""
-TODO:
-  * Generate G1-Code from path
-  * Add custom G-Code command for finding a path
-"""
 import copy
 from heapq import heappop, heappush
 from itertools import chain
 import math
-from typing import Union, Optional, TypeVar, Generic, Any, Sequence
+from typing import Optional, TypeVar, Generic, Any, Sequence
 
 from .geometry import Rectangle, Cuboid
 from .printerboxes import PrinterBoxes
@@ -21,8 +16,7 @@ class PathFinderManager:
         self.printer = printer
 
     def find_path(self,
-        start: Point3DType,
-        goal: Point3DType,
+        start: Point3DType, goal: Point3DType,
     ) -> Optional[list[Point3DType]]:
         # Verify that both points can be moved into
         if self.point_collides(start) or self.point_collides(goal):
@@ -30,46 +24,35 @@ class PathFinderManager:
 
         padding = self.printer.padding
         min_height = max(start[2], goal[2])
-        inner_space = Cuboid(*start, *goal)
-        min_gantry_space = self.printer.gantry_space(inner_space)
-        gantry_collision_heights = iter(o.max_z for o in self.printer.objects
-                                        if o.collides_with(min_gantry_space))
-        min_gantry_height = max(gantry_collision_heights,
-                                default=self.printer.gantry_height-padding)
-        min_gantry_height += padding
-        move_height = max(min_height,
-                          min_gantry_height - self.printer.gantry_height)
+        # Sort all objects from highest to lowest
         to_avoid = sorted(copy.copy(self.printer.objects), reverse=True,
                           key=lambda o: o.max_z)
-        # Remove all objects that are too low to be relevant
-        while to_avoid and to_avoid[-1].max_z + padding < move_height:
-            to_avoid.pop()
+        move_heights = [min_height]
+        for obj in to_avoid:
+            if obj.max_z + padding < min_height:
+                break
+            for p in self.printer.printhead_parts:
+                height = obj.max_z - p.z + padding
+                if min_height < height <= self.printer.printbed.max_z:
+                    move_heights.append(height)
+        move_heights.sort()
 
-        while True:
-            # Must move higher than possible
-            if move_height > self.printer.printbed.max_z:
-                return None
-
-            path = self.find_path_at_height(start[:2], goal[:2], to_avoid)
+        for move_height in move_heights:
+            # Remove all objects that are too low to be relevant
+            while to_avoid and to_avoid[-1].max_z + padding <= move_height:
+                to_avoid.pop()
+            path = self.find_path_at_height(start[:2], goal[:2],
+                                            move_height, to_avoid)
             if path is not None:
                 return self.add_height_to_path(start, goal, path, move_height)
-
-            if to_avoid:
-                # Couldn't find path, move up above next object
-                next_height = to_avoid.pop().max_z
-                # If multiple objects have the same height, skip all of them
-                while to_avoid and to_avoid[-1].max_z == next_height:
-                    to_avoid.pop()
-                move_height = next_height + padding
-            else:
-                return None
+        return None
 
     def find_path_at_height(
         self, start: PointType, goal: PointType,
-        objects: Sequence[Union[Rectangle, Cuboid]]
+        height: float, objects: Sequence[Cuboid]
     ) -> Optional[list[PointType]]:
         # Add space for printhead to move around and padding
-        spaces = [self.occupied_space(o) for o in objects]
+        spaces = self.occupied_spaces(height, objects)
         all_corners = chain.from_iterable(iter(o.get_corners() for o in spaces))
         vertices = [c for c in all_corners if self.filter_corner(c, spaces)]
         pf = PathFinder(vertices, spaces, start, goal)
@@ -96,20 +79,45 @@ class PathFinderManager:
         """Return True if the printhead being at p would cause a collision.
         This is used to check for invalid start/goal points of a path search.
         """
+        padding = self.printer.padding
         as_cube = Cuboid(*p, *p)
-        return (not self.printer.printbed.contains(p)
-                ) or self.printer.cuboid_collides(as_cube)
+        if not self.printer.printbed.contains(p):
+            return True
+        collision_boxes = [part.translate(*p)
+                           for part in self.printer.printhead_parts]
+        for obj in self.printer.objects:
+            if as_cube.collides_with(obj, padding):
+                return True
+            for part in collision_boxes:
+                if part.collides_with(obj, padding):
+                    return True
+        return False
 
-    def occupied_space(self, obj: Union[Rectangle, Cuboid]) -> Rectangle:
-        """Return the space for an object that we can't move into, including
-        the size of the printhead as well as padding.
+
+    def occupied_spaces(self, height: float, objects: Sequence[Cuboid]) -> list[Rectangle]:
+        """Return the space for each object that we can't move into, including
+        the size of the printhead at that height as well as padding.
+
+        Assumptions:
+        objects is sorted from highest to lowest
+        printhead_parts is sorted from lowest to highest (i.e. nozzle first,
+            gantry last)
         """
-        ph = self.printer.printhead
-        pad = self.printer.padding
-        return Rectangle(obj.x - ph.max_x - pad,
-                         obj.y - ph.max_y - pad,
-                         obj.max_x - ph.x + pad,
-                         obj.max_y - ph.y + pad)
+        parts = copy.copy(self.printer.printhead_parts)
+        padding = self.printer.padding
+        spaces: list[Rectangle] = []
+        for o in objects:
+            # Discard any parts that are higher than the object
+            while parts and parts[-1].z + height >= o.max_z + padding:
+                parts.pop()
+            # Size of the printhead at the height of the current object
+            ph = self.printer.combined_printhead_space(parts)
+            space = Rectangle(o.x - ph.max_x - padding,
+                              o.y - ph.max_y - padding,
+                              o.max_x - ph.x + padding,
+                              o.max_y - ph.y + padding)
+            spaces.append(space)
+        return spaces
 
     def filter_corner(self, p: PointType, objects: list[Rectangle]) -> bool:
         # Reject points that lie outside the printbed plane

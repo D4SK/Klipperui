@@ -34,7 +34,7 @@ value defaults to 5mm.
 `static_objects` is optional and can be used to specify areas in the print bed
 that should always be avoided. It can be a sequence of 6-tuples in the format
 `(min x, min y, min z, max x, max y, max z)`. For example to get a cube of side
-length 5 along the left edge you could write:
+length 5mm along the left edge you could write:
 
 ```
 static_objects = [(0, 50, 0, 5, 55, 5)]

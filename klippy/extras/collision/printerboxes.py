@@ -6,21 +6,47 @@ class PrinterBoxes:
 
     def __init__(self,
                  printbed: Cuboid,
-                 printhead: Rectangle,
+                 printhead: Union[Rectangle, list[Cuboid]],
                  gantry: Rectangle,
                  gantry_x_oriented: bool,
                  gantry_height: float,
                  padding: float,
                  static_objects: list[Cuboid] = None) -> None:
         self.printbed = printbed
-        self.printhead = printhead
+        # Gantry size relative to nozzle, including height
+        if gantry_x_oriented:
+            gantry_rel = Cuboid(-printbed.width, gantry.y, gantry_height,
+                                printbed.width, gantry.max_y, float('inf'))
+        else:
+            gantry_rel = Cuboid(gantry.x, -printbed.height, gantry_height,
+                                gantry.max_x, printbed.height, float('inf'))
+        if isinstance(printhead, Rectangle):
+            self.printhead = printhead
+            printhead_cuboid = Cuboid(printhead.x, printhead.y, 0,
+                printhead.max_x, printhead.max_y, float('inf'))
+            self.printhead_parts = [printhead_cuboid, gantry_rel]
+        else:
+            self.printhead = self.combined_printhead_space(printhead)
+            self.printhead_parts = printhead + [gantry_rel]
+            self.printhead_parts.sort(key=lambda p: p.z)
+
         self.gantry = gantry
         self.gantry_x_oriented = gantry_x_oriented
         self.gantry_height = gantry_height
         self.padding = padding
         self.objects = static_objects or []
         self.n_static = len(self.objects)
-    
+
+    def combined_printhead_space(self, parts: list[Cuboid]) -> Rectangle:
+        """Create one Rectangle that encompasses all printhead parts"""
+        if not parts:
+            return Rectangle(*[0]*4)
+        return Rectangle(
+            min(iter(p.x for p in parts)),
+            min(iter(p.y for p in parts)),
+            max(iter(p.max_x for p in parts)),
+            max(iter(p.max_y for p in parts)))
+
     def add_object(self, new_object: Cuboid) -> None:
         """Add an object, like a finished print job, to be considered in the
         future.

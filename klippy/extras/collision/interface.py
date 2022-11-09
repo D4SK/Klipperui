@@ -1,7 +1,7 @@
 import ast
 import configparser
 import logging
-from typing import Optional, Union
+from typing import Optional, Union, Any
 
 from ..gcode_metadata.base_parser import BaseParser
 from ..virtual_sdcard import PrintJob
@@ -26,27 +26,32 @@ class CollisionInterface:
                 'continuous_printing', False)
         self.reposition: bool = config.getboolean('reposition', False)
 
-        printbed: Cuboid = Cuboid(*[0]*6)  # Received after klippy:connect
-        printhead: Rectangle = self._read_printhead()
-        gantry: Rectangle = Rectangle(*[0]*4)  # Received after klippy:connect
-        gantry_x_oriented: bool = config.getchoice("gantry_orientation",
-                                                   {"x": True, "y": False})
-        gantry_height: float = config.getfloat("gantry_z_min")
-        padding: float = config.getfloat("padding", DEFAULT_PADDING)
-        static_objects = self._read_static_objects()
-        self.dimensions = PrinterBoxes(printbed, printhead, gantry,
-                                       gantry_x_oriented, gantry_height,
-                                       padding, static_objects)
-        # Mark config values as needed
-        self._config.getfloat("gantry_xy_min")
-        self._config.getfloat("gantry_xy_max")
+        #TODO: Different printbed sizes for offset search and path finding
+        self.configuration = {
+            "printhead": self._read_printhead(),
+            "gantry_x_oriented": config.getchoice("gantry_orientation",
+                                                  {"x": True, "y": False}),
+            "gantry_height": config.getfloat("gantry_z_min"),
+            "padding": config.getfloat("padding", DEFAULT_PADDING),
+            "static_objects": self._read_static_objects(),
+            "gantry_xy_min": config.getfloat("gantry_xy_min"),
+            "gantry_xy_max": config.getfloat("gantry_xy_max")}
 
         self.printer.register_event_handler("klippy:connect", self.handle_connect)
 
     def handle_connect(self) -> None:
         """Get printbed size later and update gantry"""
-        self.dimensions.printbed = self._read_printbed()
-        self.dimensions.gantry = self._read_gantry(self.dimensions)
+        conf = self.configuration
+        printbed = self._read_printbed()
+        gantry = self._read_gantry(conf, printbed)
+        self.dimensions = PrinterBoxes(
+            printbed,
+            conf["printhead"],
+            gantry,
+            conf["gantry_x_oriented"],
+            conf["gantry_height"],
+            conf["padding"],
+            conf["static_objects"])
         self.collision = BoxCollision(self.dimensions)
         self.pathfinder = PathFinderManager(self.dimensions)
         self.printer.register_event_handler(
@@ -61,10 +66,11 @@ class CollisionInterface:
             objects = []
             for e in figures:
                 for x in e:
-                    assert isinstance(x, (int, float))
+                    if not isinstance(x, (int, float)):
+                        raise TypeError("All values must be numbers")
                 objects.append(Cuboid(*e))
         except (ValueError, TypeError, SyntaxError, MemoryError,
-                RecursionError, KeyError, AssertionError):
+                RecursionError, KeyError):
             raise configparser.Error(
                 "Invalid object list: Should be a sequence of 6-tuples")
         return objects
@@ -76,29 +82,50 @@ class CollisionInterface:
         max_ = [rail.position_max for rail in rails]
         return Cuboid(*min_, *max_)
 
-    def _read_printhead(self) -> Rectangle:
+    def _read_printhead(self) -> Union[Rectangle, list[Cuboid]]:
         """Return a Rectangle representing the size of the print head
         as viewed from above. The printing nozzle would be at (0, 0).
         """
-        return Rectangle(
-            -self._config.getfloat("printhead_x_min"),
-            -self._config.getfloat("printhead_y_min"),
-            self._config.getfloat("printhead_x_max"),
-            self._config.getfloat("printhead_y_max"))
+        parts_conf = self._config.get("printhead_parts", None)
+        if parts_conf is None:
+            return Rectangle(
+                -self._config.getfloat("printhead_x_min"),
+                -self._config.getfloat("printhead_y_min"),
+                self._config.getfloat("printhead_x_max"),
+                self._config.getfloat("printhead_y_max"))
 
-    def _read_gantry(self, printer: PrinterBoxes) -> Rectangle:
+        try:
+            values = ast.literal_eval(parts_conf)
+            parts = []
+            for v in values:
+                for x in v:
+                    if not isinstance(x, (int, float)):
+                        raise TypeError("All values must be numbers")
+                if v[4] < 0:
+                    raise configparser.Error(
+                        "Printhead parts cannot be lower than the nozzle"
+                        "(negative starting height)")
+                parts.append(Cuboid(-v[0], -v[1], v[4],
+                                    v[2], v[3], float('inf')))
+        except (ValueError, TypeError, SyntaxError, MemoryError,
+                RecursionError, LookupError):
+            raise configparser.Error(
+                "Invalid parts list: Should be a sequence of 5-tuples")
+        return parts
+
+    def _read_gantry(self, conf: dict[str, Any], printbed: Cuboid) -> Rectangle:
         """Return a Rectangle representing the size of the gantry as viewed
         from above as well as if it is oriented parallel to the X-Axis or not.
         The printing nozzle would be at the 0-coordinate on the other axis.
         """
-        xy_min = self._config.getfloat("gantry_xy_min")
-        xy_max = self._config.getfloat("gantry_xy_max")
-        if printer.gantry_x_oriented:
-            gantry = Rectangle(printer.printbed.x, -xy_min,
-                               printer.printbed.width, xy_max)
+        xy_min = conf["gantry_xy_min"]
+        xy_max = conf["gantry_xy_max"]
+        if conf["gantry_x_oriented"]:
+            gantry = Rectangle(printbed.x, -xy_min,
+                               printbed.width, xy_max)
         else:
-            gantry = Rectangle(-xy_min, printer.printbed.y,
-                               xy_max, printer.printbed.height)
+            gantry = Rectangle(-xy_min, printbed.y,
+                               xy_max, printbed.height)
         return gantry
 
     def check_available(
