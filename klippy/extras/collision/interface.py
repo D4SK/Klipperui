@@ -2,7 +2,6 @@ import ast
 import configparser
 import logging
 from typing import Optional, Union
-from copy import deepcopy
 
 from ..gcode_metadata.base_parser import BaseParser
 from ..virtual_sdcard import PrintJob
@@ -43,9 +42,6 @@ class CollisionInterface:
         self._config.getfloat("gantry_xy_max")
 
         self.printer.register_event_handler("klippy:connect", self.handle_connect)
-
-        gcode = self.printer.lookup_object('gcode')
-        gcode.register_command('C1', self.cmd_C1)
 
     def handle_connect(self) -> None:
         """Get printbed size later and update gantry"""
@@ -193,7 +189,6 @@ class CollisionInterface:
         cuboid = self.printjob_to_cuboid(printjob)
         return self.collision.find_offset(cuboid)
 
-
     def get_config(self) -> tuple[bool, bool]:
         return self.continuous_printing, self.reposition
 
@@ -204,47 +199,6 @@ class CollisionInterface:
         configfile.set("collision", "continuous_printing", continuous_printing)
         configfile.set("collision", "reposition", reposition)
         configfile.save_config(restart=False)
-
-    def cmd_C1(self, gcmd):
-        gmove = self.printer.lookup_object('gcode_move')
-        params = gcmd.get_command_parameters()
-        end_pos = deepcopy(gmove.last_position)
-        try:
-            for pos, axis in enumerate('XYZ'):
-                if axis in params:
-                    v = float(params[axis])
-                    if not gmove.absolute_coord:
-                        # value relative to position of last move
-                        end_pos[pos] += v
-                    else:
-                        # value relative to base coordinate position
-                        end_pos[pos] = v + gmove.base_position[pos]
-            if 'E' in params:
-                v = float(params['E']) * gmove.extrude_factor
-                if not gmove.absolute_coord or not gmove.absolute_extrude:
-                    # value relative to position of last move
-                    end_pos[3] += v
-                else:
-                    # value relative to base coordinate position
-                    end_pos[3] = v + gmove.base_position[3]
-            if 'F' in params:
-                gcode_speed = float(params['F'])
-                if gcode_speed <= 0.:
-                    raise gcmd.error("Invalid speed in '%s'"
-                                     % (gcmd.get_commandline(),))
-                gmove.speed = gcode_speed * gmove.speed_factor
-        except ValueError:
-            raise gcmd.error("Unable to parse collision avoidance move '%s'"
-                             % (gcmd.get_commandline(),))
-
-        moves = self.pathfinder.find_path(tuple(gmove.last_position[:3]), tuple(end_pos[:3]))
-        if moves:
-            for move in moves:
-                gmove.last_position = move + (end_pos[3])
-                logging.debug(f"Collision avoidance move to {gmove.last_position}")
-                gmove.move_with_transform(gmove.last_position, gmove.speed, bool('FORCE' in params))
-        else:
-            raise Exception("Collision unavoidable when moving from {gmove.last_position} to {end_pos}")
 
 class MissingMetadataError(AttributeError):
     pass

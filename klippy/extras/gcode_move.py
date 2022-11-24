@@ -4,6 +4,7 @@
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
 import logging
+from copy import deepcopy
 
 class GCodeMove:
     def __init__(self, config):
@@ -49,6 +50,7 @@ class GCodeMove:
         self.saved_states = {}
         self.move_transform = self.move_with_transform = None
         self.position_with_transform = (lambda: [0., 0., 0., 0.])
+        self.collision_avoidance_moves = 0
     def _handle_ready(self):
         self.is_printer_ready = True
         if self.move_transform is None:
@@ -109,28 +111,30 @@ class GCodeMove:
     def reset_last_position(self):
         if self.is_printer_ready:
             self.last_position = self.position_with_transform()
+
     # G-Code movement commands
     def cmd_G1(self, gcmd):
         # Move
         params = gcmd.get_command_parameters()
+        end_pos = deepcopy(self.last_position)
         try:
             for pos, axis in enumerate('XYZ'):
                 if axis in params:
                     v = float(params[axis])
                     if not self.absolute_coord:
                         # value relative to position of last move
-                        self.last_position[pos] += v
+                        end_pos[pos] += v
                     else:
                         # value relative to base coordinate position
-                        self.last_position[pos] = v + self.base_position[pos]
+                        end_pos[pos] = v + self.base_position[pos]
             if 'E' in params:
                 v = float(params['E']) * self.extrude_factor
                 if not self.absolute_coord or not self.absolute_extrude:
                     # value relative to position of last move
-                    self.last_position[3] += v
+                    end_pos[3] += v
                 else:
                     # value relative to base coordinate position
-                    self.last_position[3] = v + self.base_position[3]
+                    end_pos[3] = v + self.base_position[3]
             if 'F' in params:
                 gcode_speed = float(params['F'])
                 if gcode_speed <= 0.:
@@ -140,7 +144,22 @@ class GCodeMove:
         except ValueError as e:
             raise gcmd.error("Unable to parse move '%s'"
                              % (gcmd.get_commandline(),))
-        self.move_with_transform(self.last_position, self.speed, bool('FORCE' in params))
+        if 'C' in params:
+            self.collision_avoidance_moves = max(int(params['C']), self.collision_avoidance_moves)
+        if self.collision_avoidance_moves > 0:
+            collision = self.printer.lookup_object('collision')
+            moves = collision.pathfinder.find_path(tuple(self.last_position[:3]), tuple(end_pos[:3]))
+            if moves:
+                for move in moves:
+                    self.last_position = move + (end_pos[3])
+                    logging.debug(f"Collision avoidance move to {self.last_position}")
+                    self.move_with_transform(self.last_position, self.speed, bool('FORCE' in params))
+            else:
+                raise Exception(f"Collision unavoidable when moving from {self.last_position} to {end_pos}")
+            self.collision_avoidance_moves -= 1
+        else:
+            self.last_position = end_pos
+            self.move_with_transform(self.last_position, self.speed, bool('FORCE' in params))
     # G-Code coordinate manipulation
     def cmd_G20(self, gcmd):
         # Set units to inches
