@@ -132,6 +132,8 @@ class _UFPReader(metaclass=_UFPMetaClass):
                 material_file.seek(0)
                 with open(new_material_path, "wb") as fp:
                     fp.write(material_file.read())
+                # Invalidate XML tree cache
+                fm.cached_parse.cache_clear()
                 fm.read_single_file(new_material_path)
             material_file.close()
             self._material_guids.append(guid)

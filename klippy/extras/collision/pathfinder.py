@@ -152,7 +152,7 @@ class PathFinder:
         self.vertices = vertices + [start, goal]
         self.n: int = len(self.vertices)
 
-        # Indices of start/goal vertex, if set
+        # Indices of start/goal vertex
         self.start: int = self.n - 2
         self.goal: int = self.n - 1
 
@@ -221,8 +221,6 @@ class PathFinder:
         return math.dist(self.vertices[v], self.vertices[w])
 
     def astar(self) -> tuple[float, list[Optional[int]]]:
-        if self.start is None or self.goal is None:
-            raise ValueError("Start and endpoint not set (use set_route())")
         dist: list[float] = [float('inf')] * self.n
         dist[self.start] = 0
         parent: list[Optional[int]] = [None] * self.n
@@ -250,7 +248,6 @@ class PathFinder:
         dist, parents = self.astar()
         if dist == float('inf'):
             return None
-        # self.goal can't be None here, as that would have raised in astar()
         cur = self.goal
         path = [self.vertices[cur]]
         while cur != self.start:
