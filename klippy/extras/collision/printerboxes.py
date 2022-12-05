@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, Optional
 
 from .geometry import Rectangle, Cuboid
 
@@ -11,7 +11,7 @@ class PrinterBoxes:
                  gantry_x_oriented: bool,
                  gantry_height: float,
                  padding: float,
-                 static_objects: list[Cuboid] = None) -> None:
+                 static_objects: Optional[list[Cuboid]] = None) -> None:
         self.printbed = printbed
         # Gantry size relative to nozzle, including height
         if gantry_x_oriented:

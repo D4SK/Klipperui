@@ -51,6 +51,25 @@ interpreted:
 An example configuration for this section can be found in 
 [test_config.cfg](test_config.cfg).
 
+
+### Advanced printhead configuration
+
+In some cases representing the printhead as just one cuboid can be problematic.
+It is possible to specify multiple cuboids that together form the collision
+space of the printhead. To do that specify a list of cuboids under
+`printhead_parts`, each in the format `(min x, min y, max x, max y, height)`,
+where `height` specifies the height of the part above the nozzle end point. All
+parts are assumed to extend upwards indefinitely and no part may lie below the
+nozzle (i.e. have a negative `height` value). The other four values are
+interpreted like the `printhead_(x|y)_(min|max)` values, which are invalid when
+using `printhead_parts`.
+
+This example has a smaller nozzle (6mm x 6mm) with a wider body 20mm above that:
+```
+printhead_parts = [(3, 3, 3, 3, 0), (20, 15, 30, 15, 20)]
+```
+
+
 ## Tests
 
 The unit tests can be run using `./test.py` or for example `./test.py

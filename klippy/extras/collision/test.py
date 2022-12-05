@@ -862,5 +862,90 @@ class PathFinderManagerTest(unittest.TestCase):
                 round(no_padding.max_z, 4))
 
 
+class PrintheadPartsTest(unittest.TestCase):
+
+    def setUp(self):
+        fileconfig = configparser.RawConfigParser(strict=False)
+        with open(CONFIG_FILE, "r") as fp:
+            fileconfig.read_file(fp)
+        for opt in ("printhead_x_min", "printhead_x_max",
+                    "printhead_y_min", "printhead_y_max"):
+            fileconfig.remove_option("collision", opt)
+        fileconfig.set("collision", "printhead_parts",
+                       "[(3, 3, 3, 3, 0), (20, 15, 30, 15, 20)]")
+
+        config = configfile.ConfigWrapper(_DummyPrinter(),
+                                          fileconfig, {}, "collision")
+        self.collision = TestInterface(config).collision
+        self.printer = self.collision.printer
+
+        # Make another collision object but with an x-oriented gantry
+        fc_x = copy.deepcopy(fileconfig)
+        fc_x.set("collision", "gantry_orientation", "x")
+        config_x = configfile.ConfigWrapper(_DummyPrinter(),
+                                            fc_x, {}, "collision")
+        self.collision_x = TestInterface(config_x).collision
+        self.printer_x = self.collision_x.printer
+
+        self.pfm = PathFinderManager(self.printer)
+        self.pfm_x = PathFinderManager(self.printer_x)
+
+    def test_one_obstacle(self):
+        start = (240, 0, 10)
+        end = (240, 1000, 10)
+
+        # Lower than any part of printhead
+        o0 = Cuboid(200, 200, 0, 300, 400, 5)
+        self.printer.add_object(o0)
+        self.printer_x.add_object(o0)
+        self.assertEqual(self.pfm.find_path(start, end), [start, end])
+        self.assertEqual(self.pfm_x.find_path(start, end), [start, end])
+
+        # Nozzle needs to clear
+        o1 = Cuboid(200, 200, 0, 300, 400, 15)
+        self.printer.add_object(o1)
+        self.printer_x.add_object(o1)
+        expected = [start, (192, 192, 10), (192, 408, 10), end]
+        self.assertEqual(self.pfm.find_path(start, end),
+                         expected)
+        self.assertEqual(self.pfm_x.find_path(start, end),
+                         expected)
+
+
+        # Lower than gantry, higher than printhead base
+        o2 = Cuboid(200, 200, 0, 300, 400, 70)
+        self.printer.add_object(o2)
+        self.printer_x.add_object(o2)
+        expected = [start, (165, 180, 10), (165, 420, 10), end]
+        self.assertEqual(self.pfm.find_path(start, end),
+                         expected)
+        self.assertEqual(self.pfm_x.find_path(start, end),
+                         expected)
+
+        # Gantry collision, requires moving up
+        o3 = Cuboid(200, 200, 0, 300, 400, 100)
+        self.printer.add_object(o3)
+        self.printer_x.add_object(o3)
+        self.assertEqual(self.pfm.find_path(start, end), None)
+        self.assertEqual(self.pfm_x.find_path(start, end),
+            [start, (240, 0, 21), (165, 180, 21),
+             (165, 420, 21), (240, 1000, 21), end])
+
+    def test_canyon(self):
+        # 2 objects with a gap so narrow that only the nozzle can fit in
+        # between
+        objs = [Cuboid(0, 200, 0, 242, 400, 100),
+                Cuboid(258, 200, 0, 500, 400, 100)]
+        for o in objs:
+            self.printer.add_object(o)
+            self.printer_x.add_object(o)
+
+        # Needed height is 100 + 5(padding) - 20(nozzle height) = 85
+        self.assertEqual(self.pfm.find_path((250, 0, 25), (250, 1000, 25)),
+            [(250, 0, 25), (250, 0, 85), (250, 1000, 85), (250, 1000, 25)])
+        self.assertEqual(self.pfm_x.find_path((250, 0, 0), (250, 1000, 0)),
+            [(250, 0, 0), (250, 0, 85), (250, 1000, 85), (250, 1000, 0)])
+
+
 if __name__ == '__main__':
     unittest.main()
