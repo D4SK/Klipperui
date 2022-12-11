@@ -210,13 +210,11 @@ class PrintJobManager:
                 self.jobs[0].state in ('finished', 'aborted') and
                 assume_clear_after is not None):
             # Queue is empty but last print has not been confirmed clear
-            if assume_clear_after == 0:
+            now = self.reactor.monotonic()
+            if (assume_clear_after == 0
+            or self.jobs[0].print_end_time is not None and assume_clear_after < (now - self.jobs[0].print_end_time)):
                 self.clear_buildplate()
-            else:
-                now = self.reactor.monotonic()
-                if (self.jobs[0].print_end_time is not None and
-                    (now - self.jobs[0].print_end_time) > assume_clear_after):
-                    self.clear_buildplate()
+                self.printer.send_event("virtual_sdcard:assume_build_plate_clear")
         no_material_check = (not self.jobs or
             (len(self.jobs) == 1 and self.jobs[0].state in ('finished', 'aborted'))
             and no_material_check_when_first)

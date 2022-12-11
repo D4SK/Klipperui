@@ -93,17 +93,6 @@
                 right_title: "Enabled" if app.continuous_printing else "Disabled"
                 enabled: app.connected
                 on_release: root.manager.current = "ContinuousPrintingScreen"
-            SetItem:
-                left_title: "Acceleration"
-                right_title: "{:6.0f}mm/s²".format(app.config_acceleration)
-                enabled: app.connected
-                hidden: app.variable_acceleration_control
-                on_release: Factory.AccConfPopup(val=app.config_acceleration).open()
-            SetItem:
-                left_title: "Pressure Advance"
-                right_title: "{:4.3f}s".format(app.config_pressure_advance)
-                enabled: app.connected
-                on_release: Factory.PressureAdvanceConfPopup(val=app.config_pressure_advance).open()
             SIWifi:
                 left_title: "Wifi"
                 enabled: self.network_manager.available
@@ -839,56 +828,6 @@
             width: root.width/2
             pos: root.center_x, root.y
             on_release: app.reactor.cb(printer_cmd.set_config, f"output_pin {app.led_controls}", "value", slider.val/100), root.dismiss()
-
-<AccConfPopup@BasePopup>:
-    title: "Configure default Acceleration"
-    size_hint: 0.94, 0.4
-    FloatLayout:
-        UltraSlider:
-            val: root.val
-            val_min: 2000
-            val_max: 50000
-            unit: "mm/s²"
-            round_to: -2
-            buttons: []
-            id: slider
-            pos_hint: {'center_x':0.5, 'y':0.6}
-        BtnPCancel:
-            id: btn_cancel
-            width: root.width/2
-            pos: root.pos
-            on_release: root.dismiss()
-        BtnPConfirm:
-            text: "Set and restart"
-            enabled: slider.changed
-            width: root.width/2
-            pos: root.center_x, root.y
-            on_release: warn_if_printing(lambda: app.reactor.cb(printer_cmd.write_config, 'printer', 'max_accel', slider.val)); root.dismiss()
-
-<PressureAdvanceConfPopup@BasePopup>:
-    size_hint: 0.94, 0.4
-    title: "Configure default Pressure Advance"
-    FloatLayout:
-        UltraSlider:
-            val: root.val
-            buttons: []
-            val_min: 0
-            val_max: 0.05
-            unit: "mm/mm/s"
-            round_to: 3
-            id: slider
-            pos_hint: {'center_x': 0.5, 'y': 0.6}
-        BtnPCancel:
-            id: btn_cancel
-            width: root.width/2
-            pos: root.pos
-            on_release: root.dismiss()
-        BtnPConfirm:
-            text: "Set and restart"
-            enabled: slider.changed
-            width: root.width/2
-            pos: root.center_x, root.y
-            on_release: warn_if_printing(lambda: app.reactor.cb(printer_cmd.write_pressure_advance, slider.val, app.extruder_count)), root.dismiss()
 
 <HostnamePopup>:
     txt_input: hostname_input

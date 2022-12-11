@@ -330,11 +330,12 @@ def receive_event_history(e, kgui, events):
     kgui.reactor.register_event_handler("virtual_sdcard:print_end", kgui.handle_print_end)
     kgui.reactor.register_event_handler("virtual_sdcard:print_change", kgui.handle_print_change)
     kgui.reactor.register_event_handler("virtual_sdcard:print_added", kgui.handle_print_added)
+    kgui.reactor.register_event_handler("virtual_sdcard:material_mismatch", kgui.handle_material_mismatch)
+    kgui.reactor.register_event_handler("virtual_sdcard:assume_build_plate_clear", kgui.handle_assume_build_plate_clear)
     kgui.reactor.register_event_handler("print_history:change", kgui.handle_history_change)
     kgui.reactor.register_event_handler("filament_manager:material_changed", kgui.handle_material_change)
     kgui.reactor.register_event_handler("filament_manager:request_material_choice", kgui.handle_request_material_choice)
     kgui.reactor.register_event_handler("filament_switch_sensor:runout", kgui.handle_material_runout)
-    kgui.reactor.register_event_handler("virtual_sdcard:material_mismatch", kgui.handle_material_mismatch)
     for event, params in events:
         kgui.reactor.run_event(e, kgui, event, params)
 

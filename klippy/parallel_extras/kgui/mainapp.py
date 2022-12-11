@@ -118,7 +118,6 @@ class MainApp(App, threading.Thread):
         self.config_pressure_advance = config.getsection('extruder').getfloat("pressure_advance", 0)
         self.config_acceleration = config.getsection('printer').getfloat("max_accel", 0)
         self.xy_homing_controls = config.getboolean('xy_homing_controls', True)
-        self.variable_acceleration_control = config.getboolean('variable_acceleration_control', False)
         self.filament_diameter = config.getsection("extruder").getfloat("filament_diameter", 1.75)
         self.led_controls = config.get('led_controls', None)
         self.led_update_time = 0
@@ -207,7 +206,6 @@ class MainApp(App, threading.Thread):
 
     def handle_print_start(self, jobs, job):
         self.handle_print_change(jobs)
-        self.notify.show("Started printing", f"Started printing {job.name}", delay=5)
         self.print_title = job.name
         self.thumbnail = self.gcode_metadata.get_metadata(job.path).get_thumbnail_path() or p.kgui_dir + '/logos/transparent.png'
         # This only works if we are in a printing state
@@ -220,6 +218,9 @@ class MainApp(App, threading.Thread):
             self.progress = 0
             self.print_done_time = "Confirm Build Plate is clear"
             self.print_time = ""
+
+    def handle_assume_build_plate_clear(self):
+        self.notify.info("Clear Build Plate", "Please ensure all prints have been removed", delay=5)
 
     def hide_print(self):
         self.print_title = ""
@@ -241,7 +242,7 @@ class MainApp(App, threading.Thread):
 
     def handle_material_runout(self, extruder_id):
         FilamentRunoutPopup(extruder_id).open()
-    
+
     def handle_material_mismatch(self, *args):
         MaterialMismatchPopup(*args).open()
 
