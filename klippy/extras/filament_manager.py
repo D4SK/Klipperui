@@ -59,13 +59,11 @@ class FilamentManager:
         # json object of loaded and unloaded material
         # {'loaded': [{'guid': None if nothing is loaded,
         #           'amount': amount in kg,
-        #           'state': loading | loaded | unloading | no material,
-        #           'all_time_extruded_length': mm}, ...],
+        #           'state': loading | loaded | unloading | no material}, ...],
         # 'unloaded': [{'guid': None if nothing is loaded,
         #           'amount': amount in kg}, ...]}
         self.material = {
-            'loaded': [{'guid': None, 'state': "no material",
-                        'amount': 0, 'all_time_extruded_length': 0}] * extruder_count,
+            'loaded': [{'guid': None, 'state': "no material", 'amount': 0}] * extruder_count,
             'unloaded': []}
         self.read_loaded_material_json()
 
@@ -327,8 +325,7 @@ class FilamentManager:
                 if not (
                     mat['state'] in {'loaded', 'loading', 'unloading', 'no material'} and
                     isinstance(mat['guid'], (str, type(None))) and
-                    isinstance(mat['amount'], (float, int)) and
-                    isinstance(mat['all_time_extruded_length'], (float, int))):
+                    isinstance(mat['amount'], (float, int))):
                     return False
             for mat in material['unloaded']:
                 if not (
@@ -361,9 +358,8 @@ class FilamentManager:
                 density = float(self.get_info(guid, './m:properties/m:density', '1.24'))
                 diameter = float(self.get_info(guid, './m:properties/m:diameter', '1.75'))
                 area = pi * (diameter/2)**2
-                extruded_weight = extruded_length*area*density/1e6 # convert from mm^2 to m^2
+                extruded_weight = extruded_length*area*density/1e6 # [mm^2]*[g/cm^2] -> [kg]
                 mat['amount'] -= extruded_weight
-                mat['all_time_extruded_length'] += extruded_length
 
 class Material:
 
@@ -378,7 +374,7 @@ class Material:
             self.type = type
             self.brand = brand
             self.color = color # Hex color-code like "#1188ff"
-        self.amount = amount  # In g
+        self.amount = amount  # [g]
 
 
 class Problem(Flag):
