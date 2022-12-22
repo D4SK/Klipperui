@@ -79,7 +79,7 @@ class PrintJob:
             self.set_state('printing')
             if "PRINT_RESUME" in self.gcode.gcode_handlers:
                 self.gcode.run_script("PRINT_RESUME")
-            self.gcode.run_script_from_command(f"RESTORE_GCODE_STATE NAME=PAUSE_STATE MOVE=1 SPEED={RESTORE_GCODE_POS_SPEED*60}")
+            self.gcode.run_script(f"RESTORE_GCODE_STATE NAME=PAUSE_STATE MOVE=1 SPEED={RESTORE_GCODE_POS_SPEED*60}")
             self.work_timer = self.reactor.register_timer(self.work_handler, self.reactor.NOW)
             return True
 
@@ -183,14 +183,19 @@ class PrintJobManager:
     def __init__(self, config):
         self.toolhead = None
         self.printer = config.get_printer()
+        sd = config.get('path', "")
+        self.sdcard_dirname = os.path.normpath(os.path.expanduser(sd))
         self.reactor = self.printer.get_reactor()
         self.gcode = self.printer.lookup_object('gcode')
         self.gcode_metadata = self.printer.load_object(config, 'gcode_metadata')
         self.printer.load_object(config, 'print_stats')
         self.printer.register_event_handler("klippy:ready", self.handle_ready)
         self.printer.register_event_handler("klippy:shutdown", self.handle_shutdown)
-        self.printer.register_event_handler(
-                "filament_manager:material_changed", self.handle_material_change)
+        self.printer.register_event_handler("filament_manager:material_changed", self.handle_material_change)
+        self.gcode.register_command('PRINT', self.cmd_PRINT)
+        self.gcode.register_command('PAUSE', self.cmd_PAUSE)
+        self.gcode.register_command('RESUME', self.cmd_RESUME)
+        self.gcode.register_command('STOP', self.cmd_STOP)
 
         # Index of the last print job in self.jobs that can be printed
         # continuously. If self.jobs is empty, this is set to 0.
@@ -339,6 +344,20 @@ class PrintJobManager:
     def handle_material_change(self, material):
         #TODO: Automatically start next print job if it was waiting for material change
         self.update_continuity()
+
+    def cmd_PRINT(self, gcmd):
+        filename = os.path.join(self.sdcard_dirname, gcmd.get("FILE"))
+        self.add_print(filename, 1, True)
+
+    def cmd_PAUSE(self, gcmd):
+        # Allow the gcode lock to be released before pausing
+        self.reactor.register_callback(lambda e: self.pause_print())
+
+    def cmd_RESUME(self, gcmd):
+        self.reactor.register_callback(lambda e: self.resume_print())
+
+    def cmd_STOP(self, gcmd):
+        self.reactor.register_callback(lambda e: self.stop_print())
 
     def stats(self, eventtime):
         if len(self.jobs) and self.jobs[0].state in ('printing', 'pausing', 'aborting'):
