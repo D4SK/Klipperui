@@ -109,7 +109,7 @@
             gcode_id: "T1"
             heater_id: "extruder1"
             on_release: Factory.ExtTempPopup(creator=self, val=app.temp).open()
-            large_value: "{:3.0f}°C".format(app.temp[self.heater_id][1])
+            large_value: "{:3.0f}°C".format(app.temp[self.heater_id][1]) if app.temp[self.heater_id][1] > 0 else "--"
             small_value: "{:3.0f}".format(app.temp[self.heater_id][0]) if app.temp[self.heater_id][0] != 0 else "Off"
             red: app.temp[self.heater_id][1] > 50
             right: temp_bed.right if app.extruder_count > 1 else p.mars
@@ -126,7 +126,7 @@
             gcode_id: "T0"
             heater_id: "extruder"
             on_release: Factory.ExtTempPopup(creator=self, val=app.temp).open()
-            large_value: "{:3.0f}°C".format(app.temp[self.heater_id][1])
+            large_value: "{:3.0f}°C".format(app.temp[self.heater_id][1]) if app.temp[self.heater_id][1] > 0 else "--"
             small_value: "{:3.0f}".format(app.temp[self.heater_id][0]) if app.temp[self.heater_id][0] != 0 else "Off"
             red: app.temp[self.heater_id][1] > 50
             right: temp_bed.right
