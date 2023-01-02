@@ -99,6 +99,8 @@ class MainApp(App, threading.Thread):
 
     def __init__(self, config, **kwargs):
         logging.info("Kivy app initializing...")
+        self.reactor = config.get_reactor()
+        self._register_events()
         self.network_manager = NetworkManager()
         self.notify = Notifications()
         self.gcode_metadata = config.get_printer().load_object(config, "gcode_metadata")
@@ -111,7 +113,6 @@ class MainApp(App, threading.Thread):
             self.reactor = None
             return super().__init__(**kwargs)
 
-        self.reactor = config.get_reactor()
         self.reactor.register_mp_callback_handler(kivy_callback)
         self.fd = config.get_printer().get_start_args().get("gcode_fd")
         # Read config
@@ -135,6 +136,27 @@ class MainApp(App, threading.Thread):
         self.reactor.cb(printer_cmd.load_object, "print_history")
         super().__init__(**kwargs)
         self.reactor.cb(printer_cmd.request_event_history)
+
+    def _register_events(self):
+        register = self.reactor.register_event_handler
+        # Register event handlers
+        register("klippy:connect", self.handle_connect) # printer_objects available
+        register("klippy:ready", self.handle_ready) # connect handlers have run
+        register("klippy:disconnect", lambda : Clock.schedule_del_safe(self.handle_disconnect))
+        register("klippy:shutdown", self.handle_shutdown)
+        register("klippy:critical_error", self.handle_critical_error)
+        register("klippy:error", self.handle_error)
+        register("homing:home_rails_end", self.handle_home_end)
+        register("virtual_sdcard:print_start", self.handle_print_start)
+        register("virtual_sdcard:print_end", self.handle_print_end)
+        register("virtual_sdcard:print_change", self.handle_print_change)
+        register("virtual_sdcard:print_added", self.handle_print_added)
+        register("virtual_sdcard:material_mismatch", self.handle_material_mismatch)
+        register("virtual_sdcard:assume_build_plate_clear", self.handle_assume_build_plate_clear)
+        register("print_history:change", self.handle_history_change)
+        register("filament_manager:material_changed", self.handle_material_change)
+        register("filament_manager:request_material_choice", self.handle_request_material_choice)
+        register("filament_switch_sensor:runout", self.handle_material_runout)
 
     def clean(self):
         ndel, freed = freedir(p.sdcard_path)
@@ -297,8 +319,12 @@ class PopupExceptionHandler(ExceptionHandler):
             return ExceptionManager.PASS
 
 def handle_exception_in_thread(exception):
-    App.get_running_app().handle_critical_error(str(exception.exc_value))
-    logging.exception("Thread-Exception, popup invoked \n\n" + str(exception.exc_value))
+    app = App.get_running_app()
+    if app:
+        handle_critical_error(str(exception.exc_value))
+        logging.exception("Thread-Exception, popup invoked \n\n" + str(exception.exc_value))
+    else:
+        logging.exception("Exception occured while graphics are unavailable")
 
 ExceptionManager.add_handler(PopupExceptionHandler())
 threading.excepthook = handle_exception_in_thread

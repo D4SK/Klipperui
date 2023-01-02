@@ -65,7 +65,6 @@ class Printer:
         self.objects = collections.OrderedDict()
         self.parallel_objects = {}
         self.parallel_queues = {}
-        self.parallel_access_completion = {}
         # Init printer components that must be setup prior to config
         for m in [gcode, webhooks]:
             m.add_early_printer_objects(self)
@@ -130,54 +129,18 @@ class Printer:
                 raise self.config_error("Unable to load module '%s'" % (section,))
             self.objects[section] = init_func(config.getsection(section))
             return self.objects[section]
-        # Create Reactor for parallel_objects to be started later in _load_parallel_object
         elif exists(parallel_module) or exists(parallel_package):
-            # Temporarily used to store args needed to create this process
             self.parallel_queues[section] = multiprocessing.Queue()
-            self.parallel_objects[section] = [config.getsection(section), init_func]
+            self.parallel_objects[section] = ExtraProcess(
+                section,
+                config.getsection(section),
+                init_func,
+                self.reactor)
             return
         else:
             if default is not configfile.sentinel:
                 return default
             raise self.config_error("Unable to load module '%s'" % (section,))
-    def _load_parallel_object(self, section):
-        self.parallel_objects[section] = multiprocessing.Process(
-            target=self.start_process,
-            args=(*self.parallel_objects[section], section, self.parallel_queues),
-            name=section)
-        self.parallel_objects[section].start()
-    @staticmethod
-    def start_process(config, init_func, section, mp_queues):
-        os.nice(config.getint("nice", 10))
-        configfile.main_config = config
-        # Delete all loaded klipper modules
-        config.printer.objects.clear()
-        # Reset logging module so that all processes can use the root logger
-        logging.shutdown()
-        importlib.reload(logging)
-        config.reactor = reactor.Reactor(process=section, gc_checking=True)
-        config.printer.reactor = config.reactor
-        config.reactor.logger = queuelogger.setup_bg_logging("/tmp/"+section.split()[-1]+".log", debuglevel)
-        # Avoid active imports changing environment - import in target process
-        mod = importlib.import_module('parallel_extras.' + section.split()[0])
-        init_func = getattr(mod, init_func, None)
-        def start(e):
-            logging.info(f"\nRestart {datetime.datetime.now()}\n")
-            config.reactor.setup_mp_queues(mp_queues)
-            config.reactor.root = init_func(config)
-            config.reactor.cb(Printer._report_access_tracking,
-                    config.section, config.access_tracking)
-            # Ignore SIGTERM in child processes
-            signal.signal(signal.SIGTERM, signal.SIG_IGN)
-        try:
-            config.reactor.register_callback(start)
-            config.reactor.run()
-        except Exception:
-            logging.exception("Unhandled exception during run")
-    @staticmethod
-    def _report_access_tracking(e, printer, section, access_tracking):
-        logging.debug("Receiving config access tracking from %s", section)
-        printer.parallel_access_completion[section].complete(access_tracking)
     def _read_config(self):
         self.objects['configfile'] = pconfig = configfile.PrinterConfig(self)
         config = pconfig.read_main_config()
@@ -190,16 +153,15 @@ class Printer:
             self.load_object(config, section_config.get_name(), None)
         self.parallel_queues['printer'] = multiprocessing.Queue()
         self.reactor.setup_mp_queues(self.parallel_queues)
-        self.parallel_access_completion = {section: self.reactor.completion()
-                                           for section in self.parallel_objects}
-        for section in self.parallel_objects:
-            self._load_parallel_object(section)
+        for proc in self.parallel_objects.values():
+            proc.start(self.parallel_queues)
 
         # Wait for config access_tracking to be reported back
-        for section, completion in self.parallel_access_completion.items():
-            access_tracking = completion.wait(waketime=self.reactor.monotonic() + 20)
+        for proc in self.parallel_objects.values():
+            access_tracking = proc.completion.wait(waketime=self.reactor.monotonic() + 20)
             if access_tracking is None:
-                raise TimeoutError(f"{section} Did not return access tracking within 20 seconds!")
+                raise TimeoutError(
+                    f"{proc.name} did not return access tracking within 20 seconds!")
             else:
                 config.access_tracking.update(access_tracking)
 
@@ -329,6 +291,77 @@ class Printer:
             self.run_result = result
         self.reactor.end()
 
+
+class ExtraProcess:
+
+    def __init__(self, name, config, init_func, printer_reactor):
+        self.name = name
+        self.config = config
+        self.init_func = init_func
+        self.completion = printer_reactor.completion()
+        self.proc = None
+
+    def start(self, mp_queues):
+        self.proc = multiprocessing.Process(
+            target=self._target,
+            args=(mp_queues,),
+            name=self.name)
+        self.proc.start()
+
+    def ensure_stop(self):
+        if self.proc is not None:
+            logging.info("Joining %s", self.name)
+            self.proc.join(10)
+            if self.proc.exitcode is None:
+                logging.error("Process termination timed out. Killing %s",
+                    self.name)
+                self.proc.kill()
+            self.proc = None
+
+    # Entry point for the new process
+    def _target(self, mp_queues):
+        self._setup()
+        reactor = self.config.reactor
+        # Avoid active imports changing environment - import in target process
+        mod = importlib.import_module('parallel_extras.' + self.name.split()[0])
+        init_func = getattr(mod, self.init_func, None)
+        def start(e):
+            signal.signal(signal.SIGTERM, signal.SIG_IGN)
+            logging.info(f"\nRestart {datetime.datetime.now()}\n")
+            reactor.setup_mp_queues(mp_queues)
+            reactor.root = init_func(self.config)
+            reactor.cb(ExtraProcess._report_access_tracking,
+                    self.config.section, self.config.access_tracking)
+        try:
+            reactor.register_callback(start)
+            reactor.run()
+        except Exception:
+            logging.exception("Unhandled exception during run")
+            # Stops the queuelogger thread
+            reactor.end()
+        finally:
+            reactor.finalize()
+
+    def _setup(self):
+        config = self.config
+        os.nice(config.getint("nice", 10))
+        configfile.main_config = config
+        # Delete all loaded klipper modules
+        config.printer.objects.clear()
+        # Reset logging module so that all processes can use the root logger
+        logging.shutdown()
+        importlib.reload(logging)
+        config.reactor = reactor.Reactor(process=self.name, gc_checking=True)
+        config.printer.reactor = config.reactor
+        config.reactor.logger = queuelogger.setup_bg_logging(
+            "/tmp/" + self.name.split()[-1] + ".log", debuglevel)
+
+    @staticmethod
+    def _report_access_tracking(e, printer, section, access_tracking):
+        logging.debug("Receiving config access tracking from %s", section)
+        printer.parallel_objects[section].completion.complete(access_tracking)
+
+
 def get_main_config():
     return configfile.main_config
 
@@ -435,12 +468,8 @@ def main():
         main_reactor.root = printer
         res = printer.run()
         time.sleep(1)
-        for name, process in printer.parallel_objects.items():
-            logging.info(f"Joining {name}")
-            process.join(10)
-            if process.exitcode is None:
-                logging.error("Process %s did not finish after 10 seconds. Terminating.", process.name)
-                process.terminate()
+        for process in printer.parallel_objects.values():
+            process.ensure_stop()
         logging.info("Joined all processes")
         main_reactor.finalize()
         if res in ('exit', 'error_exit'):

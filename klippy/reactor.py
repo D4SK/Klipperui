@@ -336,8 +336,6 @@ class SelectReactor:
                     eventtime = self.monotonic()
                     break
         self._g_dispatch = None
-        if self.process_name != 'printer':
-            self.finalize()
     def _handle_mp_msg(self, eventtime):
         try:
             cb, completion_id, waiting_process, execute_in_reactor, args, kwargs = self.mp_queue.get_nowait()
@@ -435,8 +433,6 @@ class PollReactor(SelectReactor):
                     eventtime = self.monotonic()
                     break
         self._g_dispatch = None
-        if self.process_name != 'printer':
-            self.finalize()
 
 class EPollReactor(SelectReactor):
     def __init__(self, gc_checking=False, process='printer'):
@@ -474,8 +470,6 @@ class EPollReactor(SelectReactor):
                     eventtime = self.monotonic()
                     break
         self._g_dispatch = None
-        if self.process_name != 'printer':
-            self.finalize()
 
 # Use the poll based reactor if it is available
 try:

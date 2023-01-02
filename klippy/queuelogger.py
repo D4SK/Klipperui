@@ -26,7 +26,7 @@ class QueueListener(logging.handlers.TimedRotatingFileHandler):
         logging.handlers.TimedRotatingFileHandler.__init__(
             self, filename, when='midnight', backupCount=5)
         self.bg_queue = queue.Queue()
-        self.bg_thread = threading.Thread(target=self._bg_thread)
+        self.bg_thread = threading.Thread(target=self._bg_thread, name="Queuelogger-Thread")
         self.bg_thread.start()
         self.rollover_info = {}
     def _bg_thread(self):
