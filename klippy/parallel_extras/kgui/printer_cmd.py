@@ -318,6 +318,24 @@ def request_event_history(e, printer):
     printer.reactor.cb(receive_event_history, events, process='kgui')
 
 def receive_event_history(e, kgui, events):
+    # Register event handlers
+    kgui.reactor.register_event_handler("klippy:connect", kgui.handle_connect) # printer_objects available
+    kgui.reactor.register_event_handler("klippy:ready", kgui.handle_ready) # connect handlers have run
+    kgui.reactor.register_event_handler("klippy:disconnect", kgui.handle_disconnect)
+    kgui.reactor.register_event_handler("klippy:shutdown", kgui.handle_shutdown)
+    kgui.reactor.register_event_handler("klippy:critical_error", kgui.handle_critical_error)
+    kgui.reactor.register_event_handler("klippy:error", kgui.handle_error)
+    kgui.reactor.register_event_handler("homing:home_rails_end", kgui.handle_home_end)
+    kgui.reactor.register_event_handler("virtual_sdcard:print_start", kgui.handle_print_start)
+    kgui.reactor.register_event_handler("virtual_sdcard:print_end", kgui.handle_print_end)
+    kgui.reactor.register_event_handler("virtual_sdcard:print_change", kgui.handle_print_change)
+    kgui.reactor.register_event_handler("virtual_sdcard:print_added", kgui.handle_print_added)
+    kgui.reactor.register_event_handler("virtual_sdcard:material_mismatch", kgui.handle_material_mismatch)
+    kgui.reactor.register_event_handler("virtual_sdcard:assume_build_plate_clear", kgui.handle_assume_build_plate_clear)
+    kgui.reactor.register_event_handler("print_history:change", kgui.handle_history_change)
+    kgui.reactor.register_event_handler("filament_manager:material_changed", kgui.handle_material_change)
+    kgui.reactor.register_event_handler("filament_manager:request_material_choice", kgui.handle_request_material_choice)
+    kgui.reactor.register_event_handler("filament_switch_sensor:runout", kgui.handle_material_runout)
     for event, params in events:
         kgui.reactor.run_event(e, kgui, event, params)
 
