@@ -384,7 +384,7 @@ class SelectReactor:
         for cb in self.event_handlers.get(event, []):
             if self.root.state_message != check_status != None:
                 return
-            cb()
+            cb(*params)
         # Wait for other processes to finish event handlers
         for completion in completions:
             completion.wait()
