@@ -327,7 +327,7 @@ class GCodeDispatch:
             print_time = toolhead.get_last_move_time()
             if result == 'exit':
                 logging.info("Exiting (print time %.3fs)" % (print_time,))
-            self.printer.send_event("gcode:request_restart", print_time)
+            self.printer.reactor.send_event_wait("gcode:request_restart", print_time)
             toolhead.dwell(0.500)
             toolhead.wait_moves()
         self.printer.request_exit(result)
