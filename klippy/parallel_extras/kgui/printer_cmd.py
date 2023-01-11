@@ -274,10 +274,10 @@ def send_resume(e, printer):
     printer.objects['virtual_sdcard'].resume_print()
 
 def restart(e, printer):
-    printer.request_exit('restart')
+    printer.objects['gcode'].request_restart('restart')
 
 def firmware_restart(e, printer):
-    printer.request_exit('firmware_restart')
+    printer.objects['gcode'].request_restart('firmware_restart')
 
 def format_time(seconds):
     seconds = int(seconds)
