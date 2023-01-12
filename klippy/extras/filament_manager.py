@@ -85,6 +85,7 @@ class FilamentManager:
                 self.extruders[extruder_id] = extruder
                 self.distance_trackers[extruder_id] = [0]
                 self.extruders[extruder_id].distance_tracker = self.distance_trackers[extruder_id]
+        self.printer.send_event("filament_manager:material_changed", self.material)
 
     def handle_runout(self, extruder_id):
         virtual_sdcard = self.printer.objects['virtual_sdcard']
@@ -157,7 +158,7 @@ class FilamentManager:
         try:
             tree = self.cached_parse(fpath)
         except:
-            logging.warning(f"Filament Manager: Failed to parse {fpath}",
+            logging.warning(f"Filament Manager: Failed to parse {fpath}, caught Exception:",
                     exc_info=True)
             return default
         else:
