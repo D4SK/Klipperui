@@ -4,9 +4,13 @@
 # Copyright (C) 2020  Konstantin Vogel <konstantin.vogel@gmx.net>
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
+<<<<<<< HEAD
 import logging
 import os
 from uuid import uuid4
+=======
+import os, logging, io
+>>>>>>> 3afed2bf416c1746e9e3329b2e7f5cc61d91d134
 
 
 RESTORE_GCODE_POS_SPEED = 100

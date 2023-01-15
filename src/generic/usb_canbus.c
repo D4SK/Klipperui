@@ -13,6 +13,7 @@
 #include "board/pgm.h" // PROGMEM
 #include "board/usb_cdc_ep.h" // USB_CDC_EP_BULK_IN
 #include "byteorder.h" // cpu_to_le16
+#include "command.h" // DECL_CONSTANT
 #include "generic/usbstd.h" // struct usb_device_descriptor
 #include "sched.h" // sched_wake_task
 #include "usb_cdc.h" // usb_notify_ep0
@@ -125,6 +126,8 @@ enum {
     HS_TX_LOCAL = 4,
 };
 
+DECL_CONSTANT("CANBUS_BRIDGE", 1);
+
 void
 canbus_notify_tx(void)
 {
@@ -202,7 +205,7 @@ usbcan_task(void)
             msg.data32[0] = gs->data32[0];
             msg.data32[1] = gs->data32[1];
             if (host_status & HS_TX_HW) {
-                ret = canbus_send(&msg);
+                ret = canhw_send(&msg);
                 if (ret < 0)
                     return;
                 UsbCan.host_status = host_status = host_status & ~HS_TX_HW;
@@ -251,7 +254,7 @@ usbcan_task(void)
 DECL_TASK(usbcan_task);
 
 int
-canserial_send(struct canbus_msg *msg)
+canbus_send(struct canbus_msg *msg)
 {
     int ret = drain_hw_queue();
     if (ret < 0)
@@ -267,7 +270,7 @@ retry_later:
 }
 
 void
-canserial_set_filter(uint32_t id)
+canbus_set_filter(uint32_t id)
 {
     UsbCan.assigned_id = id;
 }
