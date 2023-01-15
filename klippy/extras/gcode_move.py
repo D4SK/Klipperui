@@ -111,7 +111,6 @@ class GCodeMove:
     def reset_last_position(self):
         if self.is_printer_ready:
             self.last_position = self.position_with_transform()
-
     # G-Code movement commands
     def cmd_G1(self, gcmd):
         # Move

@@ -330,11 +330,7 @@ class PrinterHeaters:
         gcode = self.printer.lookup_object("gcode")
         reactor = self.printer.get_reactor()
         eventtime = reactor.monotonic()
-        i = 0
         while not self.printer.is_shutdown() and heater.check_busy(eventtime):
-            if i%20 == 0:
-                gcode.respond_raw(self._get_temp(eventtime))
-            i += 1
             print_time = toolhead.get_last_move_time()
             eventtime = reactor.pause(eventtime + 0.05)
     def set_temperature(self, heater, temp, wait=False):
