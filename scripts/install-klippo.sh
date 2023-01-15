@@ -45,7 +45,7 @@ install_packages()
     python3-venv \
     python3-setuptools \
     python3-pip \
-    libreadline-gplv2-dev libncursesw5-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev \
+    libncursesw5-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev \
     libgirepository1.0-dev libcairo2-dev libjpeg-dev libgif-dev" # some stuff thats needed for installing gi
 
     # Kivy Raspberry 4 specifics
@@ -84,8 +84,6 @@ install_packages()
 
     # Wifi
     PKGLIST="${PKGLIST} network-manager python3-gi"
-    # Usb Stick Automounting
-    PKGLIST="${PKGLIST} usbmount"
 
     # Update system package info
     report_status "Updating package database..."
@@ -144,16 +142,15 @@ install_packages()
 
 
 
-install_python()
+increase_swap()
 {
-    report_status "Installing Python 3.10..."
-    cd ~
-    wget https://www.python.org/ftp/python/3.10.7/Python-3.10.7.tgz
-    tar -zxvf Python-3.10.7.tgz Python-3.10.7/
-    cd Python-3.10.7/
-    ./configure --enable-optimizations --with-ensurepip --enable-shared LDFLAGS="-Wl,-rpath /usr/local/lib"
-    sudo make altinstall
+    report_status "Increasing swap size..."
+    sudo dphys-swapfile swapoff
+    sudo sed -i 's/CONF_SWAPSIZE=100/CONF_SWAPSIZE=1024/' /etc/dphys-swapfile
+    sudo dphys-swapfile setup
+    sudo dphys-swapfile swapon
 }
+
 
 
 
@@ -162,14 +159,14 @@ create_virtualenv()
 {
     report_status "Updating python virtual environment..."
     # Create virtualenv if it doesn't already exist
-    [ ! -d ${PYTHONDIR} ] && python3.10 -m venv ${PYTHONDIR}
+    [ ! -d ${PYTHONDIR} ] && python3 -m venv ${PYTHONDIR}
     report_status "Installing pip packages..."
     # Install/update dependencies                      v  custom KGUI list of pip packages
     ${PYTHONDIR}/bin/pip3 install -q -r ${SRCDIR}/scripts/klippo-requirements.txt
     # install kivy from source
-    python3 -m pip install "kivy[base] @ https://github.com/kivy/kivy/archive/master.zip"
+    increase_swap
+    ${PYTHONDIR}/bin/python3 -m pip install "kivy[base] @ https://github.com/kivy/kivy/archive/master.zip"
 }
-
 
 
 setup_kivy_config()
@@ -191,10 +188,11 @@ Description="Klipper with GUI"
 Type=simple
 User=$USER
 Environment=DISPLAY=:0
-ExecStart=$PYTHONDIR/bin/python3.10 $SRCDIR/klippy/klippy.py $HOME/printer.cfg -v -l /tmp/klippy.log
+ExecStart=$PYTHONDIR/bin/python3 $SRCDIR/klippy/klippy.py $HOME/printer.cfg -v -l /tmp/klippy.log
 Nice=-19
 Restart=always
 RestartSec=10
+TimeoutSec=25
 
 [Install]
 WantedBy=multi-user.target
@@ -255,7 +253,6 @@ set -e
 # Run installation steps defined above
 verify_ready
 install_packages
-install_python
 create_virtualenv
 setup_kivy_config
 install_klipper_service

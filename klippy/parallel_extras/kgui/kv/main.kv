@@ -81,11 +81,12 @@ FloatLayout:
             size: self.texture_size
             font_size: p.normal_font
             padding_x: dp(7)
+            color: p.status_bar
 
 <CuraConnectionIcon>:
     canvas:
         Color:
-            rgba: (1, 1, 1, 1) if app.cura_connected else (0, 0, 0, 0)
+            rgba: p.status_bar if app.cura_connected else (0, 0, 0, 0)
         Rectangle:
             size: dp(24), dp(24)
             pos: self.center_x - dp(12), self.center_y - dp(12)
