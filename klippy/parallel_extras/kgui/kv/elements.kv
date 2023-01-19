@@ -416,7 +416,7 @@
             on_release: app.reactor.cb(printer_cmd.firmware_restart)
 
 <ErrorPopup>:
-    size_hint: 0.7, 0.5
+    size_hint: 0.75, 0.55
     error: True
     message: "--"
     title: "Error"
@@ -429,7 +429,7 @@
             size_hint: 0.9, 1
             pos_hint: {'center_x': 0.5, 'center_y': 0.5 + 0.1}
             text_size: self.size
-            font_size: p.large_font
+            font_size: p.normal_font + sp(2)
             color: p.light_gray
         BtnPCancel:
             id: btn_cancel
