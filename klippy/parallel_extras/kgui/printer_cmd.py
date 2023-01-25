@@ -162,7 +162,8 @@ def get_temp(e, printer):
             temp[name] = [target, current]
         printer.reactor.cb(update_dict, 'temp', temp, process='kgui')
 def send_temp(e, printer, temp, extruder_id):
-    printer.objects['heaters'].heaters[extruder_id].set_temp(temp)
+    pheaters = printer.objects['heaters']
+    pheaters.set_temperature(pheaters.heaters[extruder_id], temp)
     get_temp(e, printer)
 
 def get_homing_state(e, printer):
