@@ -205,8 +205,8 @@ def send_pos(e, printer, x=None, y=None, z=None, extruder=None, speed=15):
 
 def get_pos_limits(e, printer):
     rails = printer.objects['toolhead'].kin.rails
-    printer.reactor.cb(set_attribute, 'pos_min', [rail.position_min for rail in rails], process='kgui')
-    printer.reactor.cb(set_attribute, 'pos_max', [rail.position_max for rail in rails], process='kgui')
+    printer.reactor.cb(set_attribute, 'pos_min', [rail.print_area_min for rail in rails], process='kgui')
+    printer.reactor.cb(set_attribute, 'pos_max', [rail.print_area_max for rail in rails], process='kgui')
 
 def get_print_progress(e, printer):
     est_remaining, progress = printer.objects['print_stats'].get_print_time_prediction()

@@ -78,8 +78,8 @@ class CollisionInterface:
     def _read_printbed(self) -> Cuboid:
         """Read the printer size from the config and return it as a Cuboid"""
         rails = self.printer.objects['toolhead'].kin.rails
-        min_ = [rail.position_min for rail in rails]
-        max_ = [rail.position_max for rail in rails]
+        min_ = [rail.print_area_min for rail in rails]
+        max_ = [rail.print_area_max for rail in rails]
         return Cuboid(*min_, *max_)
 
     def _read_printhead(self) -> Union[Rectangle, list[Cuboid]]:
