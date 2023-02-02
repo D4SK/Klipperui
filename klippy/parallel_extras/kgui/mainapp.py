@@ -220,7 +220,7 @@ class MainApp(App, threading.Thread):
             self.print_time = ""
 
     def handle_assume_build_plate_clear(self):
-        self.notify.info("Clear Build Plate", "Please ensure all prints have been removed", delay=5)
+        self.notify.show("Clear Build Plate", "Please ensure all prints have been removed", delay=5)
 
     def hide_print(self):
         self.print_title = ""
