@@ -157,12 +157,16 @@ then
     mkdir -p /etc/X11/xorg.conf.d
 fi
 
-# Backup 40-libinput.conf
-if [ -e /etc/X11/xorg.conf.d/40-libinput.conf ] && [ ! -e /etc/X11/xorg.conf.d/40-libinput.conf.OLD_CONFIG ]
-then
-    echo "/etc/X11/xorg.conf.d/40-libinput.conf already exists. Creating backup.."
-    cp /etc/X11/xorg.conf.d/40-libinput.conf /etc/X11/xorg.conf.d/40-libinput.conf.OLD_CONFIG
-fi
+backup_conf() {
+    BACKUP="$1.OLD_CONFIG"
+    if [ -e "$1" ] && [ ! -e "$BACKUP" ]
+    then
+	echo "$1 already exists, creating backup..."
+        cp "$1" "$BACKUP"
+    fi
+}
+
+backup_conf /etc/X11/xorg.conf.d/40-libinput.conf
 
 # Write new config, dependent on touchpad transformation Matrix
 cat > /etc/X11/xorg.conf.d/40-libinput.conf <<EOF
@@ -200,6 +204,25 @@ Section "InputClass"
         MatchIsTablet "on"
         MatchDevicePath "/dev/input/event*"
         Driver "libinput"
+EndSection
+EOF
+
+# Add modeline to Xorg conf
+backup_conf /etc/X11/xorg.conf.d/00-monitor.conf
+cat > /etc/X11/xorg.conf.d/00-monitor.conf <<EOF
+Section "Monitor"
+        Identifier "HDMI-1"
+        Modeline "1024x600_60.00"   49.00  1024 1072 1168 1312  600 603 613 624 -hsync +vsync
+        Option "PreferredMode" "1024x600_60.00"
+EndSection
+
+Section "Screen"
+        Identifier "Screen0"
+        Monitor "HDMI-1"
+        DefaultDepth 24
+        SubSection "Display"
+                Modes "1024x600_60.00"
+        EndSubSection
 EndSection
 EOF
 
