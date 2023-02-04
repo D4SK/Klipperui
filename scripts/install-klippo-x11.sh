@@ -89,6 +89,7 @@ install_packages()
 
     # Wifi
     PKGLIST="${PKGLIST} network-manager python3-gi"
+
     # Update system package info
     report_status "Updating package database..."
     sudo apt-get -qq --yes update
@@ -97,16 +98,27 @@ install_packages()
     sudo apt-get install -qq --yes ${PKGLIST}
 
     report_status "Adjusting configurations..."
-    # Networking
-    sudo apt-get -qq --yes purge dhcpcd5
+
+    # change line in Xwrapper.config so xorg feels inclined to start when asked by systemd
+    sudo sed -i 's/allowed_users=console/allowed_users=anybody/' /etc/X11/Xwrapper.config
+    # -i for in place (just modify file), s for substitute (this line)
+
     # Needed to allow wifi scanning to non-root users. Probably not needed with NM >= 1.16
     # Adds option "auth-polkit=false" in [main] section if it doesn't exist already
     if [ $(grep -c auth-polkit= /etc/NetworkManager/NetworkManager.conf) -eq 0 ]; then
         sudo sed -i '/\[main\]/a auth-polkit=false' /etc/NetworkManager/NetworkManager.conf
     fi
-    # change line in Xwrapper.config so xorg feels inclined to start when asked by systemd
-    sudo sed -i 's/allowed_users=console/allowed_users=anybody/' /etc/X11/Xwrapper.config
-    # -i for in place (just modify file), s for substitute (this line)
+
+    # See do_netconf() in /usr/bin/raspi-config
+    # Ensure that NetworkManager will run (the service is enabled when
+    # installing network-manager, but not if it was already installed)
+    systemctl -q is-enabled NetworkManager > /dev/null 2>&1
+    NMENABLED=$?
+    if [ "$NMENABLED" = 0 ]; then
+        sudo systemctl enable -q NetworkManager.service
+    fi
+    # Disable dhcpcd5 if it was still present
+    sudo apt-get -qq --yes purge dhcpcd5
 }
 
 

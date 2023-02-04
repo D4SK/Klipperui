@@ -95,33 +95,37 @@ install_packages()
     # Install SDL2 from source
     report_status "Installing SDL2 from source"
     cd ~
-    wget https://libsdl.org/release/SDL2-2.0.10.tar.gz
-    tar -zxvf SDL2-2.0.10.tar.gz
-    pushd SDL2-2.0.10
+    SDL_VERSION=2.0.10
+    wget https://libsdl.org/release/SDL2-$SDL_VERSION.tar.gz
+    tar -zxvf SDL2-$SDL_VERSION.tar.gz
+    pushd SDL2-$SDL_VERSION
     ./configure --enable-video-kmsdrm --disable-video-opengl --disable-video-x11 --disable-video-rpi
     make -j$(nproc)
     sudo make install
     popd
 
-    wget https://libsdl.org/projects/SDL_image/release/SDL2_image-2.0.5.tar.gz
-    tar -zxvf SDL2_image-2.0.5.tar.gz
-    pushd SDL2_image-2.0.5
+    SDL_IMAGE_VERSION=2.0.5
+    wget https://libsdl.org/projects/SDL_image/release/SDL2_image-$SDL_IMAGE_VERSION.tar.gz
+    tar -zxvf SDL2_image-$SDL_IMAGE_VERSION.tar.gz
+    pushd SDL2_image-$SDL_IMAGE_VERSION
     ./configure
     make -j$(nproc)
     sudo make install
     popd
 
-    wget https://libsdl.org/projects/SDL_mixer/release/SDL2_mixer-2.0.4.tar.gz
-    tar -zxvf SDL2_mixer-2.0.4.tar.gz
-    pushd SDL2_mixer-2.0.4
+    SDL_MIXER_VERSION=2.0.4
+    wget https://libsdl.org/projects/SDL_mixer/release/SDL2_mixer-$SDL_MIXER_VERSION.tar.gz
+    tar -zxvf SDL2_mixer-$SDL_MIXER_VERSION.tar.gz
+    pushd SDL2_mixer-$SDL_MIXER_VERSION
     ./configure
     make -j$(nproc)
     sudo make install
     popd
 
-    wget https://libsdl.org/projects/SDL_ttf/release/SDL2_ttf-2.0.15.tar.gz
-    tar -zxvf SDL2_ttf-2.0.15.tar.gz
-    pushd SDL2_ttf-2.0.15
+    SDL_TTF_VERSION=2.0.15
+    wget https://libsdl.org/projects/SDL_ttf/release/SDL2_ttf-$SDL_TTF_VERSION.tar.gz
+    tar -zxvf SDL2_ttf-$SDL_TTF_VERSION.tar.gz
+    pushd SDL2_ttf-$SDL_TTF_VERSION
     ./configure
     make -j$(nproc)
     sudo make install
@@ -131,13 +135,27 @@ install_packages()
     sudo adduser "${USER}" render
 
     report_status "Adjusting configurations..."
-    # Networking
-    sudo apt-get -qq --yes purge dhcpcd5
+
+    # change line in Xwrapper.config so xorg feels inclined to start when asked by systemd
+    sudo sed -i 's/allowed_users=console/allowed_users=anybody/' /etc/X11/Xwrapper.config
+    # -i for in place (just modify file), s for substitute (this line)
+
     # Needed to allow wifi scanning to non-root users. Probably not needed with NM >= 1.16
     # Adds option "auth-polkit=false" in [main] section if it doesn't exist already
     if [ $(grep -c auth-polkit= /etc/NetworkManager/NetworkManager.conf) -eq 0 ]; then
         sudo sed -i '/\[main\]/a auth-polkit=false' /etc/NetworkManager/NetworkManager.conf
     fi
+
+    # See do_netconf() in /usr/bin/raspi-config
+    # Ensure that NetworkManager will run (the service is enabled when
+    # installing network-manager, but not if it was already installed)
+    systemctl -q is-enabled NetworkManager > /dev/null 2>&1
+    NMENABLED=$?
+    if [ "$NMENABLED" = 0 ]; then
+        sudo systemctl enable -q NetworkManager.service
+    fi
+    # Disable dhcpcd5 if it was still present
+    sudo apt-get -qq --yes purge dhcpcd5
 }
 
 
