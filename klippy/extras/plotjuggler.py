@@ -56,10 +56,9 @@ class Plotjuggler:
         print_time = self.printer.lookup_object('mcu').estimated_print_time(eventtime)
         th = self.printer.lookup_object('toolhead')
         xy = th.get_trapq()
-        z = th.get_z_trapq()
         e = th.get_extruder().get_trapq()
         data = {'monotonic': eventtime, 'print_time': print_time}
-        for tq in (xy, z, e):
+        for tq in (xy, e):
             move = ffi_main.new('struct pull_move[1]')
             if ffi_lib.trapq_extract_old(tq, move, 1, 0., print_time):
                 move = move[0]
@@ -72,7 +71,6 @@ class Plotjuggler:
                     data['x_pos'] = pos[0]
                     data['y_pos'] = pos[1]
                     data['velocity'] = velocity
-                elif tq == z:
                     data['z_pos'] = pos[2]
                 else:
                     data['e_pos'] = pos[0]
