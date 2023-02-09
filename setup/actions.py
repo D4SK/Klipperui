@@ -5,12 +5,12 @@ import logging
 import os
 from pathlib import Path
 import shutil
-from subprocess import run, DEVNULL
+from subprocess import run, DEVNULL, CalledProcessError
 import sys
 import tarfile
 from urllib.request import urlopen
 
-from util import Config, Apt
+from util import Config, Apt, Git
 
 
 class Action(ABC):
@@ -186,7 +186,7 @@ class Graphics(Action):
 
     def install_sdl2_kmsdrm(self) -> None:
         logging.info("Installing SDL2...")
-        path = self.general.setup_dir / 'builds/sdl2/'
+        path = self.general.build_dir / 'sdl2'
         path.mkdir(parents=True, exist_ok=True)
         base_url = 'https://libsdl.org/release/{0}.tar.gz'
         for part in ['SDL2-' + self.config.get('sdl_version'),
@@ -332,10 +332,13 @@ class MonitorConf(Action):
 class Cura(Action):
     """Support direct connection with Cura"""
 
+    IPTABLES_DEBCONF = \
+"""iptables-persistent iptables-persistent/autosave_v4 boolean false
+iptables-persistent iptables-persistent/autosave_v6 boolean false"""
     def setup(self) -> None:
-        #echo iptables-persistent iptables-persistent/autosave_v4 boolean false | sudo debconf-set-selections
-        #echo iptables-persistent iptables-persistent/autosave_v6 boolean false | sudo debconf-set-selections
-        raise NotImplementedError
+        logging.debug("Setting iptables installation configuration")
+        run(['sudo', 'debconf-set-selections'],
+            input=self.IPTABLES_DEBCONF, text=True, check=True)
 
     def apt_depends(self) -> set[str]:
         return {'iptables-persistent'}
@@ -347,7 +350,11 @@ class Cura(Action):
         self.reroute_ports()
 
     def reroute_ports(self) -> None:
-        raise NotImplementedError
+        """Redirect port 80 -> 8008"""
+        logging.debug("Reroute TCP Port 80 to 8008")
+        run("sudo iptables -A PREROUTING -t nat -p tcp --dport 80 -j REDIRECT --to-ports 8008".split(),
+            check=True)
+        run("sudo iptables-save -f /etc/iptables/rules.v4".split(), check=True)
 
 
 class MjpgStreamer(Action):
@@ -357,7 +364,33 @@ class MjpgStreamer(Action):
         return {'gcc', 'cmake', 'libjpeg-dev'}
     
     def run(self) -> None:
-        raise NotImplementedError
+        if not self.test_mjpg_streamer():
+            self.compile()
+        else:
+            logging.debug("mjpg-streamer already installed, skipping")
+        self.enable()
+
+    def test_mjpg_streamer(self) -> bool:
+        """Return whether mjpg-streamer is already installed"""
+        try:
+            run(['mjpg_streamer', '-v'], stdout=DEVNULL, check=True)
+        except (FileNotFoundError, CalledProcessError):
+            return False
+        return True
+
+    MJPG_STREAMER_URL = "https://github.com/jacksonliam/mjpg-streamer.git"
+    def compile(self) -> None:
+        logging.info("Compiling mjpg-streamer from source...")
+        repo_path = self.general.build_dir / 'mjpg-streamer'
+        Git(self.general).checkout(
+            self.MJPG_STREAMER_URL, repo_path, branch='v1.0.0')
+        logging.debug("Checked out mjpg-streamer at %s", repo_path)
+        os.chdir(repo_path / 'mjpg-streamer-experimental')
+        run('make', check=True)
+        run(['sudo', 'make', 'install'], check=True)
+
+    def enable(self) -> None:
+        pass #TODO
 
 
 class AVRChip(Action):

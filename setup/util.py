@@ -39,6 +39,7 @@ class Config:
         self.python = path(general['python'])
         self.venv = path(general['venv'])
         self.setup_dir = Path(__file__).resolve().parent
+        self.build_dir = self.setup_dir / 'builds'
         if conf.has_option('general', 'srcdir'):
             self.srcdir = path(general['srcdir'])
         else:
@@ -185,7 +186,7 @@ class Apt:
         self.config = config
 
     def install(self, packages: Iterable[str]):
-        logging.info("Installing Python packages using pip...")
+        logging.info("Installing Debian packages using apt...")
         cmd = ["sudo", "apt-get", "install", "--yes"]
         if not self.config.verbose:
             cmd.append("-qq")
@@ -218,6 +219,10 @@ class Pip:
         run(cmd, check=True)
 
     def install(self, packages: Iterable[str]):
+        self.verify_venv()
+        if not packages:
+            return
+        logging.info("Installing Python packages using pip...")
         cmd = self.pip_cmd[:]
         if not self.config.verbose:
             cmd.append("--quiet")
@@ -227,3 +232,23 @@ class Pip:
 
     def uninstall(self, packages):
         pass
+
+
+class Git:
+
+    def __init__(self, config: Config):
+        self.config = config
+
+    def checkout(
+        self, url: str, directory: Optional[Path] = None,
+        shallow: bool = True, branch: Optional[str] = None,
+    ) -> None:
+        cmd: list[Union[str, Path]] = ['git', 'clone']
+        if shallow:
+            cmd.extend(['--depth', '1'])
+        if branch:
+            cmd.extend(['--branch', branch])
+        cmd.append(url)
+        if directory:
+            cmd.append(directory)
+        run(cmd, check=True)

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import logging
 import os
 import sys
 
@@ -13,6 +14,9 @@ from actions import (
     Graphics,
     KlipperDepends,
     Wifi,
+    MonitorConf,
+    Cura,
+    MjpgStreamer,
     AVRChip,
     ARMChip,
     )
@@ -26,6 +30,9 @@ class Runner:
         Graphics,
         KlipperDepends,
         Wifi,
+        MonitorConf,
+        Cura,
+        MjpgStreamer,
         AVRChip,
         ARMChip,
     ]
@@ -33,7 +40,18 @@ class Runner:
     def __init__(self):
         self.name_to_act = {a.name(): a for a in self.ALL_ACTIONS}
         self.config = Config(self.ALL_ACTIONS)
-        self.actions = [self.name_to_act[n] for n in self.config.actions]
+        self.actions = [self.name_to_act[n](self.config) for n in self.config.actions]
+        self.execute()
+
+    def execute(self):
+        logging.info("SETUP:")
+        self.setup()
+        self.apt_install()
+        self.pip_install()
+        logging.info("RUN:")
+        self.run()
+        logging.info("CLEANUP:")
+        self.cleanup()
 
     def setup(self):
         for a in self.actions:
