@@ -33,7 +33,8 @@
                 "ContinuousPrintingScreen": "Continuous Printing",
                 "MoveScreen": "Move Printhead",
                 "SetupScreen": "Setup",
-                "AboutScreen": "About"}[screen_man.current]
+                "AboutScreen": "About",
+                "DebugScreen": "Debug"}[screen_man.current]
             pos_hint: {'x': 0, 'top': 1}
             size_hint: None, None
         BtnBack:
@@ -68,6 +69,8 @@
                 id: setup_screen
             AboutScreen:
                 id: about_screen
+            DebugScreen:
+                id: debug_screen
 
 <SettingScreen@Screen>:
     name: 'SettingScreen'
@@ -106,6 +109,10 @@
             SetItem:
                 left_title: "About"
                 on_release: root.manager.current = "AboutScreen"
+            SetItem:
+                hidden: not app.factory_mode
+                left_title: "Debug"
+                on_release: root.manager.current = "DebugScreen"
 
 <SetupScreen@Screen>:
     name: 'SetupScreen'
@@ -346,6 +353,34 @@
             text_size: self.width, None
             height: self.texture_size[1]
             font_size: p.normal_font
+            color: p.medium_light_gray
+
+<DebugScreen>:
+    name: "DebugScreen"
+    canvas.before:
+        Color:
+            rgba: p.background
+        Rectangle:
+            pos: 0, 0
+            size: self.size
+    BoxLayout:
+        id: setting_box
+        orientation:'vertical'
+        height: self.minimum_height
+        y: root.height - self.minimum_height
+        x: 0
+        size_hint_y: None
+        Label:
+            id: details_label
+            text: app.stats + str(app.plotjuggler_stats)
+            halign: 'left'
+            valign: 'top'
+            padding: p.padding, p.padding
+            line_height: 1.1
+            size_hint_y: None
+            text_size: self.width, None
+            height: self.texture_size[1]
+            font_size: p.normal_font - sp(5)
             color: p.medium_light_gray
 
 <CoordinateInput>:

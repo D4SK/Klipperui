@@ -125,6 +125,17 @@ class AboutScreen(Screen):
     def on_leave(self):
         Clock.unschedule(self.updating)
 
+class DebugScreen(Screen):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def on_pre_enter(self):
+        App.get_running_app().reactor.cb(printer_cmd.start_stats)
+
+    def on_leave(self):
+        App.get_running_app().reactor.cb(printer_cmd.stop_stats)
+
 class XyField(Widget):
 
     pressed = BooleanProperty(False)

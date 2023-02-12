@@ -20,6 +20,7 @@ class Plotjuggler:
         self.reactor.register_event_handler("klippy:disconnect", self.handle_disconnect)
         self.reactor.register_event_handler("klippy:ready", self.handle_ready)
         Thread(target=self.run_server, args=[]).start()
+        self.subscribers = {}
 
     def handle_ready(self):
         self.reactor.register_timer(self.plot_trapq, self.reactor.monotonic() + self.trapq_interval)
@@ -50,7 +51,8 @@ class Plotjuggler:
             print_time = mcu.estimated_print_time(monotonic)
         print_time += self.start_time
         self.data_queue.put_nowait({'monotonic': monotonic, 'print_time': print_time, name: data})
-
+        for func in self.subscribers.values():
+            func({name: data})
     def plot_trapq(self, eventtime):
         ffi_main, ffi_lib = chelper.get_ffi()
         print_time = self.printer.lookup_object('mcu').estimated_print_time(eventtime)

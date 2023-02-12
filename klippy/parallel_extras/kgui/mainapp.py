@@ -57,7 +57,9 @@ class MainApp(App, threading.Thread):
         "aborted",
         "finished",
         ])
-    stats = StringProperty("")
+    stats = StringProperty()
+    plotjuggler_stats = DictProperty()
+    factory_mode = BooleanProperty(False)
     homed = StringProperty("") # Updated by handle_home_end/start event handler
     temp = DictProperty() # {'heater_bed': [setpoint, current], 'extruder': ...}
     connected = BooleanProperty(False) # updated with handle_connect
@@ -130,6 +132,7 @@ class MainApp(App, threading.Thread):
             if not config.has_section(f"extruder{i}"):
                 self.extruder_count = i
                 break
+        self.factory_mode = config.has_section("factory_mode")
         # These are loaded a bit late
         self.reactor.cb(printer_cmd.load_object, "filament_manager")
         self.reactor.cb(printer_cmd.load_object, "print_history")
@@ -144,7 +147,6 @@ class MainApp(App, threading.Thread):
 
     def handle_connect(self):
         self.reactor.cb(printer_cmd.get_pos_limits)
-        self.reactor.cb(printer_cmd.setup_commands)
         self.connected = True
         self.clean() # print_history should exist at this point since it is created from a callback in init
 
