@@ -4,8 +4,8 @@ import logging
 import os
 import sys
 
-if os.geteuid() == 0:
-    print("This script must not run as root")
+if os.geteuid() != 0:
+    print("This script must be run as root")
     sys.exit(63)
 
 from actions import (
@@ -22,6 +22,12 @@ from actions import (
     )
 from util import Config, Apt, Pip
 
+# Remove HOME environment variable so that path.expanduser
+# works in unprivileged mode
+try:
+    del os.environ["HOME"]
+except KeyError:
+    pass
 
 class Runner:
 

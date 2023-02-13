@@ -1,10 +1,53 @@
 from argparse import ArgumentParser, SUPPRESS, Namespace
 import configparser
 import logging
+import os
 from pathlib import Path
 from subprocess import run
 import sys
 from typing import Iterable, Union, Optional
+
+def unprivileged(uid, gid=None):
+    # Directly called: @unprivileged
+    if callable(uid):
+        func = uid
+        def inner(*args, **kwargs):
+            with Unprivileged():
+                func(*args, **kwargs)
+        return inner
+    # Called with parameters: @unprivileged(uid, gid)
+    def decorate(func):
+        def inner(*args, **kwargs):
+            with Unprivileged(uid, gid):
+                func(*args, **kwargs)
+        return inner
+    return decorate
+
+
+class Unprivileged:
+
+    UID = 1000
+    GID = 1000
+    # To keep tracking of nested calls
+    count = 0
+
+    def __init__(self, uid=None, gid=None):
+        self.uid = uid or self.UID
+        self.gid = gid or self.GID
+
+    def __enter__(self):
+        __class__.count += 1
+        if os.geteuid() == self.uid and os.getegid() == self.gid:
+            return
+        os.setresgid(self.gid, self.gid, 0)
+        os.setresuid(self.uid, self.uid, 0)
+
+    def __exit__(self, *_args):
+        __class__.count -= 1
+        if __class__.count <= 0:
+            os.setresgid(0, 0, 0)
+            os.setresuid(0, 0, 0)
+
 
 class Config:
 
@@ -187,14 +230,14 @@ class Apt:
 
     def install(self, packages: Iterable[str]):
         logging.info("Installing Debian packages using apt...")
-        cmd = ["sudo", "apt-get", "install", "--yes"]
+        cmd = ["apt-get", "install", "--yes"]
         if not self.config.verbose:
             cmd.append("-qq")
         cmd.extend(packages)
         run(cmd, check=True)
 
     def uninstall(self, packages: Iterable[str]):
-        cmd = ["sudo", "apt-get", "purge", "--yes"]
+        cmd = ["apt-get", "purge", "--yes"]
         if not self.config.verbose:
             cmd.append("-qq")
         cmd.extend(packages)
@@ -239,6 +282,7 @@ class Git:
     def __init__(self, config: Config):
         self.config = config
 
+    @unprivileged
     def checkout(
         self, url: str, directory: Optional[Path] = None,
         shallow: bool = True, branch: Optional[str] = None,

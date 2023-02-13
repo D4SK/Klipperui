@@ -4,13 +4,14 @@ import io
 import logging
 import os
 from pathlib import Path
+import pwd
 import shutil
 from subprocess import run, DEVNULL, CalledProcessError
 import sys
 import tarfile
 from urllib.request import urlopen
 
-from util import Config, Apt, Git
+from util import Config, Apt, Git, unprivileged, Unprivileged
 
 
 class Action(ABC):
@@ -137,6 +138,7 @@ class Kivy(Action):
     def run(self) -> None:
         self.setup_config()
 
+    @unprivileged
     def setup_config(self) -> None:
         config_dir = Path('~/.kivy/').expanduser()
         config_dir.mkdir(exist_ok=True)
@@ -174,48 +176,54 @@ class Graphics(Action):
             self.configure_xorg()
         else:
             self.install_sdl2_kmsdrm()
-        run(['sudo', 'adduser', os.environ['USER'], 'render'], check=True)
+        username = pwd.getpwuid(Unprivileged.UID).pw_name
+        run(['adduser', username, 'render'], check=True)
 
     def configure_xorg(self) -> None:
         """Change line in Xwrapper.config so xorg feels inclined to start when
         asked by systemd"""
-        run("sudo sed -i 's/allowed_users=console/allowed_users=anybody/'"
+        run("sed -i 's/allowed_users=console/allowed_users=anybody/'"
             "/etc/X11/Xwrapper.config".split(), check=True)
         # Configure DPMS
-        run(['sudo', 'cp', '10-dpms.conf', '/etc/X11/xorg.conf.d'])
+        shutil.copy('10-dpms.conf', '/etc/X11/xorg.conf.d')
 
     def install_sdl2_kmsdrm(self) -> None:
         logging.info("Installing SDL2...")
-        path = self.general.build_dir / 'sdl2'
-        path.mkdir(parents=True, exist_ok=True)
-        base_url = 'https://libsdl.org/release/{0}.tar.gz'
+        prev_wd = Path.cwd()
         for part in ['SDL2-' + self.config.get('sdl_version'),
                      'SDL2_image-' + self.config.get('sdl_image_version'),
                      'SDL2_mixer-' + self.config.get('sdl_mixer_version'),
                      'SDL2_ttf-' + self.config.get('sdl_ttf_version')]:
-            # Download to memory and extract
-            url = base_url.format(part)
-            with urlopen(url) as response:
-                if response.status != 200:
-                    logging.error("Error while downloading %s", part)
-                    continue
-                buf = io.BytesIO(response.read())
-                with tarfile.open(fileobj=buf) as tf:
-                    tf.extractall(path)
+            # Make sure to compile unprivileged
+            self.compile_sdl2(part)
+            run(['make', 'install'], check=True)
+        run(['ldconfig', '-v'], check=True)
+        os.chdir(prev_wd)
 
-            # Compile
-            os.chdir(path / part)
-            if part.startswith('SDL2-'):
-                run(['./configure',
-                     '--enable-video-kmsdrm', '--disable-video-opengl',
-                     '--disable-video-x11', '--disable-video-rpi'],
-                    check=True)
-            else:
-                run('./configure', check=True)
-            run(['make', '-j', str(os.cpu_count())], check=True)
-            run(['sudo', 'make', 'install'], check=True)
+    @unprivileged
+    def compile_sdl2(self, part):
+        url = f'https://libsdl.org/release/{part}.tar.gz'
+        path = self.general.build_dir / 'sdl2'
+        path.mkdir(parents=True, exist_ok=True)
+        # Download to memory and extract
+        with urlopen(url) as response:
+            if response.status != 200:
+                logging.error("Error while downloading %s", part)
+                return
+            buf = io.BytesIO(response.read())
+            with tarfile.open(fileobj=buf) as tf:
+                tf.extractall(path)
 
-        run(['sudo', 'ldconfig', '-v'], check=True)
+        # Compile
+        os.chdir(path / part)
+        if part.startswith('SDL2-'):
+            run(['./configure',
+                 '--enable-video-kmsdrm', '--disable-video-opengl',
+                 '--disable-video-x11', '--disable-video-rpi'],
+                check=True)
+        else:
+            run('./configure', check=True)
+        run(['make', '-j', str(os.cpu_count())], check=True)
 
 
 class KlipperDepends(Action):
@@ -307,7 +315,7 @@ class Wifi(Action):
         """
         file = Path('/etc/NetworkManager/NetworkManager.conf')
         if 'auth-polkit' not in file.read_text():
-            run(['sudo', 'sed', '-i', r'/\[main\]/a auth-polkit=false', file],
+            run(['sed', '-i', r'/\[main\]/a auth-polkit=false', file],
                 check=True)
     
     def enable_nm(self) -> None:
@@ -318,7 +326,7 @@ class Wifi(Action):
         proc = run('systemctl -q is-enabled NetworkManager'.split(),
                    stdout=DEVNULL, stderr=DEVNULL)
         if proc.returncode != 0:
-            run('sudo systemctl -q enable NetworkManager'.split(), check=True)
+            run('systemctl -q enable NetworkManager'.split(), check=True)
 
     def remove_dhcpcd5(self) -> None:
         Apt(self.general).uninstall(["dhcpcd5"])
@@ -326,7 +334,9 @@ class Wifi(Action):
 
 class MonitorConf(Action):
     """Monitor configuration for certain 7" 1024x600 displays"""
-    pass
+
+    def run(self) -> None:
+        run(['./LCDC7-better.sh', '-r', '90'], check=True)
 
 
 class Cura(Action):
@@ -337,8 +347,8 @@ class Cura(Action):
 iptables-persistent iptables-persistent/autosave_v6 boolean false"""
     def setup(self) -> None:
         logging.debug("Setting iptables installation configuration")
-        run(['sudo', 'debconf-set-selections'],
-            input=self.IPTABLES_DEBCONF, text=True, check=True)
+        run('debconf-set-selections', input=self.IPTABLES_DEBCONF, text=True,
+            check=True)
 
     def apt_depends(self) -> set[str]:
         return {'iptables-persistent'}
@@ -352,9 +362,9 @@ iptables-persistent iptables-persistent/autosave_v6 boolean false"""
     def reroute_ports(self) -> None:
         """Redirect port 80 -> 8008"""
         logging.debug("Reroute TCP Port 80 to 8008")
-        run("sudo iptables -A PREROUTING -t nat -p tcp --dport 80 -j REDIRECT --to-ports 8008".split(),
+        run("iptables -A PREROUTING -t nat -p tcp --dport 80 -j REDIRECT --to-ports 8008".split(),
             check=True)
-        run("sudo iptables-save -f /etc/iptables/rules.v4".split(), check=True)
+        run("iptables-save -f /etc/iptables/rules.v4".split(), check=True)
 
 
 class MjpgStreamer(Action):
@@ -379,18 +389,23 @@ class MjpgStreamer(Action):
         return True
 
     MJPG_STREAMER_URL = "https://github.com/jacksonliam/mjpg-streamer.git"
+
     def compile(self) -> None:
-        logging.info("Compiling mjpg-streamer from source...")
-        repo_path = self.general.build_dir / 'mjpg-streamer'
-        Git(self.general).checkout(
-            self.MJPG_STREAMER_URL, repo_path, branch='v1.0.0')
-        logging.debug("Checked out mjpg-streamer at %s", repo_path)
-        os.chdir(repo_path / 'mjpg-streamer-experimental')
-        run('make', check=True)
-        run(['sudo', 'make', 'install'], check=True)
+        with Unprivileged():
+            logging.info("Compiling mjpg-streamer from source...")
+            repo_path = self.general.build_dir / 'mjpg-streamer'
+            Git(self.general).checkout(
+                self.MJPG_STREAMER_URL, repo_path, branch='v1.0.0')
+            logging.debug("Checked out mjpg-streamer at %s", repo_path)
+            prev_wd = Path.cwd()
+            os.chdir(repo_path / 'mjpg-streamer-experimental')
+            run('make', check=True)
+        run(['make', 'install'], check=True)
+        os.chdir(prev_wd)
 
     def enable(self) -> None:
-        pass #TODO
+        shutil.copy('mjpg_streamer.service', '/etc/systemd/system/')
+        run(['systemctl', 'enable', '--now', 'mjpg_streamer.service'])
 
 
 class AVRChip(Action):
