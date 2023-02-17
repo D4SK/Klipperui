@@ -3,6 +3,7 @@ import configparser
 import logging
 import os
 from pathlib import Path
+import pwd
 from subprocess import run
 import sys
 from typing import Iterable, Union, Optional
@@ -49,6 +50,10 @@ class Unprivileged:
             os.setresuid(0, 0, 0)
 
 
+def username() -> str:
+    return pwd.getpwuid(Unprivileged.UID).pw_name
+
+
 class Config:
 
     DEFAULT_FILE = Path("default.cfg")
@@ -83,6 +88,7 @@ class Config:
         self.venv = path(general['venv'])
         self.setup_dir = Path(__file__).resolve().parent
         self.build_dir = self.setup_dir / 'builds'
+        self.graphics_provider = None  # Set by Graphics action
         if conf.has_option('general', 'srcdir'):
             self.srcdir = path(general['srcdir'])
         else:

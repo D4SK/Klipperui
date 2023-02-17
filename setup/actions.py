@@ -4,14 +4,13 @@ import io
 import logging
 import os
 from pathlib import Path
-import pwd
 import shutil
 from subprocess import run, DEVNULL, CalledProcessError
 import sys
 import tarfile
 from urllib.request import urlopen
 
-from util import Config, Apt, Git, unprivileged, Unprivileged
+from util import Config, Apt, Pip, Git, unprivileged, Unprivileged, username
 
 
 class Action(ABC):
@@ -137,14 +136,27 @@ class Kivy(Action):
 
     def run(self) -> None:
         self.setup_config()
+        if self.version > "2.0.0":
+            try:
+                self.vkeyboard_patch()
+            except (CalledProcessError, StopIteration, FileNotFoundError):
+                logging.exception("Could not apply keyboard patch to kivy")
 
     @unprivileged
     def setup_config(self) -> None:
         config_dir = Path('~/.kivy/').expanduser()
         config_dir.mkdir(exist_ok=True)
-        #TODO: Move config.ini into setup dir
-        shutil.copy(self.general.srcdir /
-                    'klippy/parallel_extras/kgui/config.ini', config_dir)
+        shutil.copy('config.ini', config_dir)
+
+    def vkeyboard_patch(self) -> None:
+        logging.info("Applying patch to kivy to fix custom VKeyboard")
+        lib = self.general.venv / 'lib'
+        # Use any python subversion that is found. Not very robust, but much
+        # faster than 'pip show kivy'
+        python_dir = next(iter(
+            p for p in lib.iterdir() if p.name.startswith('python')))
+        file = python_dir / 'site-packages/kivy/core/window/__init__.py'
+        run(['patch', file, 'kivy-vkeyboard.patch'], check=True)
 
 
 class Graphics(Action):
@@ -160,6 +172,7 @@ class Graphics(Action):
         else:
             logging.critical(f"Invalid provider: {provider}")
             sys.exit(10)
+        self.general.graphics_provider = self.provider
 
     def apt_depends(self) -> set[str]:
         if self.provider == 'xorg':
@@ -176,8 +189,7 @@ class Graphics(Action):
             self.configure_xorg()
         else:
             self.install_sdl2_kmsdrm()
-        username = pwd.getpwuid(Unprivileged.UID).pw_name
-        run(['adduser', username, 'render'], check=True)
+        run(['adduser', username(), 'render'], check=True)
 
     def configure_xorg(self) -> None:
         """Change line in Xwrapper.config so xorg feels inclined to start when
@@ -262,7 +274,7 @@ Description="Klipper with GUI"
 Type=simple
 User={user}
 Environment=DISPLAY=:0
-ExecStart={venv}/bin/python3 {srcdir}/klippy/klippy.py -v -l /tmp/klippy.log
+ExecStart={python} {srcdir}/klippy/klippy.py -v -l /tmp/klippy.log
 Nice=-19
 Restart=always
 RestartSec=10
@@ -286,7 +298,33 @@ WantedBy=multi-user.target
 """
 
     def run(self) -> None:
-        pass #TODO
+        self.install_klippy()
+        self.install_services()
+        if self.config.getboolean('autostart'):
+            self.enable_service()
+
+    def install_klippy(self) -> None:
+        logging.info("Installing klippy")
+        shutil.copytree(self.general.srcdir / 'klippy', '/opt/klippy')
+
+    def install_services(self) -> None:
+        logging.debug("Installing systemd services")
+        if self.general.graphics_provider == "xorg":
+            requires = "start_xorg.service"
+            xorg_service = self.XORG_SERVICE.format(user=username())
+            Path('/etc/systemd/system/start_xorg.service').write_text(xorg_service)
+        else:
+            requires = ""
+        service = self.SERVICE.format(
+            requires=requires,
+            user=username(),
+            python=Pip(self.general).python,
+            srcdir='/opt')
+        Path('/etc/systemd/system/klipper.service').write_text(service)
+
+    def enable_service(self) -> None:
+        logging.debug("Enabling klipper systemd service")
+        run(['systemctl', 'enable', 'klipper.service'], check=True)
 
 
 class Wifi(Action):
