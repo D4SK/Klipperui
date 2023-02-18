@@ -139,7 +139,10 @@ class Kivy(Action):
         if self.version > "2.0.0":
             try:
                 self.vkeyboard_patch()
-            except (CalledProcessError, StopIteration, FileNotFoundError):
+            except CalledProcessError:
+                logging.error("Could not apply keyboard patch to kivy. "
+                    "Maybe the patch is already applied or the file changed.")
+            except (StopIteration, FileNotFoundError):
                 logging.exception("Could not apply keyboard patch to kivy")
 
     @unprivileged
@@ -156,7 +159,9 @@ class Kivy(Action):
         python_dir = next(iter(
             p for p in lib.iterdir() if p.name.startswith('python')))
         file = python_dir / 'site-packages/kivy/core/window/__init__.py'
-        run(['patch', file, 'kivy-vkeyboard.patch'], check=True)
+        run(['patch', '--force', '--forward',
+             '--no-backup-if-mismatch', '--reject-file=-',
+             file, 'kivy-vkeyboard.patch'], check=True)
 
 
 class Graphics(Action):
@@ -246,7 +251,7 @@ class KlipperDepends(Action):
             # Packages for python cffi
             'python3-dev',
             'libffi-dev',
-            'build-essentials',
+            'build-essential',
             # kconfig requirements
             'libncurses-dev',
             # hub-ctrl
