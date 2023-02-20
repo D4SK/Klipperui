@@ -11,6 +11,7 @@ if os.geteuid() != 0:
 from actions import (
     Action,
     Kivy,
+    Install,
     Graphics,
     KlipperDepends,
     Wifi,
@@ -33,6 +34,7 @@ class Runner:
 
     ALL_ACTIONS: list[type[Action]] = [
         Kivy,
+        Install,
         Graphics,
         KlipperDepends,
         Wifi,

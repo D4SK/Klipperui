@@ -310,12 +310,13 @@ WantedBy=multi-user.target
 
     def install_klippy(self) -> None:
         logging.info("Installing klippy")
-        shutil.copytree(self.general.srcdir / 'klippy', '/opt/klippy')
+        shutil.copytree(self.general.srcdir / 'klippy', '/opt/klippy',
+                dirs_exist_ok=True)
 
     def install_services(self) -> None:
         logging.debug("Installing systemd services")
         if self.general.graphics_provider == "xorg":
-            requires = "start_xorg.service"
+            requires = "Requires=start_xorg.service"
             xorg_service = self.XORG_SERVICE.format(user=username())
             Path('/etc/systemd/system/start_xorg.service').write_text(xorg_service)
         else:
