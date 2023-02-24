@@ -167,21 +167,10 @@ class Kivy(Action):
 class Graphics(Action):
     """Graphical environment: either Xorg or just SDL2"""
 
-    def __init__(self, config: Config):
-        super().__init__(config)
-        provider = self.config.get('provider')
-        if provider.lower() == 'xorg':
-            self.provider = 'xorg'
-        elif provider.lower() == 'sdl2':
-            self.provider = 'sdl2'
-        else:
-            logging.critical(f"Invalid provider: {provider}")
-            sys.exit(10)
-        self.general.graphics_provider = self.provider
-
     def apt_depends(self) -> set[str]:
-        if self.provider == 'xorg':
+        if self.general.graphics_provider == 'xorg':
             return {
+                'xorg',
                 'libsdl2-dev',
                 'libsdl2-image-dev',
                 'libsdl2-mixer-dev',
@@ -190,7 +179,7 @@ class Graphics(Action):
         return set()
 
     def run(self) -> None:
-        if self.provider == 'xorg':
+        if self.general.graphics_provider == 'xorg':
             self.configure_xorg()
         else:
             self.install_sdl2_kmsdrm()
@@ -199,27 +188,34 @@ class Graphics(Action):
     def configure_xorg(self) -> None:
         """Change line in Xwrapper.config so xorg feels inclined to start when
         asked by systemd"""
-        run("sed -i 's/allowed_users=console/allowed_users=anybody/'"
-            "/etc/X11/Xwrapper.config".split(), check=True)
+        run(['sed', '-i', 's/allowed_users=console/allowed_users=anybody/',
+             '/etc/X11/Xwrapper.config'], check=True)
         # Configure DPMS
         shutil.copy('10-dpms.conf', '/etc/X11/xorg.conf.d')
 
     def install_sdl2_kmsdrm(self) -> None:
         logging.info("Installing SDL2...")
         prev_wd = Path.cwd()
-        for part in ['SDL2-' + self.config.get('sdl_version'),
-                     'SDL2_image-' + self.config.get('sdl_image_version'),
-                     'SDL2_mixer-' + self.config.get('sdl_mixer_version'),
-                     'SDL2_ttf-' + self.config.get('sdl_ttf_version')]:
+        parts = ['SDL2-' + self.config.get('sdl_version'),
+                 'SDL2_image-' + self.config.get('sdl_image_version'),
+                 'SDL2_mixer-' + self.config.get('sdl_mixer_version'),
+                 'SDL2_ttf-' + self.config.get('sdl_ttf_version')]
+        main_url = 'https://libsdl.org/release/{part}.tar.gz'
+        part_url = 'https://libsdl.org/projects/{name}/release/{part}.tar.gz'
+        urls = [main_url.format(part=parts[0]),
+                part_url.format(name="SDL_image", part=parts[1]),
+                part_url.format(name="SDL_mixer", part=parts[2]),
+                part_url.format(name="SDL_ttf", part=parts[3])]
+        for url, part in zip(urls, parts):
             # Make sure to compile unprivileged
-            self.compile_sdl2(part)
+            self.compile_sdl2(url, part)
             run(['make', 'install'], check=True)
         run(['ldconfig', '-v'], check=True)
         os.chdir(prev_wd)
 
     @unprivileged
-    def compile_sdl2(self, part):
-        url = f'https://libsdl.org/release/{part}.tar.gz'
+    def compile_sdl2(self, url, part):
+        logging.debug("Downloading URL: %s", url)
         path = self.general.build_dir / 'sdl2'
         path.mkdir(parents=True, exist_ok=True)
         # Download to memory and extract
@@ -316,7 +312,7 @@ WantedBy=multi-user.target
     def install_services(self) -> None:
         logging.debug("Installing systemd services")
         if self.general.graphics_provider == "xorg":
-            requires = "Requires=start_xorg.service"
+            requires = "Requires=start_xorg.service\n"
             xorg_service = self.XORG_SERVICE.format(user=username())
             Path('/etc/systemd/system/start_xorg.service').write_text(xorg_service)
         else:
@@ -325,7 +321,7 @@ WantedBy=multi-user.target
             requires=requires,
             user=username(),
             python=Pip(self.general).python,
-            srcdir='/opt')
+            srcdir=self.general.srcdir)
         Path('/etc/systemd/system/klipper.service').write_text(service)
 
     def enable_service(self) -> None:

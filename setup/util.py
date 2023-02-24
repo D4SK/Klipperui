@@ -88,11 +88,21 @@ class Config:
         self.venv = path(general['venv'])
         self.setup_dir = Path(__file__).resolve().parent
         self.build_dir = self.setup_dir / 'builds'
-        self.graphics_provider = None  # Set by Graphics action
+        self.graphics_provider = self.get_graphics_provider()
         if conf.has_option('general', 'srcdir'):
             self.srcdir = path(general['srcdir'])
         else:
             self.srcdir = self.setup_dir.parent
+
+    def get_graphics_provider(self) -> str:
+        provider = self.parser.get('graphics', 'provider')
+        if provider.lower() == 'xorg':
+            return 'xorg'
+        elif provider.lower() == 'sdl2':
+            return 'sdl2'
+        else:
+            logging.critical(f"Invalid provider: {provider}")
+            sys.exit(10)
 
     def _setup_logging(self) -> None:
         logging.basicConfig(format='==> %(message)s', level=logging.INFO)
@@ -262,11 +272,13 @@ class Pip:
         if not self.venv.is_dir():
             self.create_venv(self.venv)
 
+    @unprivileged
     def create_venv(self, path: Path):
         logging.info(f"Creating new virtual environment at {path}...")
         cmd: list[Union[str, Path]] = [self.config.python, "-m", "venv", path]
         run(cmd, check=True)
 
+    @unprivileged
     def install(self, packages: Iterable[str]):
         self.verify_venv()
         if not packages:
@@ -278,9 +290,6 @@ class Pip:
         cmd.append("install")
         cmd.extend(packages)
         run(cmd, check=True)
-
-    def uninstall(self, packages):
-        pass
 
 
 class Git:
