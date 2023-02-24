@@ -6,7 +6,6 @@ import os
 from pathlib import Path
 import shutil
 from subprocess import run, DEVNULL, CalledProcessError
-import sys
 import tarfile
 from urllib.request import urlopen
 
@@ -194,6 +193,11 @@ class Graphics(Action):
         shutil.copy('10-dpms.conf', '/etc/X11/xorg.conf.d')
 
     def install_sdl2_kmsdrm(self) -> None:
+        """The KMS/DRM video driver of SDL2 allows Kivy to run without X11. The
+        packages in the Debian repository are compiled without support for that
+        though, so to use that it is necessary to compile SDL2 from source, as
+        well as Kivy so it binds to the correct libraries.
+        """
         logging.info("Installing SDL2...")
         prev_wd = Path.cwd()
         parts = ['SDL2-' + self.config.get('sdl_version'),

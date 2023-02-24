@@ -1,14 +1,15 @@
 from argparse import ArgumentParser, SUPPRESS, Namespace
 import configparser
+from collections.abc import Callable
 import logging
 import os
 from pathlib import Path
 import pwd
 from subprocess import run
 import sys
-from typing import Iterable, Union, Optional
+from typing import Iterable, Union, Optional, Any
 
-def unprivileged(uid, gid=None):
+def unprivileged(uid, gid: Optional[int] = None) -> Callable:
     # Directly called: @unprivileged
     if callable(uid):
         func = uid
@@ -32,7 +33,8 @@ class Unprivileged:
     # To keep tracking of nested calls
     count = 0
 
-    def __init__(self, uid=None, gid=None):
+    def __init__(self, uid: Optional[int] = None, gid: Optional[int] = None
+    ) -> None:
         self.uid = uid or self.UID
         self.gid = gid or self.GID
 
@@ -58,17 +60,19 @@ class Config:
 
     DEFAULT_FILE = Path("default.cfg")
 
-    def __init__(self, all_actions):
+    def __init__(self, all_actions: list[Any]) -> None:
         self._setup_logging()
         conf_path, args = self._get_config_file()
         conf = self._read_conf(conf_path)
         self.parser = conf
         cli_args = self._get_cli_args(args)
 
+        # Print available actions and exit
         if cli_args.list:
             for a in all_actions:
                 print(f"{a.name()} - {a.description()}")
             sys.exit(0)
+
         actions = [a.name() for a in all_actions]
         # Apply configuration changes from command line
         for k, v in vars(cli_args).items():
@@ -82,17 +86,16 @@ class Config:
         if self.verbose:
             logger = logging.getLogger()
             logger.setLevel(logging.DEBUG)
-        self.actions = self._resolve_actions(
-            general['include'].split(), cli_args, actions)
+        self.graphics_provider = self.get_graphics_provider()
+
+        self.setup_dir = path(general['setup_dir'])
+        self.build_dir = path(general['build_dir'])
+        self.srcdir = path(general['srcdir'])
         self.python = path(general['python'])
         self.venv = path(general['venv'])
-        self.setup_dir = Path(__file__).resolve().parent
-        self.build_dir = self.setup_dir / 'builds'
-        self.graphics_provider = self.get_graphics_provider()
-        if conf.has_option('general', 'srcdir'):
-            self.srcdir = path(general['srcdir'])
-        else:
-            self.srcdir = self.setup_dir.parent
+
+        self.actions = self._resolve_actions(
+            general['include'].split(), cli_args, actions)
 
     def get_graphics_provider(self) -> str:
         provider = self.parser.get('graphics', 'provider')
@@ -172,7 +175,8 @@ class Config:
         cur_path = path
         configs = []
         while True:
-            parser = configparser.ConfigParser()
+            # Interpolation is carried over from _dynamic_defaults()
+            parser = configparser.ConfigParser(interpolation=None)
             try:
                 # Use read_file instead of read for better error handling
                 with open(cur_path, "r") as f:
@@ -192,10 +196,27 @@ class Config:
                 break
         # Merge configs in order
         configs.reverse()
-        combined = configs[0]
-        for c in configs[1:]:
+        combined = self._dynamic_defaults()
+        for c in configs:
             combined.read_dict(c)
         return combined
+
+    def _dynamic_defaults(self) -> configparser.ConfigParser:
+        """Default values that are usually determined at runtime but can be
+        overriden in a config file if wanted.
+        """
+        default = configparser.ConfigParser(
+            interpolation=configparser.ExtendedInterpolation())
+        setup_dir = Path(__file__).resolve().parent
+        default.read_dict({'general': {
+            'home': pwd.getpwuid(Unprivileged.UID).pw_dir,
+            'setup_dir': str(setup_dir),
+            'build_dir': str(setup_dir / 'builds'),
+            'srcdir': str(setup_dir.parent),
+            'python': sys.executable,
+            }
+        })
+        return default
 
     def _get_cli_args(self, args) -> Namespace:
         parser = ArgumentParser()
@@ -208,14 +229,14 @@ class Config:
                             help="List all available actions and exit")
         for section in self.parser.sections():
             if section == 'general':
-                for opt, _v in self.parser.items(section):
+                for opt, _v in self.parser.items(section, raw=True):
                     if opt not in {'verbose', 'include'}:
                         parser.add_argument(f"--{opt}",
                                             dest=f"general__{opt}",
                                             default=SUPPRESS,
                                             metavar=opt.upper())
             else:
-                for opt, _v in self.parser.items(section):
+                for opt, _v in self.parser.items(section, raw=True):
                     parser.add_argument(f"--{section}-{opt}",
                                         dest=f"{section}__{opt}",
                                         default=SUPPRESS,
@@ -236,7 +257,8 @@ class Config:
 
     @staticmethod
     def _path(string: str) -> Path:
-        return Path(string).expanduser()
+        with Unprivileged():
+            return Path(string).expanduser()
 
 
 class Apt:

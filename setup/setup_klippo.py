@@ -2,11 +2,6 @@
 
 import logging
 import os
-import sys
-
-if os.geteuid() != 0:
-    print("This script must be run as root")
-    sys.exit(63)
 
 from actions import (
     Action,
@@ -20,7 +15,7 @@ from actions import (
     MjpgStreamer,
     AVRChip,
     ARMChip,
-    )
+)
 from util import Config, Apt, Pip
 
 # Remove HOME environment variable so that path.expanduser
@@ -45,13 +40,12 @@ class Runner:
         ARMChip,
     ]
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.name_to_act = {a.name(): a for a in self.ALL_ACTIONS}
         self.config = Config(self.ALL_ACTIONS)
         self.actions = [self.name_to_act[n](self.config) for n in self.config.actions]
-        self.execute()
 
-    def execute(self):
+    def execute(self) -> None:
         logging.info("SETUP:")
         self.setup()
         self.apt_install()
@@ -61,29 +55,29 @@ class Runner:
         logging.info("CLEANUP:")
         self.cleanup()
 
-    def setup(self):
+    def setup(self) -> None:
         for a in self.actions:
             a.setup()
 
-    def apt_install(self):
+    def apt_install(self) -> None:
         packages = set()
         for a in self.actions:
             packages |= a.apt_depends()
         Apt(self.config).install(packages)
 
-    def pip_install(self):
+    def pip_install(self) -> None:
         packages = set()
         for a in self.actions:
             packages |= a.pip_depends()
         Pip(self.config).install(packages)
 
-    def run(self):
+    def run(self) -> None:
         for a in self.actions:
             a.run()
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         for a in self.actions:
             a.cleanup()
 
 if __name__ == "__main__":
-    Runner()
+    Runner().execute()
