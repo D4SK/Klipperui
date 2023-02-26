@@ -282,13 +282,43 @@ class Apt:
         run(cmd, check=True)
 
 
+class PipPkg:
+
+    def __init__(self,
+        name: str,
+        requirement: Optional[str] = None,
+        extras: Optional[list[str]] = None,
+        no_binary: bool = False,
+        only_binary: bool = False,
+    ):
+        if no_binary and only_binary:
+            raise ValueError("Package cannot be both binary and not binary")
+        self.name = name
+        self.requirement = requirement
+        self.extras = extras
+        self.no_binary = no_binary
+        self.only_binary = only_binary
+
+    def __str__(self) -> str:
+        name = self.name
+        if self.extras:
+            name += ' [' + ','.join(self.extras) + ']'
+        if self.requirement:
+            if ':' in self.requirement or '/' in self.requirement:
+                # URL requirement specified
+                return f"{name} @ {self.requirement}"
+            # Version requirement specified
+            return f"{name} == {self.requirement}"
+        # No requirement specified
+        return name
+
 class Pip:
 
     def __init__(self, config: Config):
         self.config = config
         self.venv = config.venv
         self.python = self.venv / 'bin/python3'
-        self.pip_cmd: list[Union[str, Path]] = [self.python, '-m', 'pip']
+        self.pip_cmd: list[str] = [str(self.python), '-m', 'pip']
 
     def verify_venv(self) -> None:
         if not self.venv.is_dir():
@@ -301,16 +331,31 @@ class Pip:
         run(cmd, check=True)
 
     @unprivileged
-    def install(self, packages: Iterable[str]):
+    def install(self, packages: Iterable[Union[str, PipPkg]]):
         self.verify_venv()
         if not packages:
             return
         logging.info("Installing Python packages using pip...")
+        no_binary = []
+        only_binary = []
+        for pkg in packages:
+            if isinstance(pkg, PipPkg):
+                if pkg.only_binary:
+                    only_binary.append(pkg.name)
+                elif pkg.no_binary:
+                    no_binary.append(pkg.name)
         cmd = self.pip_cmd[:]
         if not self.config.verbose:
             cmd.append("--quiet")
         cmd.append("install")
-        cmd.extend(packages)
+        cmd.extend(map(str, packages))
+        if no_binary:
+            cmd.append("--no-binary")
+            cmd.append(",".join(no_binary))
+        if only_binary:
+            cmd.append("--only-binary")
+            cmd.append(",".join(only_binary))
+        logging.debug(" ".join(cmd))
         run(cmd, check=True)
 
 

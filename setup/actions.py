@@ -7,9 +7,10 @@ from pathlib import Path
 import shutil
 from subprocess import run, DEVNULL, CalledProcessError
 import tarfile
+from typing import Union
 from urllib.request import urlopen
 
-from util import Config, Apt, Pip, Git, unprivileged, Unprivileged, username
+from util import Config, Apt, Pip, PipPkg, Git, unprivileged, Unprivileged, username
 
 
 class Action(ABC):
@@ -38,7 +39,7 @@ class Action(ABC):
     def apt_build_depends(self) -> set[str]:
         return set()
 
-    def pip_depends(self) -> set[str]:
+    def pip_depends(self) -> set[Union[str, PipPkg]]:
         return set()
 
     def run(self) -> None:
@@ -54,7 +55,9 @@ class Kivy(Action):
     def __init__(self, config: Config) -> None:
         super().__init__(config)
         self.version = self.config.get('version')
-        self.from_source = self.config.getboolean('from_source')
+        # Not using X11 requires kivy to be compiled from source
+        self.from_source = (self.config.getboolean('from_source') or
+                            self.general.graphics_provider == 'sdl2')
         self.cython_version = self.config.get('cython_version')
 
     def apt_depends(self) -> set[str]:
@@ -125,13 +128,9 @@ class Kivy(Action):
             "x11proto-xinerama-dev",
         }
 
-    def pip_depends(self) -> set[str]:
-        depends = {"Cython==" + self.cython_version}
-        if self.from_source:
-            depends.add("kivy[base] @ https://github.com/kivy/kivy/archive/master.zip")
-        else:
-            depends.add("kivy[base]==" + self.version)
-        return depends
+    def pip_depends(self) -> set[Union[PipPkg, str]]:
+        return {PipPkg("Cython", self.cython_version),
+                PipPkg("kivy", self.version, extras=['base'], no_binary=self.from_source)}
 
     def run(self) -> None:
         self.setup_config()
@@ -158,6 +157,8 @@ class Kivy(Action):
         python_dir = next(iter(
             p for p in lib.iterdir() if p.name.startswith('python')))
         file = python_dir / 'site-packages/kivy/core/window/__init__.py'
+        # Sometimes the file has CRLF line endings, the patch requires LF
+        run(['dos2unix', file], check=True)
         run(['patch', '--force', '--forward',
              '--no-backup-if-mismatch', '--reject-file=-',
              file, 'kivy-vkeyboard.patch'], check=True)
@@ -258,7 +259,7 @@ class KlipperDepends(Action):
             'libusb-dev',
         }
 
-    def pip_depends(self) -> set[str]:
+    def pip_depends(self) -> set[Union[str, PipPkg]]:
         return {
             'cffi=='             + self.config['cffi_version'],
             'pyserial=='         + self.config['pyserial_version'],
@@ -342,7 +343,7 @@ class Wifi(Action):
             "python3-gi",  #TODO: Is this still needed?
         }
 
-    def pip_depends(self) -> set[str]:
+    def pip_depends(self) -> set[Union[str, PipPkg]]:
         return {
             "pydbus==" + self.config['pydbus_version'],
             "PyGObject",  #TODO: fix version
@@ -397,7 +398,7 @@ iptables-persistent iptables-persistent/autosave_v6 boolean false"""
     def apt_depends(self) -> set[str]:
         return {'iptables-persistent'}
 
-    def pip_depends(self) -> set[str]:
+    def pip_depends(self) -> set[Union[str, PipPkg]]:
         return {'zeroconf==' + self.config.get('zeroconf_version')}
 
     def run(self) -> None:
