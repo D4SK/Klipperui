@@ -380,8 +380,125 @@ class Wifi(Action):
 class MonitorConf(Action):
     """Monitor configuration for certain 7" 1024x600 displays"""
 
+    def __init__(self, config: Config) -> None:
+        super().__init__(config)
+        self.rotation = self.config.getint('rotation')
+        if self.rotation not in {0, 90, 180, 270}:
+            raise ValueError(f"Invalid rotation value: {self.rotation}")
+        self.set_modeline = self.config.getboolean('set_modeline')
+
+    LIBINPUT_CONF = """Section "InputClass"
+        Identifier "libinput pointer catchall"
+        MatchIsPointer "on"
+        MatchDevicePath "/dev/input/event*"
+        Driver "libinput"
+EndSection
+
+Section "InputClass"
+        Identifier "libinput keyboard catchall"
+        MatchIsKeyboard "on"
+        MatchDevicePath "/dev/input/event*"
+        Driver "libinput"
+EndSection
+
+Section "InputClass"
+        Identifier "libinput touchpad catchall"
+        MatchIsTouchpad "on"
+        MatchDevicePath "/dev/input/event*"
+        Driver "libinput"
+EndSection
+
+Section "InputClass"
+        Identifier "libinput touchscreen catchall"
+        MatchIsTouchscreen "on"
+        Option "CalibrationMatrix" "{matrix}"
+        MatchDevicePath "/dev/input/event*"
+        Driver "libinput"
+EndSection
+
+Section "InputClass"
+        Identifier "libinput tablet catchall"
+        MatchIsTablet "on"
+        MatchDevicePath "/dev/input/event*"
+        Driver "libinput"
+EndSection
+"""
+
+    MODELINE_CONF = """Section "Monitor"
+        Identifier "HDMI-1"
+        Modeline "1024x600_60.00"   49.00  1024 1072 1168 1312  600 603 613 624 -hsync +vsync
+        Option "PreferredMode" "1024x600_60.00"
+EndSection
+
+Section "Screen"
+        Identifier "Screen0"
+        Monitor "HDMI-1"
+        DefaultDepth 24
+        SubSection "Display"
+                Modes "1024x600_60.00"
+        EndSubSection
+EndSection
+"""
+
     def run(self) -> None:
-        run(['./LCDC7-better.sh', '-r', '90'], check=True)
+        lcd_config = {
+            'dtparam=i2c_arm': 'on',
+            'dtparam=spi': 'on',
+            'enable_uart': 1,
+            'max_usb_current': 1,
+            'hdmi_force_hotplug': 1,
+            'config_hdmi_boost': 7,
+            'hdmi_drive': 1,
+            'hdmi_group': 2,
+            'hdmi_mode': 87,
+            'hdmi_cvt': '1024 600 60 6 0 0 0',
+            'display_hdmi_rotate': 0,
+            'hdmi_blanking': 1,
+        }
+        if self.rotation == 0:
+            input_matrix = '1 0 0 0 1 0 0 0 1'
+        elif self.rotation == 90:
+            input_matrix = '0 1 0 -1 0 1 0 0 1'
+            lcd_config['display_hdmi_rotate'] = 1
+        elif self.rotation == 180:
+            input_matrix = '1 0 1 0 -1 1 0 0 1'
+            lcd_config['display_hdmi_rotate'] = 2
+        elif self.rotation == 270:
+            input_matix = '0 -1 1 1 0 0 0 0 1'
+            lcd_config['display_hdmi_rotate'] = 3
+        else:
+            raise ValueError(f"Invalid rotation value: {self.rotation}")
+
+        #TODO: handle existing files better
+        libinput_conf = self.LIBINPUT_CONF.format(matrix=input_matrix)
+        conf_dir = Path("/etc/X11/xorg.conf.d")
+        conf_dir.mkdir(parents=True, exist_ok=True)
+        (conf_dir / '40-libinput.conf').write_text(libinput_conf)
+        if self.set_modeline:
+            (conf_dir / '00-monitor.conf').write_text(self.MODELINE_CONF)
+
+        mark_old = "#OLD_CFG "
+        mark_new = " #LCD_CFG"
+
+        boot_cfg_file = Path('/boot/config.txt')
+        boot_cfg = boot_cfg_file.read_text().splitlines()
+        to_remove = []
+        for i, line in enumerate(boot_cfg):
+            # Remove configuration from previous runs
+            if line.endswith(mark_new):
+                to_remove.append(i)
+                continue
+            # Disable conflicing configuration lines
+            for k in lcd_config.keys():
+                if line.startswith(k):
+                    boot_cfg[i] = mark_old + line
+                    break
+        for i in reversed(to_remove):
+            del boot_cfg[i]
+
+        for k, v in lcd_config.items():
+            boot_cfg.append(k + '=' + str(v) + mark_new)
+        boot_cfg_file.write_text('\n'.join(boot_cfg))
 
 
 class Cura(Action):
