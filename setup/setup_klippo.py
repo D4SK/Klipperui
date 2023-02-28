@@ -2,6 +2,7 @@
 
 import logging
 import os
+from subprocess import run
 
 from actions import (
     Action,
@@ -46,16 +47,20 @@ class Runner:
         self.actions = [self.name_to_act[n](self.config) for n in self.config.actions]
 
     def execute(self) -> None:
-        logging.info("SETUP:")
+        if self.config.uninstall:
+            self.uninstall()
+            if self.config.cleanup:
+                self.cleanup()
+            return
         self.setup()
         self.apt_install()
         self.pip_install()
-        logging.info("RUN:")
         self.run()
-        logging.info("CLEANUP:")
-        self.cleanup()
+        if self.config.cleanup:
+            self.cleanup()
 
     def setup(self) -> None:
+        logging.info("SETUP:")
         for a in self.actions:
             a.setup()
 
@@ -72,12 +77,21 @@ class Runner:
         Pip(self.config).install(packages)
 
     def run(self) -> None:
+        logging.info("RUN:")
         for a in self.actions:
             a.run()
+        run(['systemctl', 'daemon-reload'], check=True)
 
     def cleanup(self) -> None:
+        logging.info("CLEANUP:")
         for a in self.actions:
             a.cleanup()
+
+    def uninstall(self) -> None:
+        logging.info("UNINSTALL:")
+        for a in self.actions:
+            a.uninstall()
+        Pip(self.config).uninstall()
 
 if __name__ == "__main__":
     Runner().execute()

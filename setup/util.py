@@ -5,6 +5,7 @@ import logging
 import os
 from pathlib import Path
 import pwd
+import shutil
 from subprocess import run
 import sys
 from typing import Iterable, Union, Optional, Any
@@ -73,7 +74,6 @@ class Config:
                 print(f"{a.name()} - {a.description()}")
             sys.exit(0)
 
-        actions = [a.name() for a in all_actions]
         # Apply configuration changes from command line
         for k, v in vars(cli_args).items():
             if '__' in k:
@@ -82,10 +82,13 @@ class Config:
         
         path = self._path
         general = conf['general']
-        self.verbose = conf.getboolean('general', 'verbose')
+        self.verbose = general.getboolean('verbose')
         if self.verbose:
             logger = logging.getLogger()
             logger.setLevel(logging.DEBUG)
+        self.cleanup = general.get('cleanup')
+        self.uninstall = general.get('uninstall')
+
         self.graphics_provider = self.get_graphics_provider()
 
         self.setup_dir = path(general['setup_dir'])
@@ -94,6 +97,7 @@ class Config:
         self.python = path(general['python'])
         self.venv = path(general['venv'])
 
+        actions = [a.name() for a in all_actions]
         self.actions = self._resolve_actions(
             general['include'].split(), cli_args, actions)
 
@@ -358,23 +362,22 @@ class Pip:
         logging.debug(" ".join(cmd))
         run(cmd, check=True)
 
-
-class Git:
-
-    def __init__(self, config: Config):
-        self.config = config
-
     @unprivileged
-    def checkout(
-        self, url: str, directory: Optional[Path] = None,
-        shallow: bool = True, branch: Optional[str] = None,
-    ) -> None:
-        cmd: list[Union[str, Path]] = ['git', 'clone']
-        if shallow:
-            cmd.extend(['--depth', '1'])
-        if branch:
-            cmd.extend(['--branch', branch])
-        cmd.append(url)
-        if directory:
-            cmd.append(directory)
-        run(cmd, check=True)
+    def uninstall(self) -> None:
+        """Uninstall by deleting virtual environment"""
+        if self.venv.is_dir():
+            shutil.rmtree(self.venv)
+
+
+def git_checkout(
+    url: str, directory: Optional[Path] = None,
+    shallow: bool = True, branch: Optional[str] = None):
+    cmd: list[Union[str, Path]] = ['git', 'clone']
+    if shallow:
+        cmd.extend(['--depth', '1'])
+    if branch:
+        cmd.extend(['--branch', branch])
+    cmd.append(url)
+    if directory:
+        cmd.append(directory)
+    run(cmd, check=True)

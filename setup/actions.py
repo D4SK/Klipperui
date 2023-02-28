@@ -10,7 +10,8 @@ import tarfile
 from typing import Union
 from urllib.request import urlopen
 
-from util import Config, Apt, Pip, PipPkg, Git, unprivileged, Unprivileged, username
+from util import (Config, Apt, Pip, PipPkg, git_checkout, unprivileged,
+                  Unprivileged, username)
 
 
 class Action(ABC):
@@ -46,6 +47,9 @@ class Action(ABC):
         pass
 
     def cleanup(self) -> None:
+        pass
+
+    def uninstall(self) -> None:
         pass
 
 
@@ -167,6 +171,14 @@ class Kivy(Action):
 class Graphics(Action):
     """Graphical environment: either Xorg or just SDL2"""
 
+    def __init__(self, config: Config) -> None:
+        super().__init__(config)
+        self.build_path = self.general.build_dir / 'sdl2'
+        self.parts = ['SDL2-' + self.config.get('sdl_version'),
+                      'SDL2_image-' + self.config.get('sdl_image_version'),
+                      'SDL2_mixer-' + self.config.get('sdl_mixer_version'),
+                      'SDL2_ttf-' + self.config.get('sdl_ttf_version')]
+
     def apt_depends(self) -> set[str]:
         if self.general.graphics_provider == 'xorg':
             return {
@@ -201,12 +213,9 @@ class Graphics(Action):
         """
         logging.info("Installing SDL2...")
         prev_wd = Path.cwd()
-        parts = ['SDL2-' + self.config.get('sdl_version'),
-                 'SDL2_image-' + self.config.get('sdl_image_version'),
-                 'SDL2_mixer-' + self.config.get('sdl_mixer_version'),
-                 'SDL2_ttf-' + self.config.get('sdl_ttf_version')]
         main_url = 'https://libsdl.org/release/{part}.tar.gz'
         part_url = 'https://libsdl.org/projects/{name}/release/{part}.tar.gz'
+        parts = self.parts
         urls = [main_url.format(part=parts[0]),
                 part_url.format(name="SDL_image", part=parts[1]),
                 part_url.format(name="SDL_mixer", part=parts[2]),
@@ -219,21 +228,24 @@ class Graphics(Action):
         os.chdir(prev_wd)
 
     @unprivileged
-    def compile_sdl2(self, url, part):
-        logging.debug("Downloading URL: %s", url)
-        path = self.general.build_dir / 'sdl2'
-        path.mkdir(parents=True, exist_ok=True)
-        # Download to memory and extract
-        with urlopen(url) as response:
-            if response.status != 200:
-                logging.error("Error while downloading %s", part)
-                return
-            buf = io.BytesIO(response.read())
-            with tarfile.open(fileobj=buf) as tf:
-                tf.extractall(path)
+    def compile_sdl2(self, url: str, part: str):
+        self.build_path.mkdir(parents=True, exist_ok=True)
+        part_path = self.build_path / part
+        if not part_path.is_dir():
+            logging.debug("Downloading URL: %s", url)
+            # Download to memory and extract
+            with urlopen(url) as response:
+                if response.status != 200:
+                    logging.error("Error while downloading %s", part)
+                    return
+                buf = io.BytesIO(response.read())
+                with tarfile.open(fileobj=buf) as tf:
+                    tf.extractall(self.build_path)
+        else:
+            logging.debug("Using cached %s at %s", part, part_path)
 
         # Compile
-        os.chdir(path / part)
+        os.chdir(part_path)
         if part.startswith('SDL2-'):
             run(['./configure',
                  '--enable-video-kmsdrm', '--disable-video-opengl',
@@ -242,6 +254,24 @@ class Graphics(Action):
         else:
             run('./configure', check=True)
         run(['make', '-j', str(os.cpu_count())], check=True)
+
+    def cleanup(self) -> None:
+        with Unprivileged():
+            if self.build_path.is_dir():
+                shutil.rmtree(self.build_path)
+
+    def uninstall(self) -> None:
+        """Uninstall self-compiled SDL2
+        Note that this doesn't have any effect if the sources have already been cleaned
+        up.
+        """
+        prev_wd = Path.cwd()
+        for part in self.parts:
+            part_path = self.build_path / part
+            if part_path.is_dir():
+                os.chdir(part_path)
+                run(['make', 'uninstall'], check=True)
+        os.chdir(prev_wd)
 
 
 class KlipperDepends(Action):
@@ -303,13 +333,19 @@ ExecStart=startx
 WantedBy=multi-user.target
 """
 
+    def __init__(self, config: Config):
+        super().__init__(config)
+        self.klipper_service = Path('/etc/systemd/system/klipper.service')
+        self.xorg_service = Path('/etc/systemd/system/start_xorg.service')
+
     def run(self) -> None:
-        self.install_klippy()
+        #TODO self.install_klippy()
         self.install_services()
         if self.config.getboolean('autostart'):
             self.enable_service()
 
     def install_klippy(self) -> None:
+        #TODO
         logging.info("Installing klippy")
         shutil.copytree(self.general.srcdir / 'klippy', '/opt/klippy',
                 dirs_exist_ok=True)
@@ -319,7 +355,7 @@ WantedBy=multi-user.target
         if self.general.graphics_provider == "xorg":
             requires = "Requires=start_xorg.service\n"
             xorg_service = self.XORG_SERVICE.format(user=username())
-            Path('/etc/systemd/system/start_xorg.service').write_text(xorg_service)
+            self.xorg_service.write_text(xorg_service)
         else:
             requires = ""
         service = self.SERVICE.format(
@@ -327,11 +363,16 @@ WantedBy=multi-user.target
             user=username(),
             python=Pip(self.general).python,
             srcdir=self.general.srcdir)
-        Path('/etc/systemd/system/klipper.service').write_text(service)
+        self.klipper_service.write_text(service)
 
     def enable_service(self) -> None:
         logging.debug("Enabling klipper systemd service")
         run(['systemctl', 'enable', 'klipper.service'], check=True)
+
+    def uninstall(self) -> None:
+        run(['systemctl', 'disable', 'klipper.service'])
+        self.klipper_service.unlink(missing_ok=True)
+        self.xorg_service.unlink(missing_ok=True)
 
 
 class Wifi(Action):
@@ -464,7 +505,7 @@ EndSection
             input_matrix = '1 0 1 0 -1 1 0 0 1'
             lcd_config['display_hdmi_rotate'] = 2
         elif self.rotation == 270:
-            input_matix = '0 -1 1 1 0 0 0 0 1'
+            input_matrix = '0 -1 1 1 0 0 0 0 1'
             lcd_config['display_hdmi_rotate'] = 3
         else:
             raise ValueError(f"Invalid rotation value: {self.rotation}")
@@ -500,6 +541,10 @@ EndSection
             boot_cfg.append(k + '=' + str(v) + mark_new)
         boot_cfg_file.write_text('\n'.join(boot_cfg))
 
+    def uninstall(self) -> None:
+        #TODO
+        pass
+
 
 class Cura(Action):
     """Support direct connection with Cura"""
@@ -524,13 +569,22 @@ iptables-persistent iptables-persistent/autosave_v6 boolean false"""
     def reroute_ports(self) -> None:
         """Redirect port 80 -> 8008"""
         logging.debug("Reroute TCP Port 80 to 8008")
-        run("iptables -A PREROUTING -t nat -p tcp --dport 80 -j REDIRECT --to-ports 8008".split(),
-            check=True)
+        rule = "-p tcp --dport 80 -j REDIRECT --to-ports 8008".split()
+        if run("iptables -C PREROUTING -t nat".split() + rule).returncode != 0:
+            run("iptables -A PREROUTING -t nat".split() + rule, check=True)
+            run("iptables-save -f /etc/iptables/rules.v4".split(), check=True)
+
+    def uninstall(self) -> None:
+        run("iptables -F PREROUTING -t nat".split(), check=True)
         run("iptables-save -f /etc/iptables/rules.v4".split(), check=True)
 
 
 class MjpgStreamer(Action):
     """Webcam stream for Cura connection"""
+
+    def __init__(self, config: Config):
+        super().__init__(config)
+        self.repo_path = self.general.build_dir / 'mjpg-streamer'
 
     def apt_depends(self) -> set[str]:
         return {'gcc', 'cmake', 'libjpeg-dev'}
@@ -553,14 +607,19 @@ class MjpgStreamer(Action):
     MJPG_STREAMER_URL = "https://github.com/jacksonliam/mjpg-streamer.git"
 
     def compile(self) -> None:
+        tag = self.config.get('tag')
         with Unprivileged():
+            describe = run(['git', '-C', self.repo_path, 'describe', '--tags'],
+                           capture_output=True, text=True)
+            if describe.returncode != 0 or describe.stdout != tag:
+                logging.debug("Checking out mjpg-streamer at %s", self.repo_path)
+                git_checkout(self.MJPG_STREAMER_URL, self.repo_path, branch='v1.0.0')
+            else:
+                logging.debug("Using cached mjpg-streamer repo at %s",
+                              self.repo_path)
             logging.info("Compiling mjpg-streamer from source...")
-            repo_path = self.general.build_dir / 'mjpg-streamer'
-            Git(self.general).checkout(
-                self.MJPG_STREAMER_URL, repo_path, branch='v1.0.0')
-            logging.debug("Checked out mjpg-streamer at %s", repo_path)
             prev_wd = Path.cwd()
-            os.chdir(repo_path / 'mjpg-streamer-experimental')
+            os.chdir(self.repo_path / 'mjpg-streamer-experimental')
             run('make', check=True)
         run(['make', 'install'], check=True)
         os.chdir(prev_wd)
@@ -568,6 +627,16 @@ class MjpgStreamer(Action):
     def enable(self) -> None:
         shutil.copy('mjpg_streamer.service', '/etc/systemd/system/')
         run(['systemctl', 'enable', '--now', 'mjpg_streamer.service'])
+
+    def cleanup(self) -> None:
+        with Unprivileged():
+            if self.repo_path.is_dir():
+                shutil.rmtree(self.repo_path)
+
+    def uninstall(self) -> None:
+        Path("/usr/local/bin/mjpg_streamer").unlink(missing_ok=True)
+        shutil.rmtree(Path("/usr/local/share/mjpg-streamer"), ignore_errors=True)
+        shutil.rmtree(Path("/usr/local/lib/mjpg-streamer"), ignore_errors=True)
 
 
 class AVRChip(Action):
