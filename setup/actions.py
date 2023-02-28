@@ -269,6 +269,7 @@ class Graphics(Action):
         for part in self.parts:
             part_path = self.build_path / part
             if part_path.is_dir():
+                logging.debug("Uninstalling %s", part)
                 os.chdir(part_path)
                 run(['make', 'uninstall'], check=True)
         os.chdir(prev_wd)
@@ -370,6 +371,7 @@ WantedBy=multi-user.target
         run(['systemctl', 'enable', 'klipper.service'], check=True)
 
     def uninstall(self) -> None:
+        logging.debug("Removing systemd units")
         run(['systemctl', 'disable', 'klipper.service'])
         self.klipper_service.unlink(missing_ok=True)
         self.xorg_service.unlink(missing_ok=True)
@@ -575,6 +577,7 @@ iptables-persistent iptables-persistent/autosave_v6 boolean false"""
             run("iptables-save -f /etc/iptables/rules.v4".split(), check=True)
 
     def uninstall(self) -> None:
+        loggind.debug("Reset port rerouting")
         run("iptables -F PREROUTING -t nat".split(), check=True)
         run("iptables-save -f /etc/iptables/rules.v4".split(), check=True)
 
@@ -634,6 +637,7 @@ class MjpgStreamer(Action):
                 shutil.rmtree(self.repo_path)
 
     def uninstall(self) -> None:
+        logging.debug("Uninstalling mjpg-streamer")
         Path("/usr/local/bin/mjpg_streamer").unlink(missing_ok=True)
         shutil.rmtree(Path("/usr/local/share/mjpg-streamer"), ignore_errors=True)
         shutil.rmtree(Path("/usr/local/lib/mjpg-streamer"), ignore_errors=True)

@@ -86,8 +86,8 @@ class Config:
         if self.verbose:
             logger = logging.getLogger()
             logger.setLevel(logging.DEBUG)
-        self.cleanup = general.get('cleanup')
-        self.uninstall = general.get('uninstall')
+        self.cleanup = general.getboolean('cleanup')
+        self.uninstall = general.getboolean('uninstall')
 
         self.graphics_provider = self.get_graphics_provider()
 
