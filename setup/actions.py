@@ -178,24 +178,40 @@ class Graphics(Action):
                       'SDL2_image-' + self.config.get('sdl_image_version'),
                       'SDL2_mixer-' + self.config.get('sdl_mixer_version'),
                       'SDL2_ttf-' + self.config.get('sdl_ttf_version')]
+        self.from_source = (self.config.getboolean('sdl2_from_source') or
+                            self.general.graphics_provider == 'sdl2')
 
     def apt_depends(self) -> set[str]:
+        pkgs = set()
         if self.general.graphics_provider == 'xorg':
-            return {
-                'xorg',
-                'libsdl2-dev',
-                'libsdl2-image-dev',
-                'libsdl2-mixer-dev',
-                'libsdl2-ttf-dev',
-            }
-        return set()
+            pkgs.add('xorg')
+        if not self.from_source:
+            pkgs |= {'libsdl2-dev',
+                     'libsdl2-image-dev',
+                     'libsdl2-mixer-dev',
+                     'libsdl2-ttf-dev'}
+        return pkgs
 
     def run(self) -> None:
         if self.general.graphics_provider == 'xorg':
             self.configure_xorg()
-        else:
+        if self.from_source:
             self.install_sdl2_kmsdrm()
         run(['adduser', username(), 'render'], check=True)
+
+    DPMS_CONF = """Section "Monitor"
+    Identifier "LVDS0"
+    Option "DPMS" "true"
+EndSection
+
+Section "ServerLayout"
+    Identifier "ServerLayout0"
+    Option "StandbyTime" "10"
+    Option "SuspendTime" "20"
+    Option "OffTime"     "30"
+    Option "BlankTime"   "0"
+EndSection
+"""
 
     def configure_xorg(self) -> None:
         """Change line in Xwrapper.config so xorg feels inclined to start when
@@ -203,7 +219,7 @@ class Graphics(Action):
         run(['sed', '-i', 's/allowed_users=console/allowed_users=anybody/',
              '/etc/X11/Xwrapper.config'], check=True)
         # Configure DPMS
-        shutil.copy('10-dpms.conf', '/etc/X11/xorg.conf.d')
+        Path('/etc/X11/xorg.conf.d/10-dpms.conf').write_text(self.DPMS_CONF)
 
     def install_sdl2_kmsdrm(self) -> None:
         """The KMS/DRM video driver of SDL2 allows Kivy to run without X11. The
@@ -425,6 +441,10 @@ class MonitorConf(Action):
 
     def __init__(self, config: Config) -> None:
         super().__init__(config)
+        self.boot_cfg_file = Path('/boot/config.txt')
+        self.mark_old = "#OLD_CFG "
+        self.mark_new = " #LCD_CFG"
+
         self.rotation = self.config.getint('rotation')
         if self.rotation not in {0, 90, 180, 270}:
             raise ValueError(f"Invalid rotation value: {self.rotation}")
@@ -520,32 +540,39 @@ EndSection
         if self.set_modeline:
             (conf_dir / '00-monitor.conf').write_text(self.MODELINE_CONF)
 
-        mark_old = "#OLD_CFG "
-        mark_new = " #LCD_CFG"
 
-        boot_cfg_file = Path('/boot/config.txt')
-        boot_cfg = boot_cfg_file.read_text().splitlines()
+        boot_cfg = self.boot_cfg_file.read_text().splitlines()
         to_remove = []
         for i, line in enumerate(boot_cfg):
             # Remove configuration from previous runs
-            if line.endswith(mark_new):
+            if line.endswith(self.mark_new):
                 to_remove.append(i)
                 continue
             # Disable conflicing configuration lines
             for k in lcd_config.keys():
                 if line.startswith(k):
-                    boot_cfg[i] = mark_old + line
+                    boot_cfg[i] = self.mark_old + line
                     break
         for i in reversed(to_remove):
             del boot_cfg[i]
 
         for k, v in lcd_config.items():
-            boot_cfg.append(k + '=' + str(v) + mark_new)
-        boot_cfg_file.write_text('\n'.join(boot_cfg))
+            boot_cfg.append(k + '=' + str(v) + self.mark_new)
+        self.boot_cfg_file.write_text('\n'.join(boot_cfg))
 
     def uninstall(self) -> None:
-        #TODO
-        pass
+        boot_cfg = self.boot_cfg_file.read_text().splitlines()
+        to_remove = []
+        for i, line in enumerate(boot_cfg):
+            # Restore previous configuration
+            if line.startswith(self.mark_old):
+                boot_cfg[i] = line[len(self.mark_old):]
+            # Remove configuration added by setup
+            elif line.endswith(self.mark_new):
+                to_remove.append(i)
+
+        for i in reversed(to_remove):
+            del boot_cfg[i]
 
 
 class Cura(Action):
@@ -577,7 +604,7 @@ iptables-persistent iptables-persistent/autosave_v6 boolean false"""
             run("iptables-save -f /etc/iptables/rules.v4".split(), check=True)
 
     def uninstall(self) -> None:
-        loggind.debug("Reset port rerouting")
+        logging.debug("Reset port rerouting")
         run("iptables -F PREROUTING -t nat".split(), check=True)
         run("iptables-save -f /etc/iptables/rules.v4".split(), check=True)
 
@@ -588,6 +615,7 @@ class MjpgStreamer(Action):
     def __init__(self, config: Config):
         super().__init__(config)
         self.repo_path = self.general.build_dir / 'mjpg-streamer'
+        self.service_path = Path('/etc/systemd/system/mjpg_streamer.service')
 
     def apt_depends(self) -> set[str]:
         return {'gcc', 'cmake', 'libjpeg-dev'}
@@ -627,8 +655,19 @@ class MjpgStreamer(Action):
         run(['make', 'install'], check=True)
         os.chdir(prev_wd)
 
+    MJPG_SERVICE = """[Unit]
+Description=A server for streaming Motion-JPEG from a video capture device
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/mjpg_streamer -i 'input_raspicam.so -fps 24 -x 800 -y 600' -o 'output_http.so -p 8080'
+
+[Install]
+WantedBy=multi-user.target
+"""
+
     def enable(self) -> None:
-        shutil.copy('mjpg_streamer.service', '/etc/systemd/system/')
+        self.service_path.write_text(self.MJPG_SERVICE)
         run(['systemctl', 'enable', '--now', 'mjpg_streamer.service'])
 
     def cleanup(self) -> None:
@@ -638,6 +677,8 @@ class MjpgStreamer(Action):
 
     def uninstall(self) -> None:
         logging.debug("Uninstalling mjpg-streamer")
+        run(['systemctl', 'disable', '--now', 'mjpg_streamer.service'])
+        self.service_path.unlink(missing_ok=True)
         Path("/usr/local/bin/mjpg_streamer").unlink(missing_ok=True)
         shutil.rmtree(Path("/usr/local/share/mjpg-streamer"), ignore_errors=True)
         shutil.rmtree(Path("/usr/local/lib/mjpg-streamer"), ignore_errors=True)
