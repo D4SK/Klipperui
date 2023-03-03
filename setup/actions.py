@@ -165,7 +165,7 @@ class Kivy(Action):
         run(['dos2unix', file], check=True)
         run(['patch', '--force', '--forward',
              '--no-backup-if-mismatch', '--reject-file=-',
-             file, 'kivy-vkeyboard.patch'], check=True)
+             file, self.general.setup_dir / 'kivy-vkeyboard.patch'], check=True)
 
 
 class Graphics(Action):
@@ -578,16 +578,8 @@ EndSection
 class Cura(Action):
     """Support direct connection with Cura"""
 
-    IPTABLES_DEBCONF = \
-"""iptables-persistent iptables-persistent/autosave_v4 boolean false
-iptables-persistent iptables-persistent/autosave_v6 boolean false"""
-    def setup(self) -> None:
-        logging.debug("Setting iptables installation configuration")
-        run('debconf-set-selections', input=self.IPTABLES_DEBCONF, text=True,
-            check=True)
-
     def apt_depends(self) -> set[str]:
-        return {'iptables-persistent'}
+        return {'iptables'}
 
     def pip_depends(self) -> set[Union[str, PipPkg]]:
         return {'zeroconf==' + self.config.get('zeroconf_version')}
@@ -595,13 +587,19 @@ iptables-persistent iptables-persistent/autosave_v6 boolean false"""
     def run(self) -> None:
         self.reroute_ports()
 
+    IPTABLE = """*nat
+:PREROUTING ACCEPT [155:27457]
+:INPUT ACCEPT [170:27841]
+:OUTPUT ACCEPT [36:2595]
+:POSTROUTING ACCEPT [36:2595]
+-A PREROUTING -p tcp -m tcp --dport 80 -j REDIRECT --to-ports 8008
+COMMIT
+"""
+
     def reroute_ports(self) -> None:
         """Redirect port 80 -> 8008"""
         logging.debug("Reroute TCP Port 80 to 8008")
-        rule = "-p tcp --dport 80 -j REDIRECT --to-ports 8008".split()
-        if run("iptables -C PREROUTING -t nat".split() + rule).returncode != 0:
-            run("iptables -A PREROUTING -t nat".split() + rule, check=True)
-            run("iptables-save -f /etc/iptables/rules.v4".split(), check=True)
+        Path('/etc/iptables/rules.v4').write_text(self.IPTABLE)
 
     def uninstall(self) -> None:
         logging.debug("Reset port rerouting")
