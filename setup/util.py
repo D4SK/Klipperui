@@ -128,18 +128,15 @@ class Config:
 
         if args.enable_all:
             if specified:
-                logging.critical("Cannot use --enable-all together with "
-                    "enable/disable or include/exclude")
+                logging.critical("Cannot use --enable-all together with enable/disable or include/exclude")
                 sys.exit(10)
             actions = all_actions
         elif enable or disable:
             if enable & disable:
-                logging.critical(f"Argument error: {enable & disable} are "
-                    "both enabled and disabled!")
+                logging.critical(f"Argument error: {enable & disable} are both enabled and disabled!")
                 sys.exit(10)
             if args.include or args.exclude:
-                logging.critical("Argument error: Cannot simultaneously use "
-                    "enable/disable and include/exclude")
+                logging.critical("Argument error: Cannot simultaneously use enable/disable and include/exclude")
                 sys.exit(10)
             for a in enable:
                 if a not in actions:
@@ -150,8 +147,7 @@ class Config:
                 except ValueError:
                     pass
         elif args.include and args.exclude:
-            logging.critical(
-                "Argument error: Cannot specify both include and exclude")
+            logging.critical("Argument error: Cannot specify both include and exclude")
             sys.exit(10)
         elif args.include:
             actions = args.include
@@ -164,26 +160,30 @@ class Config:
         return actions
 
     def _get_config_file(self) -> tuple[Optional[Path], list[str]]:
-        """Get the location of the config file, either from command line
-        arguments or from DEFAULT_FILE.
-        """
+        """See if a custom config file was specified via arguments"""
         parser = ArgumentParser(add_help=False)
         parser.add_argument('-c', '--config', type=self._path,
                             help="Specify a config file to use. Default: default.cfg")
         cli_args, other = parser.parse_known_args()
-        return cli_args.config, other
+        conf_path = cli_args.config
+        if conf_path is not None:
+            conf_path = conf_path.resolve(strict=True)
+        return conf_path, other
 
     def _read_conf(self, path: Optional[Path] = None) -> configparser.ConfigParser:
+        dyn_defaults = self._dynamic_defaults()
+        setup_dir = Path(dyn_defaults.get('general', 'setup_dir'))
         if path is None:
             path = self.DEFAULT_FILE
-        cur_path = path
+        # Resolve relative to setup dir
+        path = setup_dir / path
         configs = []
         while True:
             # Interpolation is carried over from _dynamic_defaults()
             parser = configparser.ConfigParser(interpolation=None)
             try:
                 # Use read_file instead of read for better error handling
-                with open(cur_path, "r") as f:
+                with open(path, "r") as f:
                     parser.read_file(f)
             except (configparser.Error, OSError) as e:
                 logging.critical(e)
@@ -194,13 +194,13 @@ class Config:
 
             configs.append(parser)
             if parser.has_option('general', 'inherit'):
-                cur_path = Path(parser.get('general', 'inherit'))
+                path = setup_dir / Path(parser.get('general', 'inherit'))
                 parser.remove_option('general', 'inherit')
             else:
                 break
         # Merge configs in order
         configs.reverse()
-        combined = self._dynamic_defaults()
+        combined = dyn_defaults
         for c in configs:
             combined.read_dict(c)
         return combined
