@@ -14,6 +14,7 @@ from actions import (
     MonitorConf,
     Cura,
     MjpgStreamer,
+    Swap,
     AVRChip,
     ARMChip,
 )
@@ -37,6 +38,7 @@ class Runner:
         MonitorConf,
         Cura,
         MjpgStreamer,
+        Swap,
         AVRChip,
         ARMChip,
     ]

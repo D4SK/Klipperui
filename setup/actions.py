@@ -682,6 +682,18 @@ WantedBy=multi-user.target
         shutil.rmtree(Path("/usr/local/lib/mjpg-streamer"), ignore_errors=True)
 
 
+class Swap(Action):
+    """Increase swap size (necessary for some compilations on 1GB boards)"""
+    def setup(self) -> None:
+        size = self.config.getint('size')
+        logging.info("Setting swap size to %dMB", size)
+        run(['dphys-swapfile', 'swapoff'], check=True)
+        run(['sed', '-i', f's/CONF_SWAPSIZE=[0-9]\+/CONF_SWAPSIZE={size}/',
+             '/etc/dphys-swapfile'], check=True)
+        run(['dphys-swapfile', 'setup'], check=True)
+        run(['dphys-swapfile', 'swapon'], check=True)
+
+
 class AVRChip(Action):
     """AVR chip installation and building"""
     def apt_depends(self) -> set[str]:
