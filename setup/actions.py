@@ -151,7 +151,7 @@ class Kivy(Action):
     def setup_config(self) -> None:
         config_dir = Path('~/.kivy/').expanduser()
         config_dir.mkdir(exist_ok=True)
-        shutil.copy('config.ini', config_dir)
+        shutil.copy(self.general.setup_dir / 'config.ini', config_dir)
 
     def vkeyboard_patch(self) -> None:
         logging.info("Applying patch to kivy to fix custom VKeyboard")
@@ -237,11 +237,18 @@ EndSection
                 part_url.format(name="SDL_mixer", part=parts[2]),
                 part_url.format(name="SDL_ttf", part=parts[3])]
         for url, part in zip(urls, parts):
-            # Make sure to compile unprivileged
-            self.compile_sdl2(url, part)
-            run(['make', 'install'], check=True)
-        run(['ldconfig', '-v'], check=True)
+            if not self.test_sdl2_part(part):
+                # Make sure to compile unprivileged
+                self.compile_sdl2(url, part)
+                run(['make', 'install'], check=True)
+            else:
+                logging.debug("%s already installed", part)
+        run('ldconfig', check=True)
         os.chdir(prev_wd)
+
+    def test_sdl2_part(self, part) -> bool:
+        (name, _version) = part.split('-', 1)
+        return Path(f"/usr/local/lib/lib{name}.so").is_file()
 
     @unprivileged
     def compile_sdl2(self, url: str, part: str):
