@@ -578,8 +578,16 @@ EndSection
 class Cura(Action):
     """Support direct connection with Cura"""
 
+    IPTABLES_DEBCONF = \
+"""iptables-persistent iptables-persistent/autosave_v4 boolean false
+iptables-persistent iptables-persistent/autosave_v6 boolean false"""
+    def setup(self) -> None:
+        logging.debug("Setting iptables installation configuration")
+        run('debconf-set-selections', input=self.IPTABLES_DEBCONF, text=True,
+            check=True)
+
     def apt_depends(self) -> set[str]:
-        return {'iptables'}
+        return {'iptables-persistent'}
 
     def pip_depends(self) -> set[Union[str, PipPkg]]:
         return {'zeroconf==' + self.config.get('zeroconf_version')}
@@ -588,10 +596,10 @@ class Cura(Action):
         self.reroute_ports()
 
     IPTABLE = """*nat
-:PREROUTING ACCEPT [155:27457]
-:INPUT ACCEPT [170:27841]
-:OUTPUT ACCEPT [36:2595]
-:POSTROUTING ACCEPT [36:2595]
+:PREROUTING ACCEPT [0:0]
+:INPUT ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
 -A PREROUTING -p tcp -m tcp --dport 80 -j REDIRECT --to-ports 8008
 COMMIT
 """
@@ -600,6 +608,13 @@ COMMIT
         """Redirect port 80 -> 8008"""
         logging.debug("Reroute TCP Port 80 to 8008")
         Path('/etc/iptables/rules.v4').write_text(self.IPTABLE)
+        #TODO give the option to immediately apply rules
+        """
+        rule = "-p tcp --dport 80 -j REDIRECT --to-ports 8008".split()
+        if run("iptables -C PREROUTING -t nat".split() + rule).returncode != 0:
+            run("iptables -A PREROUTING -t nat".split() + rule, check=True)
+            run("iptables-save -f /etc/iptables/rules.v4".split(), check=True)
+        """
 
     def uninstall(self) -> None:
         logging.debug("Reset port rerouting")
