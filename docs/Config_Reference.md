@@ -1277,7 +1277,6 @@ force_threshold: 70000
 #invert: False
 #   Invert the 'direction' of the load cell if needed.
 #   The values should increase with the applied force.
-#   Negative baseline values are ok.
 #z_offset: 0.05
 #   A fixed Z offset. This is often not needed.
 ```

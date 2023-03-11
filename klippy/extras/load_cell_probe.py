@@ -37,6 +37,7 @@ class LoadCellProbe:
         self.stiffness_max       = config.getfloat('stiffness_max', self.force_threshold)
         self.stiffness_min       = config.getfloat('stiffness_min', 0)
         self.linear_noise_limit2 = config.getfloat('linear_noise_limit', self.force_threshold*0.2)**2
+        self.baseline_sample_time = config.getfloat('baseline_sample_time', 1, above=0.2)
 
         self.printer.register_event_handler("klippy:ready", self._handle_ready)
         self.printer.register_event_handler('klippy:mcu_identify', self._handle_mcu_identify)
@@ -74,7 +75,7 @@ class LoadCellProbe:
         new_baseline = np.median(no_outliers)
         noise = np.std(no_outliers)
         if noise > self.noise_limit:
-            logging.info(f"Noise limit for baseline measurement exceeded {noise} > {self.noise_limit}")
+            self.gcode.respond_info(f"Noise limit for baseline measurement exceeded {noise} > {self.noise_limit}")
             return None
         logging.info(f"got new baseline of {new_baseline} rejected {100*(len(data)-len(no_outliers))/len(data):.0f}% of samples")
         self.baseline.append(new_baseline)
@@ -109,28 +110,26 @@ class LoadCellProbe:
             if v[0] > c1:
                 skipped_samples += 1
                 continue
-            self.reactor.pause(self.reactor.NOW) # let other stuff run
             A.append([self._mcu.clock_to_print_time(v[0]), 1])
             y.append(v[1])
             if len(y) > 50:
+                self.gcode.respond_info(f"Linear fit could not distinguish baseline and contact phase")
                 return None
             if len(y) > 5:
-                mxn, residual, rank, s = np.linalg.lstsq(np.array(A), y, rcond=-1)
+                x, residual, rank, s = np.linalg.lstsq(np.array(A), y, rcond=-1) # fit a linear function to the force where force = x[0]*t + x[1]
                 logging.info(f"lin fit with {A} and {y} residual {residual}")
                 peakness = (v[1] - baseline)/(values[-(skipped_samples+1)][1] - baseline) # 1 if sample is peak, 0 if sample is baseline
-                if not len(residual):
-                    logging.info(f"Numeric error, rank is {rank}")
-                    return None
+                assert len(residual), "Numeric error"
                 added_residual = residual[0] - last_residual
                 if added_residual >= (0.8 + 0.7*peakness)*last_residual/(len(y)-1):
                     break
                 last_residual = residual[0]
-                last_mxn = mxn
+                last_x = x
         noise = last_residual/len(y)
         if noise > self.linear_noise_limit2:
-            logging.info(f"Noise limit for linear approximation exceeded {sqrt(noise)} > {sqrt(self.linear_noise_limit2)}")
+            self.gcode.respond_info(f"Noise limit for linear approximation exceeded {sqrt(noise)} > {sqrt(self.linear_noise_limit2)}")
             return None
-        t0 = (baseline - last_mxn[1]) / last_mxn[0]
+        t0 = (baseline - last_x[1]) / last_x[0]
         logging.info(f"sample_count {i-skipped_samples} t0 {t0} t_stop {self._mcu.clock_to_print_time(stop_clock64)} t1 {self._mcu.clock_to_print_time(c1)} residual {last_residual}")
         return t0
 
@@ -181,7 +180,7 @@ class LoadCellProbe:
         if homing:
             self.baseline = []
         self._adc.query_adc_cmd.send([self._adc.oid, 1, self._oid])
-        self.reactor.pause(self.reactor.monotonic() + 1)
+        self.reactor.pause(self.reactor.monotonic() + self.baseline_sample_time)
         self.enable_load_cell_trigger_cmd.send([self._oid, 1, int(self.force_threshold)])
         self._trigger_completion = self.reactor.completion()
         return self._trigger_completion
@@ -198,7 +197,6 @@ class LoadCellProbe:
         if stop_clock64 == 0:
             return 0, True
         if t0 is None:
-            logging.info("linear fit failed")
             return self._mcu.clock_to_print_time(stop_clock64), True
         return t0, False
 
@@ -220,9 +218,10 @@ class ProbePointsHelper:
         self.finalize_callback = finalize_callback
         self.probe_points = default_points
 
-        self.horizontal_move_z = config.getfloat('horizontal_move_z', 6.) # needs to be different from current pos
+        self.horizontal_move_z = config.getfloat('horizontal_move_z', 6.)
         self.retract_dist      = config.getfloat('sample_retract_dist', 2., above=0.)
         self.probe_speed       = config.getfloat('probe_speed', 3, above=0.)
+        self.max_probe_move    = config.getfloat('max_probe_move', 4)
         self.retract_speed     = config.getfloat('retract_speed', 10, above=0.)
         self.speed             = config.getfloat('speed', 100., above=0.)
         if default_points is None or config.get('points', None) is not None:
@@ -261,7 +260,7 @@ class ProbePointsHelper:
         toolhead = self.printer.lookup_object('toolhead')
         kin = toolhead.get_kinematics()
         gcode_move = self.printer.lookup_object('gcode_move')
-        movepos = self._fill_coord([None, None, -2, None])
+        movepos = self._fill_coord([None, None, -self.max_probe_move, None])
         toolhead.flush_step_generation()
         # Start endstop checking
         print_time = toolhead.get_last_move_time()
@@ -277,7 +276,7 @@ class ProbePointsHelper:
         move_end_print_time = toolhead.get_last_move_time()
         trigger_time, retry = self.lcp.home_wait(move_end_print_time, homing=False)
         if trigger_time == 0:
-            logging.info("Probe not triggered after timeout")
+            raise self.printer.command_error("Load cell probe not triggered after timeout")
         # Determine stepper halt positions
         toolhead.flush_step_generation()
         trig_kin_pos = {s.get_name(): s.get_commanded_position() for s in kin.get_steppers()}
@@ -297,13 +296,11 @@ class ProbePointsHelper:
         return trig_pos
 
     def _move_next(self):
-        self.reactor.pause(self.reactor.monotonic() + 0.01)
         toolhead = self.printer.lookup_object('toolhead')
         # Lift toolhead
         toolhead.manual_move([None, None, self.horizontal_move_z], self.retract_speed)
         # Check if done probing
         if len(self.results) >= len(self.probe_points):
-            toolhead.get_last_move_time()
             res = self.finalize_callback((0, 0, 0), self.results)
             if res != "retry":
                 return True
@@ -312,8 +309,6 @@ class ProbePointsHelper:
         nextpos = list(self.probe_points[len(self.results)])
         toolhead.manual_move(nextpos, self.speed)
         toolhead.wait_moves()
-        toolhead.get_last_move_time()
-        self.reactor.pause(self.reactor.monotonic() + 0.3)
         return False
 
     def _fill_coord(self, coord):

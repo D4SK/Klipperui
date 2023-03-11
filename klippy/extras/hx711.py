@@ -22,12 +22,11 @@ class MCU_hx711:
     def _build_config(self):
         cmd_queue = self.mcu.alloc_command_queue()
         self.mcu._serial.register_response(self._handle_adc_state, "hx711_in_state", self.oid)
-        self.mcu.add_config_cmd(f"config_hx711 oid={self.oid} dout_pin={self._main.dout_pin} sck_pin={self._main.sck_pin} gain={self._main.gain}")
+        self.mcu.add_config_cmd(f"config_hx711 oid={self.oid} dout_pin={self._main.dout_pin} sck_pin={self._main.sck_pin} gain={self._main.gain} invert={self._main.invert}")
         self.query_adc_cmd = self.mcu.lookup_command("query_hx711 oid=%c enable=%u endstop_oid=%i", cq=cmd_queue)
     def setup_adc_callback(self, report_time, callback):
         self._callbacks.append(callback)
     def _handle_adc_state(self, params):
-        params['value'] *= self._main.direction
         self._last_value = params['value']
         self._last_clock = params['clock']
         for cb in self._callbacks:
@@ -46,7 +45,7 @@ class PrinterHx711:
         self.sck_pin = sck_pin_params['pin']
         self.mcu = dout_pin_params['chip']
         self.gain = config.getchoice('gain', {32: 2, 64: 3, 128: 1}, default=64)
-        self.direction = -1 if config.getboolean('invert', False) else 1
+        self.invert = -1 if config.getboolean('invert', False) else 1
         ppins.register_chip(self.name, self)
 
     def setup_pin(self, pin_type, pin_params):

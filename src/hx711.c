@@ -27,6 +27,7 @@ struct hx711 {
     int32_t endstop_oid;
     uint32_t last_sample_time;
     int32_t result;
+    int32_t invert;
 };
 
 
@@ -53,6 +54,8 @@ static uint_fast8_t hx711_event(struct timer *timer)
     if (h->sample_idx >= (48 + 2*h->gain)){
         out = 0;
         h->result = h->sample;
+        h->result >>= 8;
+        h->result *= h->invert;
         sched_wake_task(&hx711_wake);
         delay = 1;
         h->sample_idx = 0;
@@ -74,7 +77,6 @@ void hx711_task(void)
     if (!sched_check_wake(&hx711_wake))
         return;
     struct hx711 *h = hx711_1;
-    h->result >>= 8;
     if (h->endstop_oid >= 0)
         check_load_cell_probe(h->endstop_oid, h->result, h->timer.waketime);
     sendf("hx711_in_state oid=%c clock=%u value=%i", h->oid, h->timer.waketime, h->result);
@@ -89,6 +91,7 @@ void command_config_hx711(uint32_t *args)
     h->dout = gpio_in_setup(args[1], -1); // enable pulldown
     h->sck = gpio_out_setup(args[2], 0); // initialize as low
     h->gain = args[3];
+    h->invert = args[4];
     h->sample_idx = 0;
     h->sample = 0;
     h->oid = args[0];
@@ -97,7 +100,7 @@ void command_config_hx711(uint32_t *args)
     h->timer.waketime = h->last_sample_time;
     hx711_1 = h;
 }
-DECL_COMMAND(command_config_hx711, "config_hx711 oid=%c dout_pin=%u sck_pin=%u gain=%u");
+DECL_COMMAND(command_config_hx711, "config_hx711 oid=%c dout_pin=%u sck_pin=%u gain=%u invert=%i");
 
 
 void command_query_hx711(uint32_t *args)
