@@ -40,6 +40,9 @@ class Action(ABC):
     def apt_build_depends(self) -> set[str]:
         return set()
 
+    def pre_pip(self) -> None:
+        pass
+
     def pip_depends(self) -> set[Union[str, PipPkg]]:
         return set()
 
@@ -185,18 +188,22 @@ class Graphics(Action):
         pkgs = set()
         if self.general.graphics_provider == 'xorg':
             pkgs.add('xorg')
-        if not self.from_source:
+        if self.from_source:
+            pkgs |= {'gcc', 'make'}
+        else:
             pkgs |= {'libsdl2-dev',
                      'libsdl2-image-dev',
                      'libsdl2-mixer-dev',
                      'libsdl2-ttf-dev'}
         return pkgs
 
+    def pre_pip(self) -> None:
+        if self.from_source:
+            self.install_sdl2_kmsdrm()
+
     def run(self) -> None:
         if self.general.graphics_provider == 'xorg':
             self.configure_xorg()
-        if self.from_source:
-            self.install_sdl2_kmsdrm()
         run(['adduser', username(), 'render'], check=True)
 
     DPMS_CONF = """Section "Monitor"
@@ -303,11 +310,14 @@ class KlipperDepends(Action):
 
     def apt_depends(self) -> set[str]:
         return {
+            'git',
             # Packages for python cffi
+            'gcc',
             'python3-dev',
             'libffi-dev',
             'build-essential',
             # kconfig requirements
+            'make',
             'libncurses-dev',
             # hub-ctrl
             'libusb-dev',
@@ -638,7 +648,7 @@ class MjpgStreamer(Action):
         self.service_path = Path('/etc/systemd/system/mjpg_streamer.service')
 
     def apt_depends(self) -> set[str]:
-        return {'gcc', 'cmake', 'libjpeg-dev'}
+        return {'gcc', 'cmake', 'libjpeg-dev', 'git'}
     
     def run(self) -> None:
         if not self.test_mjpg_streamer():

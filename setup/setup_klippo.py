@@ -56,6 +56,7 @@ class Runner:
             return
         self.setup()
         self.apt_install()
+        self.pre_pip()
         self.pip_install()
         self.run()
         if self.config.cleanup:
@@ -71,6 +72,11 @@ class Runner:
         for a in self.actions:
             packages |= a.apt_depends()
         Apt(self.config).install(packages)
+
+    def pre_pip(self) -> None:
+        logging.info("PRE-PIP:")
+        for a in self.actions:
+            a.pre_pip()
 
     def pip_install(self) -> None:
         packages = set()
