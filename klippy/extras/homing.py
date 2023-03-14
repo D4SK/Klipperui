@@ -5,7 +5,7 @@
 # This file may be distributed under the terms of the GNU GPLv3 license.
 import logging, math
 
-HOMING_START_DELAY = 0.005
+HOMING_START_DELAY = 0.001
 ENDSTOP_SAMPLE_TIME = .000015
 ENDSTOP_SAMPLE_COUNT = 4
 
@@ -207,7 +207,6 @@ class Homing:
             return self.retry_home_rails(rails, forcepos, movepos)
         # Perform second home
         if hi.retract_dist:
-            logging.info("attempting second move")
             # Retract
             startpos = self._fill_coord(forcepos)
             homepos = self._fill_coord(movepos)
@@ -247,7 +246,6 @@ class Homing:
             for axis in homing_axes:
                 homepos[axis] = newpos[axis]
             self.toolhead.set_position(homepos)
-        logging.info(f"homing finished")
 
 class PrinterHoming:
     def __init__(self, config):

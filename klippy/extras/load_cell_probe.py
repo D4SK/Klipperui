@@ -141,7 +141,7 @@ class LoadCellProbe:
         logging.info(f"Load cell established contact using {len(y)} samples "
             f"t0 {t0:.4f} t_stop {self._mcu.clock_to_print_time(stop_clock64):.4f} "
             f"t1 {self._mcu.clock_to_print_time(c1):.4f} "
-            f"noise {100*sqrt(noise)/self.force_threshold:.1f}")
+            f"noise {100*sqrt(noise)/self.force_threshold:.1f}%")
         return t0
 
     def _adc_callback(self, clock32, value):
