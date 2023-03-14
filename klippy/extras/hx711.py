@@ -21,9 +21,14 @@ class MCU_hx711:
         self.mcu.register_config_callback(self._build_config)
     def _build_config(self):
         cmd_queue = self.mcu.alloc_command_queue()
-        self.mcu._serial.register_response(self._handle_adc_state, "hx711_in_state", self.oid)
-        self.mcu.add_config_cmd(f"config_hx711 oid={self.oid} dout_pin={self._main.dout_pin} sck_pin={self._main.sck_pin} gain={self._main.gain} invert={self._main.invert}")
-        self.query_adc_cmd = self.mcu.lookup_command("query_hx711 oid=%c enable=%u endstop_oid=%i", cq=cmd_queue)
+        self.mcu._serial.register_response(
+            self._handle_adc_state, "hx711_in_state", self.oid)
+        self.mcu.add_config_cmd(
+            f"config_hx711 oid={self.oid} dout_pin={self._main.dout_pin} "
+            f"sck_pin={self._main.sck_pin} gain={self._main.gain} "
+            f"invert={self._main.invert}")
+        self.query_adc_cmd = self.mcu.lookup_command(
+            "query_hx711 oid=%c enable=%u endstop_oid=%i", cq=cmd_queue)
     def setup_adc_callback(self, report_time, callback):
         self._callbacks.append(callback)
     def _handle_adc_state(self, params):
