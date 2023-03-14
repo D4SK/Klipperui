@@ -10,8 +10,8 @@ import tarfile
 from typing import Union
 from urllib.request import urlopen
 
-from util import (Config, Apt, Pip, PipPkg, git_checkout, unprivileged,
-                  Unprivileged, username)
+from util import (Config, apt_uninstall, Pip, PipPkg, git_checkout,
+                  unprivileged, Unprivileged, username)
 
 
 class Action(ABC):
@@ -450,7 +450,7 @@ class Wifi(Action):
             run('systemctl -q enable NetworkManager'.split(), check=True)
 
     def remove_dhcpcd5(self) -> None:
-        Apt(self.general).uninstall(["dhcpcd5"])
+        apt_uninstall(["dhcpcd5"])
 
 
 class MonitorConf(Action):
@@ -712,6 +712,57 @@ WantedBy=multi-user.target
         Path("/usr/local/bin/mjpg_streamer").unlink(missing_ok=True)
         shutil.rmtree(Path("/usr/local/share/mjpg-streamer"), ignore_errors=True)
         shutil.rmtree(Path("/usr/local/lib/mjpg-streamer"), ignore_errors=True)
+
+
+class Usbmount(Action):
+    """Install usbmount for automatic flash drive mounting"""
+    def __init__(self, config: Config):
+        super().__init__(config)
+        self.build_dir = self.general.build_dir / 'usbmount'
+        self.src_dir = self.build_dir / 'usbmount'
+
+    def apt_depends(self) -> set[str]:
+        if not self.test_usbmount():
+            #TODO Install debhelper with --no-install-recommends
+            return {'git', 'debhelper', 'build-essential'}
+        return set()
+
+    def run(self) -> None:
+        if not self.test_usbmount():
+            pkg = self.package()
+            if run(['dpkg', '-i', pkg]).returncode == 1:
+                # Install dependencies using apt
+                run(['apt-get', 'install', '--yes', '--fix-broken'], check=True)
+        else:
+            logging.debug("Usbmount already installed, skipping")
+        shutil.copy(self.general.setup_dir / 'usbmount.conf', '/etc/usbmount/')
+
+    URL = "https://github.com/moodlebox/usbmount.git"
+    COMMIT = "616ac50e604bc9f8a04aa3ec7bcd7650cea68805"
+
+    @unprivileged
+    def package(self) -> Path:
+        logging.info("Installing usbmount")
+        shutil.rmtree(self.src_dir, ignore_errors=True)
+        self.src_dir.mkdir(parents=True, exist_ok=True)
+        git_checkout(self.URL, self.src_dir, shallow=False)
+        prev_wd = Path.cwd()
+        os.chdir(self.src_dir)
+        run(['git', 'checkout', self.COMMIT], check=True)
+        run(['dpkg-buildpackage', '-us', '-uc', '-b'], check=True)
+        os.chdir(prev_wd)
+        return self.build_dir / 'usbmount_0.0.26_all.deb'
+
+    def test_usbmount(self) -> bool:
+        return Path('/usr/share/usbmount/usbmount').is_file()
+
+    def cleanup(self) -> None:
+        with Unprivileged():
+            shutil.rmtree(self.build_dir, ignore_errors=True)
+        apt_uninstall(["debhelper"])
+
+    def uninstall(self) -> None:
+        apt_uninstall(["usbmount"])
 
 
 class Swap(Action):

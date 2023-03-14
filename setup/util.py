@@ -16,13 +16,13 @@ def unprivileged(uid, gid: Optional[int] = None) -> Callable:
         func = uid
         def inner(*args, **kwargs):
             with Unprivileged():
-                func(*args, **kwargs)
+                return func(*args, **kwargs)
         return inner
     # Called with parameters: @unprivileged(uid, gid)
     def decorate(func):
         def inner(*args, **kwargs):
             with Unprivileged(uid, gid):
-                func(*args, **kwargs)
+                return func(*args, **kwargs)
         return inner
     return decorate
 
@@ -265,25 +265,16 @@ class Config:
             return Path(string).expanduser()
 
 
-class Apt:
+def apt_install(packages: Iterable[str]):
+    logging.info("Installing Debian packages using apt...")
+    cmd = ["apt-get", "install", "--yes"]
+    cmd.extend(packages)
+    run(cmd, check=True)
 
-    def __init__(self, config: Config):
-        self.config = config
-
-    def install(self, packages: Iterable[str]):
-        logging.info("Installing Debian packages using apt...")
-        cmd = ["apt-get", "install", "--yes"]
-        if not self.config.verbose:
-            cmd.append("-qq")
-        cmd.extend(packages)
-        run(cmd, check=True)
-
-    def uninstall(self, packages: Iterable[str]):
-        cmd = ["apt-get", "purge", "--yes"]
-        if not self.config.verbose:
-            cmd.append("-qq")
-        cmd.extend(packages)
-        run(cmd, check=True)
+def apt_uninstall(packages: Iterable[str]):
+    cmd = ["apt-get", "purge", "--yes", "--auto-remove"]
+    cmd.extend(packages)
+    run(cmd, check=True)
 
 
 class PipPkg:

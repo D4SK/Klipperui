@@ -14,11 +14,12 @@ from actions import (
     MonitorConf,
     Cura,
     MjpgStreamer,
+    Usbmount,
     Swap,
     AVRChip,
     ARMChip,
 )
-from util import Config, Apt, Pip
+from util import Config, apt_install, Pip
 
 # Remove HOME environment variable so that path.expanduser
 # works in unprivileged mode
@@ -38,6 +39,7 @@ class Runner:
         MonitorConf,
         Cura,
         MjpgStreamer,
+        Usbmount,
         Swap,
         AVRChip,
         ARMChip,
@@ -71,7 +73,7 @@ class Runner:
         packages = set()
         for a in self.actions:
             packages |= a.apt_depends()
-        Apt(self.config).install(packages)
+        apt_install(packages)
 
     def pre_pip(self) -> None:
         logging.info("PRE-PIP:")
