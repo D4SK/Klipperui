@@ -24,7 +24,8 @@ class LoadCellProbe:
         self._oid = self._mcu.create_oid()
         self._data_completion = None
         self._trigger_completion = None
-        self._overshoot_sample_time = 0.03 # How long to keep measuring after halting the stepper
+        # How long to keep measuring after halting the stepper
+        self._overshoot_sample_time = 0.03
         self._need_data_to = 0
         self.values = deque(maxlen=300)
         self.baseline = []
@@ -50,9 +51,12 @@ class LoadCellProbe:
         s = [-1, -1, -1]
         for i, st in enumerate(self.steppers):
             s[i] = st._oid
-        self._mcu.add_config_cmd(f"config_load_cell_probe oid={self._oid} stepper1={s[0]} stepper2={s[1]} stepper3={s[2]}")
-        self._mcu._serial.register_response(self.trigger, 'load_cell_probe_triggered', self._oid)
-        self.enable_load_cell_trigger_cmd = self._mcu.lookup_command("enable_load_cell_trigger oid=%c enable=%i limit=%i", cq=cmd_queue)
+        self._mcu.add_config_cmd(
+            f"config_load_cell_probe oid={self._oid} stepper1={s[0]} stepper2={s[1]} stepper3={s[2]}")
+        self.enable_load_cell_trigger_cmd = self._mcu.lookup_command(
+            "enable_load_cell_trigger oid=%c enable=%i limit=%i", cq=cmd_queue)
+        self._mcu._serial.register_response(
+            self.trigger, 'load_cell_probe_triggered', self._oid)
 
     def setup_pin(self, pin_type, pin_params):
         return self
@@ -64,9 +68,8 @@ class LoadCellProbe:
 
     def calculate_baseline(self, stop_clock):
         full_data = np.array(self.values)
-        # logging.info(full_data)
         data = full_data[:,1]
-        # remove samples after stop, because the load cell will be under constant tension until retracting
+        # remove samples after stop, because the load cell will be under constant tension
         data = data[full_data[:,0] < stop_clock]
         dev = np.abs(data - np.median(data))
         mdev = np.median(dev)
@@ -75,9 +78,11 @@ class LoadCellProbe:
         new_baseline = np.median(no_outliers)
         noise = np.std(no_outliers)
         if noise > self.noise_limit:
-            self.gcode.respond_info(f"Noise limit for baseline measurement exceeded {noise} > {self.noise_limit}")
+            self.gcode.respond_info(
+                f"Noise limit for baseline measurement exceeded {noise} > {self.noise_limit}")
             return None
-        logging.info(f"got new baseline of {new_baseline} rejected {100*(len(data)-len(no_outliers))/len(data):.0f}% of samples")
+        logging.info(f"Load cell established baseline of {new_baseline} "
+            f"rejected {100*(len(data)-len(no_outliers))/len(data):.0f}% of samples")
         self.baseline.append(new_baseline)
         if len(self.baseline) > 10:
             self.baseline = self.baseline[5:]
@@ -113,13 +118,15 @@ class LoadCellProbe:
             A.append([self._mcu.clock_to_print_time(v[0]), 1])
             y.append(v[1])
             if len(y) > 50:
-                self.gcode.respond_info(f"Linear fit could not distinguish baseline and contact phase")
+                self.gcode.respond_info(
+                    f"Linear fit could not distinguish baseline and contact phase")
                 return None
             if len(y) > 5:
-                x, residual, rank, s = np.linalg.lstsq(np.array(A), y, rcond=-1) # fit a linear function to the force where force = x[0]*t + x[1]
-                logging.info(f"lin fit with {A} and {y} residual {residual}")
-                peakness = (v[1] - baseline)/(values[-(skipped_samples+1)][1] - baseline) # 1 if sample is peak, 0 if sample is baseline
+                # fit a linear function to the force where force = x[0]*t + x[1]
+                x, residual, rank, s = np.linalg.lstsq(np.array(A), y, rcond=-1)
                 assert len(residual), "Numeric error"
+                # 1 if sample is peak, 0 if sample is baseline
+                peakness = (v[1] - baseline)/(values[-(skipped_samples+1)][1] - baseline)
                 added_residual = residual[0] - last_residual
                 if added_residual >= (0.8 + 0.7*peakness)*last_residual/(len(y)-1):
                     break
@@ -127,10 +134,14 @@ class LoadCellProbe:
                 last_x = x
         noise = last_residual/len(y)
         if noise > self.linear_noise_limit2:
-            self.gcode.respond_info(f"Noise limit for linear approximation exceeded {sqrt(noise)} > {sqrt(self.linear_noise_limit2)}")
+            self.gcode.respond_info(f"Noise limit for linear approximation exceeded "
+                f"{sqrt(noise)} > {sqrt(self.linear_noise_limit2)}")
             return None
         t0 = (baseline - last_x[1]) / last_x[0]
-        logging.info(f"sample_count {i-skipped_samples} t0 {t0} t_stop {self._mcu.clock_to_print_time(stop_clock64)} t1 {self._mcu.clock_to_print_time(c1)} residual {last_residual}")
+        logging.info(f"Load cell established contact using {len(y)} samples "
+            f"t0 {t0:.4f} t_stop {self._mcu.clock_to_print_time(stop_clock64):.4f} "
+            f"t1 {self._mcu.clock_to_print_time(c1):.4f} "
+            f"noise {100*sqrt(noise)/self.force_threshold:.1f}")
         return t0
 
     def _adc_callback(self, clock32, value):
@@ -139,13 +150,12 @@ class LoadCellProbe:
         if self._data_completion and clock64 >= self._need_data_to:
             self._data_completion.complete(None)
         if self.manual_query:
-            self.gcode.respond_info(f"Load Cell Value is {value}")
+            self.gcode.respond_info(f"Load cell value is {value}")
 
     def get_offsets(self):
         return 0, 0, 0
 
     def trigger(self, params):
-        logging.info(f"triggered with {params}")
         if self._trigger_completion:
             self._trigger_completion.complete(self._mcu.clock32_to_clock64(params['clock']))
 
@@ -176,7 +186,8 @@ class LoadCellProbe:
     def get_steppers(self):
         return self.steppers
 
-    def home_start(self, print_time, sample_time=None, sample_count=None, rest_time=None, triggered=True, homing=True):
+    def home_start(self, print_time, sample_time=None, sample_count=None,
+                   rest_time=None, triggered=True, homing=True):
         if homing:
             self.baseline = []
         self._adc.query_adc_cmd.send([self._adc.oid, 1, self._oid])
@@ -251,7 +262,7 @@ class ProbePointsHelper:
         toolhead = self.printer.lookup_object('toolhead')
         self.retries += 1
         if self.retries > 5:
-            raise self.printer.command_error("Load Cell Probing failed after 5 Retries")
+            raise self.printer.command_error("Load cell probing failed after 5 retries")
         # Lift toolhead
         toolhead.manual_move([None, None, self.retract_dist], self.retract_speed)
         return self.probing_move()
@@ -287,7 +298,7 @@ class ProbePointsHelper:
         kin_pos = {s.get_name(): s.get_commanded_position() for s in kin.get_steppers()}
         position = list(kin.calc_position(kin_pos))[:3] + toolhead.get_position()[3:]
         toolhead.set_position(position)
-        logging.info(f"trig_pos {trig_pos} trig_kin_pos {trig_kin_pos} trigger_time {trigger_time} move_end_print_time {move_end_print_time} kin_pos {kin_pos} therefore setting position {position}")
+        self.gcode.respond_info(f"Load cell probe triggered at {-position[2]:.3f}mm deflection")
         gcode_move.reset_last_position()
         if error is not None:
             raise self.printer.command_error(error)
