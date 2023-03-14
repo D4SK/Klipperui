@@ -115,6 +115,7 @@ class MainApp(App, threading.Thread):
 
         self.reactor = config.get_reactor()
         self.reactor.register_mp_callback_handler(kivy_callback)
+        self.location = config.location
         self.fd = config.get_printer().get_start_args().get("gcode_fd")
         # Read config
         self.config_pressure_advance = config.getsection('extruder').getfloat("pressure_advance", 0)
@@ -140,7 +141,7 @@ class MainApp(App, threading.Thread):
         self.reactor.cb(printer_cmd.request_event_history)
 
     def clean(self):
-        ndel, freed = freedir(p.sdcard_path)
+        ndel, freed = freedir(self.location.print_files())
         if ndel:
             self.notify.show("Disk space freed", f"Deleted {ndel} files, freeing {freed} MiB")
             self.reactor.cb(printer_cmd.trim_history, process='printer')

@@ -103,12 +103,15 @@ class _UFPReader(metaclass=_UFPMetaClass):
         if virtual_path is None:
             return
         thumbnail_dir = os.path.dirname(self.path) + "/.thumbnails/"
-        if not os.path.exists(thumbnail_dir):
-            os.mkdir(thumbnail_dir)
         thumbnail_path = thumbnail_dir + os.path.basename(self.path) + ".png"
-        with open(thumbnail_path, "wb") as thumbnail_target:
-            thumbnail_target.write(zip_obj.read(virtual_path))
-        self.thumbnail_path = thumbnail_path
+        try:
+            if not os.path.exists(thumbnail_dir):
+                os.mkdir(thumbnail_dir)
+            with open(thumbnail_path, "wb") as thumbnail_target:
+                thumbnail_target.write(zip_obj.read(virtual_path))
+            self.thumbnail_path = thumbnail_path
+        except OSError:
+            logging.exception("Could not write thumbnail")
 
     def _extract_materials(self, zip_obj):
         """

@@ -4,7 +4,9 @@
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
 import logging, time, json
-from os.path import expanduser, exists
+import os
+
+import location
 
 
 class PrintHistory:
@@ -21,7 +23,7 @@ class PrintHistory:
     """
     def __init__(self, config):
         self.printer = config.get_printer()
-        self.history_path = expanduser("~/history.json")
+        self.history_path = location.history()
         self.history = self.read()
         self.trim_history()
         self.printer.register_event_handler("virtual_sdcard:print_end", self.add)
@@ -35,7 +37,7 @@ class PrintHistory:
         history = self.history
         to_remove = []
         for e in history:
-            if not exists(e[0]):
+            if not os.path.exists(e[0]):
                 to_remove.append(e)
         if to_remove != []:
             for e in to_remove:

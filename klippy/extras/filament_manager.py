@@ -13,11 +13,10 @@ import logging
 from math import pi
 from xml.etree import ElementTree
 
+import location
+
 
 class FilamentManager:
-
-    # Contains xml files for each material
-    _default_material_dir = os.path.expanduser('~/materials')
 
     def __init__(self, config):
         self.printer = config.get_printer()
@@ -29,15 +28,14 @@ class FilamentManager:
         self.config_diameter = config.getsection("extruder").getfloat("filament_diameter", 1.75)
 
         # Configure paths
-        self.material_dir = config.get("material_dir", self._default_material_dir)
+        self.material_dir = location.material_dir()
         try:
             os.makedirs(os.path.expanduser(self.material_dir), exist_ok=True)
         except OSError:
             logging.exception(f"Could not create material directory {self.material_dir}")
             logging.error(f"Falling back to {self._default_material_dir}")
             self.material_dir = self._default_material_dir
-        self.loaded_material_path = config.get("loaded_material_path",
-                os.path.join(self.material_dir, "loaded_material.json"))
+        self.loaded_material_path = location.loaded_material()
 
         self.filament_switch_sensor = bool(config.get_prefix_sections("filament_switch_sensor"))
         self.preselected_material = {}
