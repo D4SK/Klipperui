@@ -174,7 +174,7 @@ class Homing:
     def retry_home_rails(self, rails, forcepos, movepos):
         self.retries += 1
         if self.retries > 5:
-            raise self.printer.command_error("Homing Failed after 5 retries")
+            raise self.printer.command_error("Homing failed after 5 retries")
         hi = rails[0].get_homing_info()
         # Retract
         startpos = self._fill_coord(forcepos)
