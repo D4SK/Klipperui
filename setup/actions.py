@@ -344,7 +344,7 @@ Description="Klipper with GUI"
 Type=simple
 User={user}
 Environment=DISPLAY=:0
-ExecStart={python} {srcdir}/klippy/klippy.py -v -l /tmp/klippy.log
+ExecStart={python} {srcdir}/klippy/klippy.py -v
 Nice=-19
 Restart=always
 RestartSec=10

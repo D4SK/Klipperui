@@ -42,6 +42,11 @@ def material_dir():
     os.makedirs(path, exist_ok=True)
     return path
 
+def log_dir():
+    path = os.path.join(data_path(), 'logs')
+    os.makedirs(path, exist_ok=True)
+    return path
+
 #TODO: Thumbnail cache into cache_path()
 
 
