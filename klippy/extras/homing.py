@@ -184,7 +184,6 @@ class Homing:
         retract_r = min(1., hi.retract_dist*4 / move_d)
         retractpos = [hp - ad * retract_r
                         for hp, ad in zip(homepos, axes_d)]
-        logging.info(f"homing retry: retractpos {retractpos} forcepos {forcepos} movepos {movepos}")
         self.toolhead.flush_step_generation()
         self.toolhead.move(retractpos, hi.retract_speed)
         return self.home_rails(rails, forcepos, movepos, first_try=False)
@@ -216,7 +215,6 @@ class Homing:
             retractpos = [hp - ad * retract_r
                           for hp, ad in zip(homepos, axes_d)]
             self.toolhead.move(retractpos, hi.retract_speed)
-            logging.info(f"retracted to {retractpos}")
             # Home again
             startpos = [rp - ad * retract_r
                         for rp, ad in zip(retractpos, axes_d)]
