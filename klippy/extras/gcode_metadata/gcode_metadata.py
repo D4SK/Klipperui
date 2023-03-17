@@ -35,24 +35,25 @@ class MetadataBase:
         cfile = self._cache_file(path)
         if os.path.isfile(cfile):
             try:
-                fp = open(cfile, 'rb')
-                md = pickle.load(fp)
-                return md
+                if os.path.getmtime(path) > os.path.getmtime(cfile):
+                    # Ignore if file is newer than metadata cache
+                    return None
+                with open(cfile, 'rb') as fp:
+                    md = pickle.load(fp)
+                cur_version = type(md)._VERSION + type(md)._SUBCLASS_VERSION
+                if md.__version__ >= cur_version:
+                    return md
+                else:
+                    logging.info("Ignoring cache %s with outdated version %d",
+                                 cfile, md.__version__)
             except:
                 logging.exception("Error while reading metadata cache at %s", cfile)
-                # Delete the file as it is probably an invalid cache
-                try:
-                    os.remove(path)
-                except:
-                    pass
-                return None
-            finally:
-                fp.close()
 
     def write_cache(self, md, path):
         cfile = self._cache_file(path)
         try:
             fp = open(cfile, 'wb')
+            md.__version__ = md._VERSION + md._SUBCLASS_VERSION
             pickle.dump(md, fp)
         except:
             logging.exception("Could not write metadata cache")
@@ -71,9 +72,9 @@ class MetadataBase:
             logging.exception("Could not delete cache file at %s", cfile)
         return False
 
-    def _cache_file(self, path, ext='pickle'):
+    def _cache_file(self, path):
         key = self._cache_key(path)
-        return os.path.join(location.metadata_cache(), key + '.' + ext)
+        return os.path.join(location.metadata_cache(), key + '.pickle')
 
     def _cache_key(self, path):
         """Use the hashed filepath as a cache key"""

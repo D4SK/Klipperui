@@ -53,6 +53,11 @@ def metadata_cache():
     os.makedirs(path, mode=0o700, exist_ok=True)
     return path
 
+def thumbnails():
+    path = os.path.join(cache_path(), 'thumbnails')
+    os.makedirs(path, exist_ok=True)
+    return path
+
 
 class Location:
     """Paths that may depend on configuration"""

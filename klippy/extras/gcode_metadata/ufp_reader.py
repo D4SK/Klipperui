@@ -5,6 +5,7 @@ import xml.etree.ElementTree as ET
 from zipfile import ZipFile
 
 from .base_parser import BaseParser
+import location
 
 _GCODE_PATH = "/3D/model.gcode"
 
@@ -68,7 +69,8 @@ class _UFPReader(metaclass=_UFPMetaClass):
     def __init__(self, path, module, zip_obj, head, tail):
         super(self.__class__, self).__init__(head, tail, path, module)
         self._module = module
-        self._thumbnail_path = self._module._cache_file(self.path, ext='png')
+        cache_key = self._module._cache_key(self.path)
+        self._thumbnail_path = os.path.join(location.thumbnails(), cache_key + '.png')
         self._material_guids = []
         self._relationships = self._get_relationships(zip_obj)
         self._extract_materials(zip_obj)
