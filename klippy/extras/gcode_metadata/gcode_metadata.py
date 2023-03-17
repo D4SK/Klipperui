@@ -14,8 +14,12 @@ The returned metadata object is picklable and all of its methods are called
 locally. The filament_manager calls are handled specially by MPMetadata.
 """
 
+import hashlib
 import logging
 import os
+import pickle
+
+import location
 
 from .ufp_reader import create_ufp_reader
 
@@ -23,19 +27,71 @@ from .base_parser import BaseParser
 from .cura_marlin_parser import CuraMarlinParser
 from .prusaslicer_parser import PrusaSlicerParser
 
-class GCodeMetadata:
+
+class MetadataBase:
+
+    def get_cached(self, path):
+        #TODO: Compare mtimes
+        cfile = self._cache_file(path)
+        if os.path.isfile(cfile):
+            try:
+                fp = open(cfile, 'rb')
+                md = pickle.load(fp)
+                return md
+            except:
+                logging.exception("Error while reading metadata cache at %s", cfile)
+                # Delete the file as it is probably an invalid cache
+                try:
+                    os.remove(path)
+                except:
+                    pass
+                return None
+            finally:
+                fp.close()
+
+    def write_cache(self, md, path):
+        cfile = self._cache_file(path)
+        try:
+            fp = open(cfile, 'wb')
+            pickle.dump(md, fp)
+        except:
+            logging.exception("Could not write metadata cache")
+        finally:
+            fp.close()
+
+    def delete_cache_entry(self, path):
+        cfile = self._cache_file(path)
+        try:
+            os.remove(cfile)
+            logging.debug("Deleted metadata cache for %s at %s", path, cfile)
+            return True
+        except FileNotFoundError:
+            logging.info("Trying to delete non-existing cache file %s", cfile)
+        except OSError:
+            logging.exception("Could not delete cache file at %s", cfile)
+        return False
+
+    def _cache_file(self, path, ext='pickle'):
+        key = self._cache_key(path)
+        return os.path.join(location.metadata_cache(), key + '.' + ext)
+
+    def _cache_key(self, path):
+        """Use the hashed filepath as a cache key"""
+        path = os.path.abspath(path)
+        hasher = hashlib.sha1()
+        hasher.update(path.encode())
+        return hasher.hexdigest()
+
+
+class GCodeMetadata(MetadataBase):
 
     _parsers = [CuraMarlinParser,
                 PrusaSlicerParser,
     ]
 
     def __init__(self, config):
-        # Map paths to metadata objects to cache already parsed files
-        self._md_cache = {}
-
         self.filament_manager = None
         self.config = config
-        self.reactor = config.reactor
         self.printer = config.get_printer()
         self.printer.register_event_handler(
                 "klippy:connect", self._handle_connect)
@@ -51,29 +107,14 @@ class GCodeMetadata:
         if self.filament_manager:
             return self.filament_manager.get_info(material, xpath)
 
-    def delete_cache_entry(self, path):
-        """Delete a single metadata object from the cache"""
-        if path in self._md_cache:
-            del self._md_cache[path]
-            logging.debug("Deleted %s from metadata cache", path)
-            self.reactor.send_event("gcode_metadata:invalidate_cache", path)
-
-    def flush_cache(self):
-        """
-        Delete all cached metadata objects, forcing all files to be
-        reparsed in the future.
-        """
-        self._md_cache.clear()
-        logging.debug("Deleted metadata cache")
-        self.reactor.send_event("gcode_metadata:invalidate_cache")
-
     def get_metadata(self, path):
         """
         This is the main method of the module that returns a metadata
         object for the given gcode path. UFP files are also accepted.
         """
-        if path in self._md_cache:
-            return self._md_cache[path]
+        cached = self.get_cached(path)
+        if cached is not None:
+            return cached
 
         ext = os.path.splitext(path)[1]
         if ext in {".gco", ".gcode"}:
@@ -82,7 +123,7 @@ class GCodeMetadata:
             metadata = create_ufp_reader(path, self)
         else:
             raise ValueError(f"File must be either gcode or ufp file, not {ext}")
-        self._md_cache[path] = metadata
+        self.write_cache(metadata, path)
         return metadata
 
     def _parse_gcode(self, path):
@@ -176,34 +217,20 @@ class GCodeMetadata:
         return tail
 
 
-class MPMetadata:
+class MPMetadata(MetadataBase):
     """Module class used in unpickled metadata objects that calls
     filament_manager.get_info in printer process.
     """
 
     def __init__(self, config):
-        # Map paths to metadata objects to cache already parsed files for this
-        # process specifically
-        self._md_cache = {}
-
         self.reactor = config.reactor
-        self.reactor.register_event_handler("gcode_metadata:invalidate_cache",
-                self.flush_local_cache)
-
-    def flush_local_cache(self, path=None):
-        if path is not None:
-            try:
-                del self._md_cache[path]
-            except KeyError:
-                pass
-        else:
-            self._md_cache.clear()
 
     def get_metadata(self, path):
-        if path in self._md_cache:
-            return self._md_cache[path]
+        cached = self.get_cached(path)
+        if cached is not None:
+            return cached
+        # Remote process takes care of writing the cache
         md = self.reactor.cb(self._obtain_md, path, wait=True)
-        self._md_cache[path] = md
         return md
 
     @staticmethod
@@ -213,30 +240,12 @@ class MPMetadata:
 
     def get_material_info(self, material, xpath):
         self.reactor.cb(self._obtain_material_info, material, xpath, wait=True)
+
     @staticmethod
     def _obtain_material_info(e, printer, material, xpath):
         fm = printer.lookup_object('filament_manager', None)
         if fm:
             return fm.get_info(material, xpath)
-
-    # The following functions operate on the cache in the main process
-    # The local cache is updated immediately as well instead of waiting for the
-    # event, which gets handled later as well.
-    def delete_cache_entry(self, path):
-        self.reactor.cb(self._delete_cache_entry, path)
-        self.flush_local_cache(path)
-    @staticmethod
-    def _delete_cache_entry(e, printer, path):
-        gcode_metadata = printer.lookup_object('gcode_metadata')
-        gcode_metadata.delete_cache_entry(path)
-
-    def flush_cache(self):
-        self.reactor.cb(self._flush_cache)
-        self.flush_local_cache()
-    @staticmethod
-    def _flush_cache(e, printer):
-        gcode_metadata = printer.lookup_object('gcode_metadata')
-        gcode_metadata.flush_cache()
 
 
 def load_config(config):

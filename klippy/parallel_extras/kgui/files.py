@@ -128,9 +128,10 @@ class FilechooserItem(RecycleDataViewBehavior, Label):
         gcmd = app.gcode_metadata
         if gcmd:
             path = data['path']
-            if path in gcmd._md_cache:
+            cached = gcmd.get_cached(path)
+            if cached is not None:
                 # Use cached metadata directly
-                self.update_md(md=gcmd._md_cache[path])
+                self.update_md(md=cached)
             else:
                 # Get metadata from printer process, update when ready
                 app.reactor.cb(gcmd._obtain_md, data['path'],
@@ -141,8 +142,6 @@ class FilechooserItem(RecycleDataViewBehavior, Label):
         The arguments waketime and kgui are provided by mainapp.kivy_callback,
         but are not used"""
         path = md.get_path()
-        # Add metadata to process-local cache
-        App.get_running_app().gcode_metadata._md_cache[path] = md
         # Don't proceed if this widget already points to a different file
         if path == self.path:
             weight = md.get_material_amount(measure="weight")

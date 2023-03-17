@@ -226,7 +226,7 @@ class DeletePopup(BasePopup):
         app.reactor.cb(printer_cmd.trim_history)
         if self.filechooser:
             self.filechooser.load_files(in_background=True)
-        # Clear file form the metadata cache
+        # Clear file from the metadata cache
         if app.gcode_metadata:
             app.gcode_metadata.delete_cache_entry(self.path)
         self.dismiss()
