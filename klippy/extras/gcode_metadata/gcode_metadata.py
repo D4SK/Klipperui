@@ -15,9 +15,12 @@ locally. The filament_manager calls are handled specially by MPMetadata.
 """
 
 import hashlib
+import itertools
 import logging
 import os
 import pickle
+import threading
+import time
 
 import location
 
@@ -96,9 +99,13 @@ class GCodeMetadata(MetadataBase):
         self.printer = config.get_printer()
         self.printer.register_event_handler(
                 "klippy:connect", self._handle_connect)
+        self.max_cache_age = self.config.getfloat("max_cache_age", 180)  # Days
+        self.max_cache_size = self.config.getfloat("max_cache_size", 128) # MiB
         extruder_config = self.config.getsection("extruder")
         self.config_diameter = extruder_config.getfloat(
                 "filament_diameter", None)
+        # Timestamp of last time the prune_cache was called
+        self.last_cache_check = 0
 
     def _handle_connect(self):
         self.filament_manager = self.printer.lookup_object(
@@ -125,7 +132,46 @@ class GCodeMetadata(MetadataBase):
         else:
             raise ValueError(f"File must be either gcode or ufp file, not {ext}")
         self.write_cache(metadata, path)
+        self.prune_cache()
         return metadata
+
+    def prune_cache(self):
+        # Prune at at most once an hour
+        now = time.time()
+        if now - self.last_cache_check < 60 * 60:
+            return
+        self.last_cache_check = now
+        thread = threading.Thread(target=self._prune_cache_thread,
+                                  name="Prune-Cache-Thread")
+        thread.start()
+
+    def _prune_cache_thread(self):
+        os.nice(30)
+        logging.info("Pruning cache files...")
+        max_age = 60 * 60 * 24 * self.max_cache_age
+        max_size = 1024 * 1024 * self.max_cache_size
+        with os.scandir(location.metadata_cache()) as dir_md, \
+             os.scandir(location.thumbnails()) as dir_tn:
+            files = [dirent for dirent in itertools.chain(dir_md, dir_tn)
+                     if dirent.is_file(follow_symlinks=False)]
+        # Sort by newest first
+        files.sort(key=lambda e: e.stat().st_mtime, reverse=True)
+        size = 0
+        min_time = time.time() - max_age
+        delete_from = len(files)
+        for i, dirent in enumerate(files):
+            stat = dirent.stat()
+            size += stat.st_size
+            if size > max_size or stat.st_mtime < min_time:
+                delete_from = i
+                break
+        for dirent in files[delete_from:]:
+            path = dirent.path
+            try:
+                os.remove(path)
+                logging.debug("Pruned cache file %s", path)
+            except OSError:
+                logging.exception("Could not delete cache file %s", path)
 
     def _parse_gcode(self, path):
         """
