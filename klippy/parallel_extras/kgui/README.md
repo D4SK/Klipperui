@@ -1,4 +1,4 @@
-# kgui the touch UI for klippo
+# kgui is the touch UI for klippo
 # Compatibility
 * Raspberry pi 4
 * Most touchscreens compatible with the raspberry pi
