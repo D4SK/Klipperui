@@ -180,9 +180,6 @@ class LoadCellProbe:
     def add_stepper(self, stepper):
         pass
 
-    def get_position_endstop(self):
-        return 0
-
     def get_steppers(self):
         return self.steppers
 
