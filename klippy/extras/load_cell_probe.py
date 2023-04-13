@@ -119,7 +119,7 @@ class LoadCellProbe:
             y.append(v[1])
             if len(y) > 50:
                 self.gcode.respond_info(
-                    f"Linear fit could not distinguish baseline and contact phase")
+                    "Linear fit could not distinguish baseline and contact phase")
                 return None
             if len(y) > 5:
                 # fit a linear function to the force where force = x[0]*t + x[1]
