@@ -16,10 +16,10 @@ class LoadCellProbe:
         self.reactor = self.printer.get_reactor()
         self.gcode = self.printer.lookup_object('gcode')
 
-        pin_name = config.get('adc')
+        pin_name = config.get('adc_pin')
         ppins = self.printer.lookup_object('pins')
         ppins.register_chip('load_cell_probe', self)
-        self._adc = ppins.setup_pin('adc', pin_name)
+        self._adc = ppins.setup_pin('load_cell_adc', pin_name)
         self._mcu = self._adc.mcu
         self._oid = self._mcu.create_oid()
         self._data_completion = None
