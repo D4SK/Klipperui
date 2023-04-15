@@ -1264,7 +1264,7 @@ endstop_pin: load_cell_probe:z_virtual_endstop
 
 ```
 [load_cell_probe]
-adc: my_load_cell:None
+adc_pin: my_load_cell:None
 #   Specify a load cell ADC. This uses the usual syntax of mcu:pin
 #   for the 'mcu' specify a configured load cell adc.
 force_threshold: 70000
