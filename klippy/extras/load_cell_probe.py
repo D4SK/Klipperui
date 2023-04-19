@@ -291,7 +291,7 @@ class ProbePointsHelper:
         for s in self.lcp.steppers:
             s.note_load_cell_probing_end()
             trig_kin_pos[s.get_name()] = s.mcu_to_commanded_position(s.get_past_mcu_position(trigger_time))
-        trig_pos = self.probe_points[len(self.results)] + (kin.calc_position(trig_kin_pos)[2],)
+        trig_pos = list(self.probe_points[len(self.results)]) + [kin.calc_position(trig_kin_pos)[2]]
         kin_pos = {s.get_name(): s.get_commanded_position() for s in kin.get_steppers()}
         position = list(kin.calc_position(kin_pos))[:3] + toolhead.get_position()[3:]
         toolhead.set_position(position)
