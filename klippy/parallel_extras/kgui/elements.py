@@ -265,15 +265,15 @@ class UltraSlider(Widget):
     The conversion methods get_px_from_val() and get_val_from_px()
     can be safely overwritten by inheritors for nonlinear conversion.
     """
-    buttons = ListProperty()  #list of lists: e.g. [[val,offset,"name",the instance]]
-    val = NumericProperty() #value, passed to printer, not in px
+    buttons = ListProperty() # list of lists: e.g. [[val,offset,"name",the instance]]
+    val = NumericProperty() # value, passed to printer, not in px
     val_min = NumericProperty(0)
     val_max = NumericProperty(100)
     unit = StringProperty()
     round_to = NumericProperty()
     round_style = NumericProperty(1)
-    px = NumericProperty() #absolute position of dot in px
-    disp = StringProperty() #value displayed by label
+    px = NumericProperty() # absolute position of dot in px
+    disp = StringProperty() # value displayed by label
     pressed = BooleanProperty(False)
     changed = BooleanProperty(False)
     initialized = BooleanProperty(False)
@@ -369,10 +369,6 @@ class UltraSlider(Widget):
         """ Returns string of the value and the given unit string """
         dec = max(0, self.round_to)
         return f"{val:.{dec}f}{self.unit}"
-
-
-# class UltraOffsetSlider(UltraSlider):
-#     pass
 
 
 class UltraKeyboard(VKeyboard):
