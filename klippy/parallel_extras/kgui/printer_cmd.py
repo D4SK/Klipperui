@@ -24,23 +24,6 @@ def reset_tuning(e, printer):
     reset_pressure_advance(e, printer)
     update(e, printer)
 
-
-def clear_buildplate(e, printer):
-    printer.lookup_object('virtual_sdcard').clear_buildplate()
-
-def get_collision_config(e, printer):
-    continuous_printing, reposition = printer.lookup_object('collision').get_config()
-    printer.reactor.cb(set_attribute, 'continuous_printing', continuous_printing, process='kgui')
-    printer.reactor.cb(set_attribute, 'reposition', reposition, process='kgui')
-
-    condition = printer.lookup_object('filament_manager').material_condition
-    printer.reactor.cb(set_attribute, 'material_condition', condition, process='kgui')
-
-def set_collision_config(e, printer, continuous, reposition, condition):
-    printer.lookup_object('collision').set_config(continuous, reposition)
-    printer.lookup_object('filament_manager').set_config(material_condition=condition)
-
-
 def get_z_offset(e, printer):
     z_offset = printer.objects['gcode_move'].homing_position[2]
     printer.reactor.cb(set_attribute, 'z_offset', z_offset, process='kgui')
@@ -229,6 +212,20 @@ def set_print_progress(e, kgui, est_remaining, progress):
                 kgui.print_done_time = done.strftime("tomorrow %-H:%M")
             else:
                 kgui.print_done_time = done.strftime("%a %-H:%M")
+
+def clear_buildplate(e, printer):
+    printer.lookup_object('virtual_sdcard').clear_buildplate()
+
+def get_collision_config(e, printer):
+    continuous_printing, reposition = printer.lookup_object('collision').get_config()
+    printer.reactor.cb(set_attribute, 'continuous_printing', continuous_printing, process='kgui')
+    printer.reactor.cb(set_attribute, 'reposition', reposition, process='kgui')
+    condition = printer.lookup_object('filament_manager').material_condition
+    printer.reactor.cb(set_attribute, 'material_condition', condition, process='kgui')
+
+def set_collision_config(e, printer, continuous, reposition, condition):
+    printer.lookup_object('collision').set_config(continuous, reposition)
+    printer.lookup_object('filament_manager').set_config(material_condition=condition)
 
 def get_material(e, printer):
     fm = printer.lookup_object('filament_manager', None)

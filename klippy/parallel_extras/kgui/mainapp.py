@@ -2,7 +2,7 @@ import logging
 import threading
 import os
 import traceback
-from os.path import join, dirname
+from os.path import join
 from subprocess import Popen
 
 os.environ['KIVY_NO_CONSOLELOG'] = '1'  # Only use file logging
@@ -11,16 +11,9 @@ os.environ['KIVY_NO_ARGS'] = '1'  # Disable kivy argument parsing
 
 from kivy.config import Config
 
-TESTING = "KGUI_TESTING" in os.environ
-
-# Read custom Kivy config. This needs an absolute path otherwise
-# config will only be loaded when working directory is the parent directory
-if TESTING:
-    Config.read(join(dirname(__file__), "config_test.ini"))
-else:
-    os.environ['KIVY_WINDOW'] = 'sdl2'
-    os.environ['KIVY_GL_BACKEND'] = 'sdl2'
-    os.environ['KIVY_METRICS_DENSITY'] = str(Config.getint('graphics', 'width')/600)
+os.environ['KIVY_WINDOW'] = 'sdl2'
+os.environ['KIVY_GL_BACKEND'] = 'sdl2'
+os.environ['KIVY_METRICS_DENSITY'] = str(Config.getint('graphics', 'width')/600)
 
 from kivy import kivy_data_dir
 from kivy.app import App
@@ -106,13 +99,6 @@ class MainApp(App, threading.Thread):
         self.gcode_metadata = config.get_printer().load_object(config, "gcode_metadata")
         self.temp = {'extruder': [0,0], 'extruder1': [0,0], 'heater_bed': [0,0]}
         self.kv_file = join(p.kgui_dir, "kv/main.kv") # Tell kivy where the root kv file is
-
-        if TESTING:
-            self.xy_homing_controls = True
-            self.extruder_count = 2
-            self.reactor = None
-            return super().__init__(**kwargs)
-
         self.reactor = config.get_reactor()
         self.reactor.register_mp_callback_handler(kivy_callback)
         self.fd = config.get_printer().get_start_args().get("gcode_fd")
@@ -292,11 +278,10 @@ def kivy_callback(*args, **kwargs):
 # Catch KGUI exceptions and display popups
 class PopupExceptionHandler(ExceptionHandler):
     def handle_exception(self, exception):
-        if not TESTING:
-            tr = ''.join(traceback.format_tb(exception.__traceback__))
-            App.get_running_app().handle_critical_error(tr + "\n\n" + repr(exception))
-            logging.exception("UI-Exception, popup invoked")
-            return ExceptionManager.PASS
+        tr = ''.join(traceback.format_tb(exception.__traceback__))
+        App.get_running_app().handle_critical_error(tr + "\n\n" + repr(exception))
+        logging.exception("UI-Exception, popup invoked")
+        return ExceptionManager.PASS
 
 def handle_exception_in_thread(exception):
     app = App.get_running_app()
