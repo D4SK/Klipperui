@@ -178,7 +178,7 @@ class Handler(srv.BaseHTTPRequestHandler):
             self.end_headers()
 
     @staticmethod
-    def read_material_file(e, printer, path):
+    def read_material_file(printer, path):
         fm = printer.objects['filament_manager']
         # Invalidate XML tree cache
         fm.cached_parse.cache_clear()

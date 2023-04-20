@@ -32,7 +32,7 @@ class ContentManager:
         self.materials = self.reactor.cb(self.obtain_material, process='printer', wait=True)
 
     @staticmethod
-    def obtain_material(e, printer):
+    def obtain_material(printer):
         """
         Add to the list of local materials.
         Must be called later so that filament_manager is available.
@@ -89,7 +89,7 @@ class ContentManager:
         self.printer_status.status = "printing"
 
     @staticmethod
-    def obtain_loaded_material(e, printer):
+    def obtain_loaded_material(printer):
         fm = printer.objects['filament_manager']
         loaded_materials = fm.material["loaded"]
         materials = []
@@ -106,9 +106,9 @@ class ContentManager:
         return materials
 
     @classmethod
-    def obtain_material_printjobs(cls, e, printer):
-        materials = cls.obtain_loaded_material(e, printer)
-        printjobs = cls.obtain_print_jobs(e, printer)
+    def obtain_material_printjobs(cls, printer):
+        materials = cls.obtain_loaded_material(printer)
+        printjobs = cls.obtain_print_jobs(printer)
         return materials, printjobs
 
     def update_printers(self):
@@ -130,17 +130,17 @@ class ContentManager:
             self.printer_status.status = "idle"
 
     @staticmethod
-    def obtain_print_jobs(e, printer):
+    def obtain_print_jobs(printer):
         return printer.objects['virtual_sdcard'].get_status()['jobs']
 
     @staticmethod
-    def obtain_remaining_time(e, printer):
+    def obtain_remaining_time(printer):
         return printer.objects['print_stats'].get_print_time_prediction()[0]
 
     @classmethod
-    def obtain_printjobs_time(cls, e, printer):
-        time = cls.obtain_remaining_time(e, printer)
-        printjobs = cls.obtain_print_jobs(e, printer)
+    def obtain_printjobs_time(cls, printer):
+        time = cls.obtain_remaining_time(printer)
+        printjobs = cls.obtain_print_jobs(printer)
         return printjobs, time
 
     def update_print_jobs(self):

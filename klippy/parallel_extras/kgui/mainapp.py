@@ -263,10 +263,10 @@ class MainApp(App, threading.Thread):
 
 
 def run_callback(reactor, callback, completion_id, waiting_process, *args, **kwargs):
-    res = callback(reactor.monotonic(), reactor.root, *args, **kwargs)
+    logging.info(f"cb {callback} args {args} kwargs {kwargs}")
+    res = callback(reactor.root, *args, **kwargs)
     if waiting_process:
-        reactor.cb(reactor.mp_complete, completion_id, res,
-                   process=waiting_process, execute_in_reactor=True)
+        reactor.cb(reactor.mp_complete, completion_id, res, process=waiting_process, execute_in_reactor=True)
 
 def kivy_callback(*args, **kwargs):
     Clock.schedule_del_safe(lambda: run_callback(*args, **kwargs))

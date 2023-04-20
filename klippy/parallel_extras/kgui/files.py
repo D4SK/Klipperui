@@ -138,10 +138,9 @@ class FilechooserItem(RecycleDataViewBehavior, Label):
                 app.reactor.cb(gcmd._obtain_md, data['path'],
                                completion=self.update_md)
 
-    def update_md(self, waketime=0, kgui=None, md=None):
+    def update_md(self, kgui=None, md=None):
         """Set thumbnail and details once metadata has been generated
-        The arguments waketime and kgui are provided by mainapp.kivy_callback,
-        but are not used"""
+        The argument kgui is provided by mainapp.kivy_callback, but not used"""
         path = md.get_path()
         # Add metadata to process-local cache
         App.get_running_app().gcode_metadata._md_cache[path] = md

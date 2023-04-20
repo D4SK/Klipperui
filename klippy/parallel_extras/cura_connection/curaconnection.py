@@ -106,34 +106,6 @@ class CuraConnectionModule:
         return (self.server is not None and
                 time.time() - self.server.last_request < self.CONNECTION_TIMEOUT)
 
-    @staticmethod
-    def add_print(e, printer, path):
-        # If the last print ended at least 10 minutes (600 seconds) ago,
-        # assume the buildplate is clear
-        return printer.objects['virtual_sdcard'].add_print(
-                path, assume_clear_after=600, no_material_check_when_first=True)
-
-    @staticmethod
-    def resume_print(e, printer, uuid):
-        return printer.objects['virtual_sdcard'].resume_print()
-
-    @staticmethod
-    def pause_print(e, printer, uuid):
-        return printer.objects['virtual_sdcard'].pause_print()
-
-    @staticmethod
-    def stop_print(e, printer, uuid):
-        return printer.objects['virtual_sdcard'].stop_print()
-
-    @staticmethod
-    def queue_delete(e, printer, index, uuid):
-        """Delete the print job from the queue"""
-        return printer.objects['virtual_sdcard'].remove_print(index, uuid)
-
-    @staticmethod
-    def queue_move(e, printer, index, uuid, move):
-        return printer.objects['virtual_sdcard'].move_print(index, uuid, move)
-
     def get_thumbnail_path(self, index, filename):
         """Return the thumbnail path for the specified print"""
         md = self.metadata.get_metadata(self.content_manager.klippy_jobs[index].path)
@@ -143,7 +115,35 @@ class CuraConnectionModule:
         return path
 
     @staticmethod
-    def load_object(e, printer, object_name):
+    def add_print(printer, path):
+        # If the last print ended at least 10 minutes (600 seconds) ago,
+        # assume the buildplate is clear
+        return printer.objects['virtual_sdcard'].add_print(
+                path, assume_clear_after=600, no_material_check_when_first=True)
+
+    @staticmethod
+    def resume_print(printer, uuid):
+        return printer.objects['virtual_sdcard'].resume_print()
+
+    @staticmethod
+    def pause_print(printer, uuid):
+        return printer.objects['virtual_sdcard'].pause_print()
+
+    @staticmethod
+    def stop_print(printer, uuid):
+        return printer.objects['virtual_sdcard'].stop_print()
+
+    @staticmethod
+    def queue_delete(printer, index, uuid):
+        """Delete the print job from the queue"""
+        return printer.objects['virtual_sdcard'].remove_print(index, uuid)
+
+    @staticmethod
+    def queue_move(printer, index, uuid, move):
+        return printer.objects['virtual_sdcard'].move_print(index, uuid, move)
+
+    @staticmethod
+    def load_object(printer, object_name):
         klipper_config = printer.objects['configfile'].read_main_config()
         printer.load_object(klipper_config, object_name)
 

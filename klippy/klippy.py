@@ -356,7 +356,7 @@ class ExtraProcess:
             "/tmp/" + self.name.split()[-1] + ".log", debuglevel)
 
     @staticmethod
-    def _report_access_tracking(e, printer, section, access_tracking):
+    def _report_access_tracking(printer, section, access_tracking):
         logging.debug("Receiving config access tracking from %s", section)
         printer.parallel_objects[section].completion.complete(access_tracking)
 

@@ -77,13 +77,12 @@ def mp_callback(reactor, callback, *args, **kwargs):
     if threading.get_ident() == reactor.thread_id:
         # Most of the time this will be called from the reactor thread,
         # avoid the overhead of register_async_callback in that case.
-        run_mp_callback(reactor.monotonic(), reactor, callback, *args, **kwargs)
+        run_mp_callback(None, reactor, callback, *args, **kwargs)
     else:
-        reactor.register_async_callback(run_mp_callback,
-                reactor, callback, *args, **kwargs)
+        reactor.register_async_callback(run_mp_callback, reactor, callback, *args, **kwargs)
 
-def run_mp_callback(e, reactor, callback, completion_id, waiting_process, *args, **kwargs):
-    res = callback(e, reactor.root, *args, **kwargs)
+def run_mp_callback(eventtime, reactor, callback, completion_id, waiting_process, *args, **kwargs):
+    res = callback(reactor.root, *args, **kwargs)
     if waiting_process:
         reactor.cb(reactor.mp_complete, completion_id, res,
             process=waiting_process, execute_in_reactor=True)
@@ -242,7 +241,7 @@ class SelectReactor:
         if completion:
             return mp_completion
     @staticmethod
-    def mp_complete(e, root, reference, result):
+    def mp_complete(root, reference, result):
         completion = root.reactor._mp_completions.pop(reference)
         completion.complete(result)
     # Asynchronous (from another thread) callbacks and completions
@@ -395,7 +394,7 @@ class SelectReactor:
     def send_event(self, event, *params):
         for process in self.mp_queues:
             self.cb(self.run_event, event, params, process=process)
-        return self.run_event(None, self.root, event, params)
+        return self.run_event(self.root, event, params)
     def send_event_wait(self, event, *params, check_status=None):
         # Start event handlers in other processes
         completions = [self.cb(self.run_event, event, params, completion=True, process=process)
@@ -412,7 +411,7 @@ class SelectReactor:
         for completion in completions:
             completion.wait()
     @staticmethod
-    def run_event(e, root, event, params):
+    def run_event(root, event, params):
         if root.reactor.event_history != None:
             root.reactor.event_history.append((event, params))
         return [cb(*params) for cb in root.reactor.event_handlers.get(event, [])]

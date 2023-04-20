@@ -207,14 +207,14 @@ class MPMetadata:
         return md
 
     @staticmethod
-    def _obtain_md(e, printer, path):
+    def _obtain_md(printer, path):
         gcode_metadata = printer.lookup_object('gcode_metadata')
         return gcode_metadata.get_metadata(path)
 
     def get_material_info(self, material, xpath):
         self.reactor.cb(self._obtain_material_info, material, xpath, wait=True)
     @staticmethod
-    def _obtain_material_info(e, printer, material, xpath):
+    def _obtain_material_info(printer, material, xpath):
         fm = printer.lookup_object('filament_manager', None)
         if fm:
             return fm.get_info(material, xpath)
@@ -226,7 +226,7 @@ class MPMetadata:
         self.reactor.cb(self._delete_cache_entry, path)
         self.flush_local_cache(path)
     @staticmethod
-    def _delete_cache_entry(e, printer, path):
+    def _delete_cache_entry(printer, path):
         gcode_metadata = printer.lookup_object('gcode_metadata')
         gcode_metadata.delete_cache_entry(path)
 
@@ -234,7 +234,7 @@ class MPMetadata:
         self.reactor.cb(self._flush_cache)
         self.flush_local_cache()
     @staticmethod
-    def _flush_cache(e, printer):
+    def _flush_cache(printer):
         gcode_metadata = printer.lookup_object('gcode_metadata')
         gcode_metadata.flush_cache()
 
