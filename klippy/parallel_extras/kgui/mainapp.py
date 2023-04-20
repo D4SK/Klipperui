@@ -263,7 +263,6 @@ class MainApp(App, threading.Thread):
 
 
 def run_callback(reactor, callback, completion_id, waiting_process, *args, **kwargs):
-    logging.info(f"cb {callback} args {args} kwargs {kwargs}")
     res = callback(reactor.root, *args, **kwargs)
     if waiting_process:
         reactor.cb(reactor.mp_complete, completion_id, res, process=waiting_process, execute_in_reactor=True)
