@@ -85,8 +85,6 @@ class MainApp(App, threading.Thread):
     acceleration_factor = NumericProperty(100)
     pressure_advance = NumericProperty(0)
     # Config
-    config_pressure_advance = NumericProperty(0)
-    config_acceleration = NumericProperty(0)
     continuous_printing = BooleanProperty(False)
     reposition = BooleanProperty(False)
     material_condition = StringProperty("")
@@ -103,8 +101,6 @@ class MainApp(App, threading.Thread):
         self.reactor.register_mp_callback_handler(kivy_callback)
         self.fd = config.get_printer().get_start_args().get("gcode_fd")
         # Read config
-        self.config_pressure_advance = config.getsection('extruder').getfloat("pressure_advance", 0)
-        self.config_acceleration = config.getsection('printer').getfloat("max_accel", 0)
         self.xy_homing_controls = config.getboolean('xy_homing_controls', True)
         self.filament_diameter = config.getsection("extruder").getfloat("filament_diameter", 1.75)
         self.led_controls = config.get('led_controls', None)
