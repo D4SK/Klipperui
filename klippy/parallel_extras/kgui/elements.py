@@ -506,3 +506,17 @@ class UltraKeyboard(VKeyboard):
                 pos, size = layout_geometry['LINE_%d' % line_nb][index]
                 RoundedRectangle(pos=pos, size=size, radius=(p.key_radius,))
         #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+    def collide_margin(self, x, y):
+        '''Do a collision test, and return True if the (x, y) is inside the
+        vkeyboard margin.
+        '''
+        #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+        # the original implementation doesnt consider the margin part of
+        # the keyboard, causing it to close when pressed on the edge
+        x_hint = x / self.width
+        y_hint = y / self.height
+        if x_hint >= 0 and x_hint <= 1. and y_hint >= 0 and y_hint <= 1.:
+            return False
+        return True
+        #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
