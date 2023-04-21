@@ -187,7 +187,7 @@
         size_hint: None, None
         width: root.width - 2*p.padding
         pos_hint: {'center_x': 0.5}
-        y: (0.34-0.02)*p.screen_height - p.tab_height + p.padding # Keyboard height is 0.34 (style.kv)
+        y: (0.36-0.02)*p.screen_height - p.tab_height + p.padding # Keyboard height is 0.36 (style.kv)
 
 <ContinuousPrintingScreen>:
     name: "ContinuousPrintingScreen"
@@ -675,6 +675,7 @@
 <PasswordPopup>:
     txt_input: pwd_input
     size_hint: 0.87, 0.32
+    pos_hint: {'center_y': 0.57}
     FloatLayout:
         Label:
             text: 'Password'
@@ -874,6 +875,7 @@
 <HostnamePopup>:
     txt_input: hostname_input
     size_hint: 0.87, 0.32
+    pos_hint: {'center_y': 0.57}
     title: "Change Hostname"
     FloatLayout:
         HostnameTextInput:

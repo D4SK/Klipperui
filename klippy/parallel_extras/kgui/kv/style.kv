@@ -4,16 +4,12 @@
 <VKeyboard>:
     # Use local keyboard json instead of system default
     layout_path: p.kgui_dir
-    size_hint: 1, 0.34
+    size_hint: 1, 0.36
     # Space on outside of keyboard
     margin_hint: 0, 0, 0, 0
     # Distance between keys (top, right, bottom, left)
     key_margin: 6, 6, 6, 6
-    background: p.kgui_dir+'/logos/transparent.png'
-    #background_color: 0.1, 0.3, 0.1, 1
-    key_background_normal: p.kgui_dir+'/logos/keyboard_key_normal.png'
-    key_background_down: p.kgui_dir+'/logos/keyboard_key_down.png'
-    #key_background_color: p.translucent_white
+
     canvas:
         Color:
             rgba: p.background

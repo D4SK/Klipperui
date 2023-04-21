@@ -13,6 +13,8 @@ from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.vkeyboard import VKeyboard
 from kivy.uix.widget import Widget
+from kivy.graphics.context_instructions import Color
+from kivy.graphics.vertex_instructions import RoundedRectangle
 
 from . import parameters as p
 from . import printer_cmd
@@ -372,7 +374,7 @@ class UltraSlider(Widget):
 
 
 class UltraKeyboard(VKeyboard):
-    # Copy of VKeyboard, only overwrite two methods
+    # Copy of VKeyboard, only overwrite these methods
     # Changed parts marked with <<<<<<<<>>>>>>>>>
 
     def process_key_on(self, touch):
@@ -454,10 +456,53 @@ class UltraKeyboard(VKeyboard):
             self.active_keys.pop(uid, None)
             if special_char == 'shift':
                 self.have_shift = False
-            ##############################<<<<<<<<<<<<<<<<<<<<<<<
+            #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
             elif special_char == 'special' and self.have_special:
                 self.active_keys[-2] = key
             #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
             if special_char == 'capslock' and self.have_capslock:
                 self.active_keys[-1] = key
             self.refresh_active_keys_layer()
+
+    def draw_keys(self):
+        layout = self.available_layouts[self.layout]
+        layout_rows = layout['rows']
+        layout_geometry = self.layout_geometry
+        layout_mode = self.layout_mode
+
+        #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+        self.background_key_layer.clear()
+        with self.background_key_layer:
+            Color(*p.background)
+            RoundedRectangle(size=self.size, radius=(p.key_radius,))
+
+        with self.background_key_layer:
+            Color(*p.key)
+            for line_nb in range(1, layout_rows + 1):
+                for pos, size in layout_geometry['LINE_%d' % line_nb]:
+                    RoundedRectangle(pos=pos, size=size, radius=(p.key_radius,))
+        #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+        # then draw the text
+        for line_nb in range(1, layout_rows + 1):
+            key_nb = 0
+            for pos, size in layout_geometry['LINE_%d' % line_nb]:
+                # retrieve the relative text
+                text = layout[layout_mode + '_' + str(line_nb)][key_nb][0]
+                z = Label(text=text, font_size=self.font_size, pos=pos,
+                           size=size, font_name=self.font_name)
+                self.add_widget(z)
+                key_nb += 1
+
+    def refresh_active_keys_layer(self):
+        self.active_keys_layer.clear()
+
+        active_keys = self.active_keys
+        layout_geometry = self.layout_geometry
+        #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+        with self.active_keys_layer:
+            Color(*p.key_down)
+            for line_nb, index in active_keys.values():
+                pos, size = layout_geometry['LINE_%d' % line_nb][index]
+                RoundedRectangle(pos=pos, size=size, radius=(p.key_radius,))
+        #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
