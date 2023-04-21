@@ -15,10 +15,10 @@ from kivy.uix.recycleview.layout import LayoutSelectionBehavior
 from kivy.uix.recycleview.views import RecycleDataViewBehavior
 from kivy.uix.screenmanager import Screen
 from kivy.uix.tabbedpanel import TabbedPanelItem
+from kivy.factory import Factory
 
 from .elements import BasePopup, RectangleButton
 from . import printer_cmd
-from util import set_nonblock
 
 
 class SettingTab(TabbedPanelItem):
@@ -59,27 +59,18 @@ class ConsoleScreen(Screen):
 
     def init_drawing(self, *args):
         self.ids.console_input.bind(on_text_validate=self.confirm)
-        set_nonblock(self.app.fd)
+        self.app.bind(gcode_output=self.on_gcode_output)
 
     def on_pre_enter(self):
         self.ids.console_input.focus = True
-        self.ids.console_scroll.scroll_y = 0
-        self.scheduled_polling = Clock.schedule_interval(self.poll, 1)
+        self.ids.console_scroll.scroll_y = 0.001
+        self.app.reactor.cb(printer_cmd.get_gcode_output)
+        self.ids.console_input.keep_focus = True
 
     def on_leave(self):
-        Clock.unschedule(self.scheduled_polling)
-
-    def poll(self, dt):
-        self.ids.console_scroll.scroll_y = 0
-        while 1:
-            try:
-                data = os.read(self.app.fd, 4096)
-            except BlockingIOError:
-                data = "..."
-                break
-            if not data:
-                break
-                self.ids.console_label.text += data.decode()
+        self.app.reactor.cb(printer_cmd.stop_gcode_output)
+        self.ids.console_input.keep_focus = False
+        self.ids.console_input.focus = False
 
     def confirm(self, *args):
         cmd = self.ids.console_input.text + "\n"
@@ -88,8 +79,14 @@ class ConsoleScreen(Screen):
         except os.error:
             logging.exception("couldnt write command")
         self.ids.console_input.text = ""
-        self.ids.console_label.text += cmd
-        self.ids.console_scroll.scroll_y = 0
+        self.app.gcode_output += cmd + "\n"
+        self.reactor.cb(printer_cmd.run_script, cmd)
+
+    def on_gcode_output(self, *args):
+        self.ids.console_scroll.scroll_y = 0.001
+
+    def show_dropdown(self, button, *args):
+        Factory.ConsoleDropDown().open(button)
 
 class MoveScreen(Screen):
 
@@ -303,7 +300,6 @@ class PasswordPopup(BasePopup):
         self.title = self.ap.ssid
         super().__init__(**kwargs)
         self.network_manager = App.get_running_app().network_manager
-        self.txt_input.bind(on_text_validate=self.confirm)
         self.network_manager.bind(on_connect_failed=self.connect_failed)
         # If focus is set immediately, keyboard will be covered by popup
         Clock.schedule_once(self.set_focus_on, -1)
@@ -479,7 +475,6 @@ class HostnamePopup(BasePopup):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.txt_input.bind(on_text_validate=self.confirm)
         # If focus is set immediately, keyboard will be covered by popup
         Clock.schedule_once(self.set_focus_on, -1)
 

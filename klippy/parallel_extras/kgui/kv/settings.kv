@@ -153,25 +153,31 @@
             size: self.size
     ScrollView:
         id: console_scroll
-        pos: 0, console_input.top
-        size_hint: 1, None
-        height: root.height - console_input.top
+        pos: 0, console_input.top + p.padding
+        size_hint: None, None
+        height: root.height - console_input.top - p.padding
+        width: root.width
+        always_overscroll: True
         Label:
             id: console_label
-            text: "GCODE TERMINAL\n"
-            font_size: p.normal_font
-            size: self.texture_size
-            size_hint: 1, None
+            text: app.gcode_output
+            font_size: p.normal_font - sp(2)
+            font_name: "RobotoMono-Regular"
+            text_size: self.width, None
+            width: root.width
+            height: max(self.texture_size[1], console_scroll.height)
+            size_hint: None, None
             valign: 'bottom'
             halign: 'left'
             padding_x: p.padding
-            padding_y: p.padding - dp(10)
-            pos_hint: {'x': 0, 'y': 0}
-            color: p.medium_light_gray
+            color: p.light_gray
     TextInput:
         id: console_input
         multiline: False
+        keep_focus: True
+        font_name: "RobotoMono-Regular"
         text_validate_unfocus: False
+        on_focus: self.focus = self.focus or self.keep_focus # This is a hack to prevent it from unfocusing
         font_size: p.normal_font
         foreground_color: (1,1,1,1)
         padding: (15,12,25,12)
@@ -689,6 +695,7 @@
             cursor_color: (1,1,1,1)
             size_hint: 0.72, None
             pos_hint: {'x': 0.07, 'center_y': 0.63}
+            text_validate_unfocus: False # dont hide keybaord when pressing enter
         BaseButton:
             on_press:
                 pwd_input.password = not pwd_input.password
@@ -880,6 +887,7 @@
             cursor_color: (1,1,1,1)
             size_hint: 0.8, None
             pos_hint: {'center_x': 0.5, 'center_y': 0.63}
+            text_validate_unfocus: False # dont hide keybaord when pressing enter
         BtnPCancel:
             width: root.width/2
             pos: root.pos
