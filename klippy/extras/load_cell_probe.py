@@ -150,7 +150,7 @@ class LoadCellProbe:
         if self._data_completion and clock64 >= self._need_data_to:
             self._data_completion.complete(None)
         if self.manual_query:
-            self.gcode.respond_info(f"Load cell value is {value}")
+            self.gcode.respond_info(f"Load cell value is {value} ({value:b})")
 
     def get_offsets(self):
         return 0, 0, 0
