@@ -1247,10 +1247,25 @@ See also: [extended g-code commands](G-Codes.md#z_thermal_adjust).
 ## Load cell probe
 
 This enables the use of a load cell for homing and probing (e.g. mesh leveling).
-A QUERY_LOAD_CELL_PROBE command can be used to print out measurements.
-This can be useful for setting the initial values for the gain, threshold
-and 'invert'.
-Afterwards a QUERY_LOAD_CELL_PROBE_END command stops the sampling.
+A QUERY_LOAD_CELL command can be used to print out measurements.
+This can be useful for setting the initial value for the threshold.
+Also make sure the values increase with the applied force. They
+can start off negative, but have to become positive when a force is applied.
+
+When experimenting with a new setup it may be a good idea to set the stepper_z
+current to a lower value, or to test the load cell will trigger when the printhead
+is still far away.
+
+Afterwards a QUERY_LOAD_CELL_END command stops the sampling.
+After the homing is set up, the 'threshold' can be fine tuned.
+When probing, the load_cell_probe will print out the deflection at which
+the triggering occured. This should be somewhere between 0.2 and 0.6mm
+depending on the stiffness of your printer.
+If the measurements are inaccurate or unreliable you can always use a higher
+threshold, and lower probing speed.
+
+A supported external load cell adc/amplifier (such as the hx711) is needed
+when connecting a load cell to the printer mainboard.
 
 All probing or homing moves should be issued with low acceleration and low
 square-corner-velocity to prevent false triggers. Use a command like this
@@ -1271,12 +1286,9 @@ force_threshold: 70000
 #   The force limit sets the force at which the axis stops moving.
 #   During initial setup, a manual force can be applied to find a reasonable
 #   value for this.
-#   Use a QUERY_LOAD_CELL_PROBE command to print out measured values.
+#   Use a QUERY_LOAD_CELL command to print out measured values.
 #   If there are false triggers/retries this should be increased,
 #   some deformation is expected and does not impact the accuracy.
-#invert: False
-#   Invert the 'direction' of the load cell if needed.
-#   The values should increase with the applied force.
 #z_offset: 0.05
 #   A fixed Z offset. This is often not needed.
 ```
@@ -1296,6 +1308,9 @@ gain: 128
 #   Reduce this if the measurements are reaching their limits.
 #   when reducing the gain, the force_threshold in load_cell_probe should be
 #   reduced as well.
+#invert: False
+#   Invert the 'direction' of the load cell if needed.
+#   The values should increase with the applied force.
 ```
 
 ## Customized homing
