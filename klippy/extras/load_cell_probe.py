@@ -219,7 +219,6 @@ class ProbePointsHelper:
         self.printer = config.get_printer()
         self.reactor = self.printer.get_reactor()
         self.gcode = self.printer.lookup_object('gcode')
-        self.lcp = self.printer.lookup_object('load_cell_probe')
 
         self.results = None
         self.retries = 0
@@ -242,6 +241,7 @@ class ProbePointsHelper:
         pass
 
     def start_probe(self, gcmd):
+        self.lcp = self.printer.lookup_object('load_cell_probe')
         self.lcp.baseline = []
         self.retries = 0
         self.results = []

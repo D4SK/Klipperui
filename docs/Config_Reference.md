@@ -1298,6 +1298,9 @@ force_threshold: 70000
 The HX711 chip is a popular load cell adc, unless this came with your printer,
 you may have to solder a hardware jumper to enable the 80sps mode.
 Otherwise it will only output 20 samples per seconds which won't work well.
+Be sure to place
+the hx711 section in the config file above its first use in the
+load_cell_probe section.
 
 ```
 [hx711 my_load_cell]
