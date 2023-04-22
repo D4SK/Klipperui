@@ -19,6 +19,7 @@ history_file = join(sdcard_path, ".history.json")
 disp_vertical_stretch = 1.05
 large_font = sp(32)
 normal_font = sp(23)
+keyboard_font = sp(24)
 small_font = sp(17)
 extra_small_font = sp(14)
 mars = 1.1 * screen_height
