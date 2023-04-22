@@ -163,13 +163,19 @@ class PrinterConfig:
                                desc=self.cmd_SAVE_CONFIG_help)
 
     def _get_config_path(self):
-        if 'config_file' in self.printer.get_start_args():
-            path = self.printer.get_start_args()['config_file']
+        """Check all possible locations for a config file and return the first find."""
+        config_locations = [
+                # Configuration file passed via command line argument
+                self.printer.get_start_args().get('config_file', ''),
+                # Default of a base klipper installation
+                os.path.expanduser('~/printer.cfg'),
+                # Follow XDG base directory specification, usually ~/.config/klippo/printer.cfg
+                location.config(),
+                "/etc/klippo/printer.cfg",
+        ]
+        for path in config_locations:
             if os.path.isfile(path):
                 return path
-        path = location.config()
-        if os.path.isfile(path):
-            return path
         raise error("No config file found")
 
     def get_printer(self):

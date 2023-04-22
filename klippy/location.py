@@ -30,7 +30,7 @@ def state_path():
 
 
 def config():
-    return os.path.join(config_path(), 'config')
+    return os.path.join(config_path(), 'printer.cfg')
 
 def history():
     return os.path.join(state_path(), 'history.json')

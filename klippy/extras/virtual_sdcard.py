@@ -184,8 +184,7 @@ class PrintJobManager:
     def __init__(self, config):
         self.toolhead = None
         self.printer = config.get_printer()
-        sd = config.get('path', "")
-        self.sdcard_dirname = os.path.normpath(os.path.expanduser(sd))
+        self.sdcard_dirname = config.location.print_files()
         self.reactor = self.printer.get_reactor()
         self.gcode = self.printer.lookup_object('gcode')
         self.gcode_metadata = self.printer.load_object(config, 'gcode_metadata')
