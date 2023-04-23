@@ -188,7 +188,8 @@ class LoadCellProbe:
         if homing:
             self.baseline = []
         self._adc.query_adc_cmd.send([self._adc.oid, 1, self._oid])
-        self.reactor.pause(self.reactor.monotonic() + self.baseline_sample_time)
+        if not len(self.baseline):
+            self.reactor.pause(self.reactor.monotonic() + self.baseline_sample_time)
         self.enable_load_cell_trigger_cmd.send([self._oid, 1, int(self.force_threshold)])
         self._trigger_completion = self.reactor.completion()
         return self._trigger_completion
