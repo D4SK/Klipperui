@@ -5,6 +5,8 @@
 # This file may be distributed under the terms of the GNU GPLv3 license.
 import sys, os, glob, re, time, logging, configparser, io
 
+import location
+
 error = configparser.Error
 
 class sentinel:
@@ -20,6 +22,7 @@ class ConfigWrapper:
         self.access_tracking = access_tracking
         self.section = section
         self.reactor = printer.reactor
+        self.location = location.Location(self)
     def get_printer(self):
         return self.printer
     def get_name(self):
@@ -162,14 +165,10 @@ class PrinterConfig:
     def _get_config_path(self):
         if 'config_file' in self.printer.get_start_args():
             path = self.printer.get_start_args()['config_file']
-            if os.path.exists(path):
+            if os.path.isfile(path):
                 return path
-        if 'XDG_CONFIG_HOME' in os.environ:
-            path = os.path.join(os.environ['XDG_CONFIG_HOME'], 'klippo/config')
-            if os.path.exists(path):
-                return path
-        path = os.path.expanduser("~/.config/klippo/config")
-        if os.path.exists(path):
+        path = location.config()
+        if os.path.isfile(path):
             return path
         raise error("No config file found")
 

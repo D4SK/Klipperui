@@ -1,0 +1,25 @@
+From 7e663454ca0f35fbcb67eed3ede2bed229a76eba Mon Sep 17 00:00:00 2001
+From: Gabriel Vogel <gabriel.vogel@online.de>
+Date: Mon, 14 Mar 2022 13:49:27 +0000
+Subject: [PATCH] Fix VKeyboard missing with custom keyboard class
+
+---
+ kivy/core/window/__init__.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/kivy/core/window/__init__.py b/kivy/core/window/__init__.py
+index d03776a42..32be77117 100644
+--- a/kivy/core/window/__init__.py
++++ b/kivy/core/window/__init__.py
+@@ -647,7 +647,7 @@ class WindowBase(EventDispatcher):
+             and self._vkeyboard_cls is not None
+         ):
+             for w in self.children:
+-                if isinstance(w, VKeyboard):
++                if isinstance(w, self._vkeyboard_cls):
+                     vkeyboard_height = w.height * w.scale
+                     if self.softinput_mode == 'pan':
+                         return vkeyboard_height
+-- 
+2.39.2
+

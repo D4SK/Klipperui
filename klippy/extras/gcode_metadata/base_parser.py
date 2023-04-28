@@ -31,6 +31,19 @@ class BaseParser:
     decompressing the entire file."""
     _needs_tail = False
 
+    """Class version for managing cache compatibility.
+    When a metadata object is cached on disk using pickle, it gets tagged with
+    this version number. When loading a cached object, its version is checked
+    against this value. When introducing breaking changes, these values should
+    be increased.
+
+    To allow subclasses to independently mark incompatibility a second version
+    counter _SUBCLASS_VERSION exists. This value should be overwritten to a
+    value higher than 1 when only one subclass receives a breaking change to
+    avoid all other caches to become invalid."""
+    _VERSION = 1
+    _SUBCLASS_VERSION = 1
+
     def __init__(self, head, tail, path, module):
         self.config_diameter = module.config_diameter
         self.path = path

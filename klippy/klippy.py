@@ -10,6 +10,8 @@ import gcode, configfile, pins, mcu, toolhead, webhooks
 import signal, traceback, multiprocessing, datetime
 from os.path import join, exists, dirname
 
+import location
+
 message_ready = "Printer is ready"
 
 message_startup = """
@@ -353,7 +355,8 @@ class ExtraProcess:
         config.reactor = reactor.Reactor(process=self.name, gc_checking=True)
         config.printer.reactor = config.reactor
         config.reactor.logger = queuelogger.setup_bg_logging(
-            "/tmp/" + self.name.split()[-1] + ".log", debuglevel)
+                join(location.log_dir(), self.name.split()[-1] + ".log"),
+                debuglevel)
 
     @staticmethod
     def _report_access_tracking(printer, section, access_tracking):
@@ -436,9 +439,10 @@ def main():
         start_args['debugoutput'] = options.debugoutput
         start_args.update(options.dictionary)
     bglogger = None
-    if options.logfile:
-        start_args['log_file'] = options.logfile
-        bglogger = queuelogger.setup_bg_logging(options.logfile, debuglevel)
+    if options.logfile or not sys.stdout.isatty():
+        logfile = options.logfile or join(location.log_dir(), 'klippy.log')
+        start_args['log_file'] = logfile
+        bglogger = queuelogger.setup_bg_logging(logfile, debuglevel)
     else:
         logging.getLogger().setLevel(debuglevel)
     logging.info(f"\nRestart {datetime.datetime.now()}\n")

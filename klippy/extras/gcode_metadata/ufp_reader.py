@@ -1,9 +1,11 @@
 import copy
+import logging
 import os
 import xml.etree.ElementTree as ET
 from zipfile import ZipFile
 
 from .base_parser import BaseParser
+import location
 
 _GCODE_PATH = "/3D/model.gcode"
 
@@ -18,6 +20,7 @@ def create_ufp_reader(path, module):
         tail = []
         # Only read the tail if needed, because the entire file needs to be
         # decompressed for that
+
         if ParserClass is BaseParser:  # Couldn't find a parser class
             tail = module._get_tail_md(fp)
             ParserClass = module._find_parser(tail)
@@ -66,10 +69,10 @@ class _UFPReader(metaclass=_UFPMetaClass):
     def __init__(self, path, module, zip_obj, head, tail):
         super(self.__class__, self).__init__(head, tail, path, module)
         self._module = module
-        self.thumbnail_path = None
+        cache_key = self._module._cache_key(self.path)
+        self._thumbnail_path = os.path.join(location.thumbnails(), cache_key + '.png')
         self._material_guids = []
         self._relationships = self._get_relationships(zip_obj)
-        self._extract_thumbnail(zip_obj)
         self._extract_materials(zip_obj)
 
     def get_gcode_stream(self):
@@ -97,18 +100,21 @@ class _UFPReader(metaclass=_UFPMetaClass):
         return relationships
 
     def _extract_thumbnail(self, zip_obj):
-        """Write the thumbnail into the .thumbnails directory"""
+        """Write the thumbnail into the cache"""
         virtual_path = next(iter(e["Target"] for e in self._relationships
                 if e["Type"] == self._thumbnail_relationship_type), None)
         if virtual_path is None:
-            return
-        thumbnail_dir = os.path.dirname(self.path) + "/.thumbnails/"
-        if not os.path.exists(thumbnail_dir):
-            os.mkdir(thumbnail_dir)
-        thumbnail_path = thumbnail_dir + os.path.basename(self.path) + ".png"
-        with open(thumbnail_path, "wb") as thumbnail_target:
-            thumbnail_target.write(zip_obj.read(virtual_path))
-        self.thumbnail_path = thumbnail_path
+            return False
+
+        try:
+            with open(self._thumbnail_path, "wb") as thumbnail_target:
+                logging.debug("Extracting thumbnail for %s into %s",
+                        self.path, self._thumbnail_path)
+                thumbnail_target.write(zip_obj.read(virtual_path))
+            return True
+        except OSError:
+            logging.exception("Could not write thumbnail")
+        return False
 
     def _extract_materials(self, zip_obj):
         """
@@ -182,7 +188,12 @@ class _UFPReader(metaclass=_UFPMetaClass):
         return diameter
 
     def get_thumbnail_path(self):
-        return self.thumbnail_path
+        if not (self._thumbnail_path and os.path.isfile(self._thumbnail_path)):
+            # Thumbnail not found, try extracting it
+            with ZipFile(self.path) as zip_obj:
+                if not self._extract_thumbnail(zip_obj):
+                    return None
+        return self._thumbnail_path
 
     def __reduce__(self):
         state = copy.copy(self.__dict__)
@@ -193,9 +204,13 @@ class _UFPReader(metaclass=_UFPMetaClass):
 
     @staticmethod
     def _restore_pickled(ParserClass):
-        from .gcode_metadata import MPMetadata
-        from klippy import get_main_config
         UFPParserClass = _UFPReader.add_baseclass(ParserClass)
         ufp_parser = object.__new__(UFPParserClass)
-        ufp_parser._module = MPMetadata(get_main_config())
+        try:
+            from .gcode_metadata import MPMetadata
+            from klippy import get_main_config
+            ufp_parser._module = MPMetadata(get_main_config())
+        except (ImportError, AttributeError):
+            # Ease inspection of pickled files
+            ufp_parser._module = None
         return ufp_parser

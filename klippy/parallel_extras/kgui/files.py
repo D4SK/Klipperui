@@ -25,10 +25,9 @@ class Filechooser(RecycleView):
         self.content = []
         self.usb_state = False
         self.update_timer = None
-        if os.path.exists(p.sdcard_path):
-            self.path = p.sdcard_path
-        else:
-            self.path = "/"
+        self.files_dir = self.app.location.print_files()
+        self.usb_dir = self.app.location.usb_mountpoint()
+        self.path = self.files_dir
         super().__init__(**kwargs)
         Clock.schedule_once(self.bind_tab, 0)
         self.load_files()
@@ -51,17 +50,16 @@ class Filechooser(RecycleView):
         usb = []
         files = []
         folders = []
-        # If p.usb_mount_dir folder is not empty => a usb stick is plugged in
+        # If USB mount folder is not empty => a usb stick is plugged in
         # (usbmount mounts to this directory)
-        usb_mount_path = os.path.join(p.sdcard_path, p.usb_mount_dir)
-        usb_state = 0 < len(os.listdir(usb_mount_path))
+        usb_state = 0 < len(os.listdir(self.usb_dir))
         # If usb stick was unplugged, reset to sdcard directory
-        if not usb_state and self.path.startswith(usb_mount_path):
-            self.path = p.sdcard_path
+        if not usb_state and self.path.startswith(self.usb_dir):
+            self.path = self.files_dir
         try:
             content = os.listdir(self.path)
-        except: # Maybe usb was juuust unplugged
-            self.path = p.sdcard_path
+        except OSError: # Maybe usb was juuust unplugged
+            self.path = self.files_dir
             content = os.listdir(self.path)
         # Only update if files have changed (loop takes 170ms, listdir 0.3ms)
         if (not in_background) or self.content != content or self.usb_state != usb_state:
@@ -78,7 +76,7 @@ class Filechooser(RecycleView):
                         dict_['item_type'] = "file"
                         files.append(dict_)
                 # USB Stick
-                elif base == p.usb_mount_dir:
+                elif base == os.path.basename(self.usb_dir):
                     if usb_state:
                         dict_['item_type'] = "usb"
                         usb.append(dict_)
@@ -130,9 +128,10 @@ class FilechooserItem(RecycleDataViewBehavior, Label):
         gcmd = app.gcode_metadata
         if gcmd:
             path = data['path']
-            if path in gcmd._md_cache:
+            cached = gcmd.get_cached(path)
+            if cached is not None:
                 # Use cached metadata directly
-                self.update_md(md=gcmd._md_cache[path])
+                self.update_md(md=cached)
             else:
                 # Get metadata from printer process, update when ready
                 app.reactor.cb(gcmd._obtain_md, data['path'],
@@ -142,8 +141,6 @@ class FilechooserItem(RecycleDataViewBehavior, Label):
         """Set thumbnail and details once metadata has been generated
         The argument kgui is provided by mainapp.kivy_callback, but not used"""
         path = md.get_path()
-        # Add metadata to process-local cache
-        App.get_running_app().gcode_metadata._md_cache[path] = md
         # Don't proceed if this widget already points to a different file
         if path == self.path:
             weight = md.get_material_amount(measure="weight")

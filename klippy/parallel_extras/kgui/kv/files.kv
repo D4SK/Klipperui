@@ -23,9 +23,9 @@
         TitleBar:
             id: title_bar
             pos_hint: {'x':0, 'top':1}
-            title: relpath(gc.path, dirname(p.sdcard_path))
+            title: relpath(gc.path, dirname(app.location.print_files()))
         BtnBack:
-            enabled: gc.path != p.sdcard_path
+            enabled: gc.path != app.location.print_files()
             on_release: gc.back()
             pos_hint: {'x':0, 'top':1}
             height: title_bar.height

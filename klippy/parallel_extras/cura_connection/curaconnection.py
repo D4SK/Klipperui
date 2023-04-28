@@ -13,6 +13,8 @@ import platform
 import socket
 import time
 
+import location
+
 from .contentmanager import ContentManager
 from . import server
 from .zeroconfhandler import ZeroConfHandler
@@ -34,8 +36,8 @@ class CuraConnectionModule:
         self.VERSION = "5.2.11" # We need to disguise as Cura Connect for now
         self.NAME = platform.node()
         self.PATH = os.path.dirname(os.path.realpath(__file__))
-        self.SDCARD_PATH = os.path.expanduser("~/Files")
-        self.MATERIAL_PATH = os.path.expanduser("~/materials")
+        self.SDCARD_PATH = config.location.print_files()
+        self.MATERIAL_PATH = location.material_dir()
         self.ADDRESS = None
 
         self.bom_number = config.get('bom_number', "213482") # Use Ultimaker 3 if not provided

@@ -10,10 +10,6 @@ def dp(val):
 sp = dp
 
 kgui_dir = dirname(__file__)
-klipper_dir = dirname(dirname(dirname(kgui_dir)))
-sdcard_path = expanduser('~/Files')
-usb_mount_dir = 'USB-Device'
-history_file = join(sdcard_path, ".history.json")
 
 #never assume pixels are square :}
 disp_vertical_stretch = 1.05
