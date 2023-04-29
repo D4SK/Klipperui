@@ -179,7 +179,10 @@ class PrintPopup(BasePopup):
                 if size < 1024:
                     break
                 size /= 1024
-            precision = max(1-int(log10(size)), 0)
+            try:
+                precision = max(1-int(log10(size)), 0)
+            except ValueError:  # Cannot take logarithm when size is 0
+                precision = 0
             self.add_detail("G-Code Size:", f"{size:.{precision}f} {ext}")
 
     def add_detail(self, key, value):
