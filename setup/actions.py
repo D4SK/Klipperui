@@ -575,7 +575,7 @@ EndSection
 
         for k, v in lcd_config.items():
             boot_cfg.append(k + '=' + str(v) + self.mark_new)
-        self.boot_cfg_file.write_text('\n'.join(boot_cfg))
+        self.boot_cfg_file.write_text('\n'.join(boot_cfg) + '\n')
 
     def uninstall(self) -> None:
         boot_cfg = self.boot_cfg_file.read_text().splitlines()

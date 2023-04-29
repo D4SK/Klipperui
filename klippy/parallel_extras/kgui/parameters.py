@@ -1,4 +1,4 @@
-from os.path import dirname, expanduser, join
+from os.path import dirname
 from kivy.config import Config
 from kivy.metrics import dp, sp
 screen_width = Config.getint('graphics', 'width')
