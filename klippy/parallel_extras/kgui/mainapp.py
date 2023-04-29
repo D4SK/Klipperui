@@ -72,6 +72,7 @@ class MainApp(App, threading.Thread):
     led_brightness = NumericProperty()
     extruder_id = StringProperty("extruder")
     usage = DictProperty()
+    gcode_output = StringProperty()
     # Tuning
     speed = NumericProperty(0)
     speed_factor = NumericProperty(100)
