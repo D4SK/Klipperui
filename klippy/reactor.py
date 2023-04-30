@@ -15,9 +15,10 @@ _NEVER = 9999999999999999.
 
 
 class ReactorTimer:
-    def __init__(self, callback, waketime):
+    def __init__(self, callback, waketime, name):
         self.callback = callback
         self.waketime = waketime
+        self.name = name
 
 class ReactorCompletion:
     class sentinel: pass
@@ -62,7 +63,7 @@ class ReactorCompletion:
 class ReactorCallback:
     def __init__(self, reactor, callback, waketime, *args, **kwargs):
         self.reactor = reactor
-        self.timer = reactor.register_timer(self.invoke, waketime)
+        self.timer = reactor.register_timer(self.invoke, waketime, callback.__qualname__)
         self.callback = callback
         self.args = args
         self.kwargs = kwargs
@@ -77,7 +78,11 @@ def mp_callback(reactor, callback, *args, **kwargs):
     if threading.get_ident() == reactor.thread_id:
         # Most of the time this will be called from the reactor thread,
         # avoid the overhead of register_async_callback in that case.
+        start = reactor.monotonic()
         run_mp_callback(None, reactor, callback, *args, **kwargs)
+        delta = reactor.monotonic() - start
+        if delta > 0.05:
+            logging.info(f"mp callback {callback.__qualname__} took {delta:.4f}")
     else:
         reactor.register_async_callback(run_mp_callback, reactor, callback, *args, **kwargs)
 
@@ -177,8 +182,10 @@ class SelectReactor:
     def update_timer(self, timer_handler, waketime):
         timer_handler.waketime = waketime
         self._next_timer = min(self._next_timer, waketime)
-    def register_timer(self, callback, waketime=NEVER):
-        timer_handler = ReactorTimer(callback, waketime)
+    def register_timer(self, callback, waketime=NEVER, name=None):
+        if name is None:
+            name = callback.__qualname__
+        timer_handler = ReactorTimer(callback, waketime, name)
         self._timers.append(timer_handler)
         self._next_timer = min(self._next_timer, waketime)
         return timer_handler
@@ -201,7 +208,11 @@ class SelectReactor:
                         if gi[2] >= 10:
                             gc_level = 2
                     self._last_gc_times[gc_level] = eventtime
+                    start = self.monotonic()
                     gc.collect(gc_level)
+                    delta = self.monotonic() - start
+                    if delta > 0.05:
+                        logging.info(f"gc collect took {delta:.4f}")
                     return 0.
             return min(1., max(.001, self._next_timer - eventtime))
         self._next_timer = self.NEVER
@@ -210,7 +221,11 @@ class SelectReactor:
             waketime = t.waketime
             if eventtime >= waketime:
                 t.waketime = self.NEVER
+                start = self.monotonic()
                 t.waketime = waketime = t.callback(eventtime)
+                delta = self.monotonic() - start
+                if delta > 0.05:
+                    logging.info(f"{t.name} took {delta:.4f}")
                 if g_dispatch is not self._g_dispatch:
                     self._next_timer = min(self._next_timer, waketime)
                     self._end_greenlet(g_dispatch)
@@ -294,7 +309,7 @@ class SelectReactor:
             g_next = ReactorGreenlet(run=self._dispatch_loop)
             self._all_greenlets.append(g_next)
         g_next.parent = g.parent
-        g.timer = self.register_timer(g.switch, waketime)
+        g.timer = self.register_timer(g.switch, waketime, 'reactor resume')
         self._next_timer = self.NOW
         # Switch to _dispatch_loop (via _end_greenlet or direct)
         eventtime = g_next.switch()

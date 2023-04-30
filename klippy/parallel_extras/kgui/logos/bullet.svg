@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="90.6875"
+   height="90.6875"
+   viewBox="0 0 23.994401 23.994402"
+   version="1.1"
+   id="svg5"
+   sodipodi:docname="bullet.svg"
+   inkscape:version="1.2.1 (9c6d41e410, 2022-07-14)"
+   inkscape:export-filename="bullet.png"
+   inkscape:export-xdpi="105.85803"
+   inkscape:export-ydpi="105.85803"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:pageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="false"
+     inkscape:document-units="mm"
+     showgrid="false"
+     units="px"
+     inkscape:zoom="16"
+     inkscape:cx="46.125"
+     inkscape:cy="51.75"
+     inkscape:window-width="3840"
+     inkscape:window-height="2054"
+     inkscape:window-x="2149"
+     inkscape:window-y="454"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="g910"
+     inkscape:showpageshadow="0"
+     inkscape:deskcolor="#505050" />
+  <defs
+     id="defs2">
+    <filter
+       id="mask-powermask-path-effect1624_inverse"
+       inkscape:label="filtermask-powermask-path-effect1624"
+       style="color-interpolation-filters:sRGB"
+       height="100"
+       width="100"
+       x="-50"
+       y="-50">
+      <feColorMatrix
+         id="mask-powermask-path-effect1624_primitive1"
+         values="1"
+         type="saturate"
+         result="fbSourceGraphic" />
+      <feColorMatrix
+         id="mask-powermask-path-effect1624_primitive2"
+         values="-1 0 0 0 1 0 -1 0 0 1 0 0 -1 0 1 0 0 0 1 0 "
+         in="fbSourceGraphic" />
+    </filter>
+    <filter
+       id="mask-powermask-path-effect1629_inverse"
+       inkscape:label="filtermask-powermask-path-effect1629"
+       style="color-interpolation-filters:sRGB"
+       height="100"
+       width="100"
+       x="-50"
+       y="-50">
+      <feColorMatrix
+         id="mask-powermask-path-effect1629_primitive1"
+         values="1"
+         type="saturate"
+         result="fbSourceGraphic" />
+      <feColorMatrix
+         id="mask-powermask-path-effect1629_primitive2"
+         values="-1 0 0 0 1 0 -1 0 0 1 0 0 -1 0 1 0 0 0 1 0 "
+         in="fbSourceGraphic" />
+    </filter>
+  </defs>
+  <g
+     inkscape:label="Layer 1 copy copy copy copy"
+     inkscape:groupmode="layer"
+     id="g910"
+     style="display:inline"
+     transform="translate(-1.2319656,-1.2319656)">
+    <circle
+       style="fill:#ffffff;fill-opacity:1;stroke-width:2.03518;stroke-linecap:round;stroke-linejoin:round"
+       id="path387"
+       cx="13.229166"
+       cy="13.229166"
+       r="6.0771484" />
+  </g>
+  <g
+     inkscape:label="Layer 1 copy copy copy copy copy"
+     inkscape:groupmode="layer"
+     id="g1007"
+     style="display:none"
+     transform="translate(-1.2319656,-1.2319656)">
+    <circle
+       style="opacity:1;fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:0;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       id="circle1001"
+       r="11.997352"
+       cy="13.229167"
+       cx="13.229167" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:2.64583;stroke-linecap:round;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
+       d="M 8.3180892,8.3180888 18.140244,18.140245"
+       id="path1003" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:2.64583;stroke-linecap:round;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
+       d="M 8.2764972,18.181836 18.181836,8.2764971"
+       id="path1005" />
+  </g>
+  <g
+     inkscape:groupmode="layer"
+     id="layer2"
+     inkscape:label="Helper"
+     style="display:none"
+     transform="translate(-1.2319656,-1.2319656)">
+    <circle
+       style="opacity:1;fill:#18c800;fill-opacity:1;stroke:none;stroke-width:2.11667;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       id="path2789"
+       cx="13.252553"
+       cy="7.4848537"
+       r="2.4804688" />
+    <circle
+       style="opacity:1;fill:#08ff00;fill-opacity:1;stroke:none;stroke-width:2.29681;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       id="path2791"
+       cx="13.229167"
+       cy="14.368318"
+       r="1.6867187" />
+  </g>
+</svg>

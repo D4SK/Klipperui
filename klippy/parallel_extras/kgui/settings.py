@@ -73,11 +73,7 @@ class ConsoleScreen(Screen):
         self.ids.console_input.focus = False
 
     def confirm(self, *args):
-        cmd = self.ids.console_input.text + "\n"
-        try:
-            os.write(self.app.fd, cmd.encode())
-        except os.error:
-            logging.exception("couldnt write command")
+        cmd = self.ids.console_input.text
         self.ids.console_input.text = ""
         self.app.gcode_output += cmd + "\n"
         self.reactor.cb(printer_cmd.run_script, cmd)
@@ -143,13 +139,23 @@ class XyField(Widget):
         self.point_radius = 10
         self.app = App.get_running_app()
         self.app.bind(pos=self.update_with_mm)
+        self.app.bind(pos_min=self.init_drawing)
+        self.app.bind(pos_max=self.init_drawing)
         self.bind(x=self.init_drawing)
         self.bind(y=self.init_drawing)
+        self.bind(top=self.init_drawing)
+        self.bind(right=self.init_drawing)
 
     def init_drawing(self, *args):
         # Calculate bounds of actual field
         self.origin = [self.x + self.point_radius, self.y + self.point_radius]
         self.limits = [self.right - self.point_radius, self.top - self.point_radius]
+        self.mm_to_px = [(self.limits[0] - self.origin[0]) / (0.00000001 + self.app.print_area_max[0] - self.app.print_area_min[0]),
+                         (self.limits[1] - self.origin[1]) / (0.00000001 + self.app.print_area_max[1] - self.app.print_area_min[1])]
+        self.overmove_min = [self.mm_to_px[0] * (pos_min - print_area_min)
+                             for pos_min, print_area_min in zip(self.app.pos_min, self.app.print_area_min)]
+        self.overmove_max = [self.mm_to_px[1] * (pos_max - print_area_min)
+                             for pos_max, print_area_min in zip(self.app.pos_max, self.app.print_area_max)]
         self.px = self.origin
 
     def on_touch_down(self, touch):
@@ -186,27 +192,24 @@ class XyField(Widget):
         self.mm = mm[:3]
 
     def apply_bounds(self, x, y):
-        # if x < self.origin[0]:
-        #     x = self.origin[0]
-        # elif x > self.limits[0]:
-        #     x = self.limits[0]
+        if x < self.origin[0] + self.overmove_min[0]:
+            x = self.origin[0] + self.overmove_min[0]
+        elif x > self.limits[0] + self.overmove_max[0]:
+            x = self.limits[0] + self.overmove_max[0]
 
-        # if y < self.origin[1]:
-        #     y = self.origin[1]
-        # elif y > self.limits[1]:
-        #     y = self.limits[1]
+        if y < self.origin[1] + self.overmove_min[1]:
+            y = self.origin[1] + self.overmove_min[1]
+        elif y > self.limits[1] + self.overmove_max[1]:
+            y = self.limits[1] + self.overmove_max[1]
         return [x, y]
 
     def set_mm_with_px(self, px):
-        ratio_x = float(px[0] - self.origin[0]) / (self.limits[0] - self.origin[0])
-        ratio_y = float(px[1] - self.origin[1]) / (self.limits[1] - self.origin[1])
-
-        self.mm[0] = (self.app.pos_max[0] - self.app.pos_min[0]) * ratio_x
-        self.mm[1] = (self.app.pos_max[1] - self.app.pos_min[1]) * ratio_y
+        self.mm[0] = float(px[0] - self.origin[0]) / self.mm_to_px[0]
+        self.mm[1] = float(px[1] - self.origin[1]) / self.mm_to_px[1]
 
     def set_px_with_mm(self, mm):
-        px = [(self.limits[0] - self.origin[0]) * float(mm[0]) / (self.app.pos_max[0] - self.app.pos_min[0]) + self.origin[0],
-              (self.limits[1] - self.origin[1]) * float(mm[1]) / (self.app.pos_max[1] - self.app.pos_min[1]) + self.origin[1]]
+        px = [float(mm[0]) * self.mm_to_px[0] + self.origin[0],
+              float(mm[1]) * self.mm_to_px[1] + self.origin[1]]
         self.px = self.apply_bounds(*px)
 
 
@@ -390,9 +393,9 @@ class SITimezone(SetItem):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.set_timezone()
+        self.update_timezone()
 
-    def set_timezone(self):
+    def update_timezone(self):
         if os.path.exists("/etc/localtime"):
             self.right_title = os.path.basename(os.readlink("/etc/localtime"))
         else:
@@ -400,6 +403,7 @@ class SITimezone(SetItem):
 
 
 class TimezonePopup(BasePopup):
+    setitem = ObjectProperty()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -420,9 +424,9 @@ class TimezonePopup(BasePopup):
             os.system("sudo unlink /etc/localtime")
             os.system(f"sudo ln -s /usr/share/zoneinfo/{self.region_selection}/{selection['text']} /etc/localtime")
             # update Timezone shown in Settings and Time in Statusbar
-            root_ids = App.get_running_app().root.ids
-            root_ids.tabs.ids.set_tab.ids.setting_screen.ids.si_timezone.set_timezone()
-            root_ids.status_bar.ids.time.get_time_str()
+            self.setitem.update_timezone()
+            app = App.get_running_app()
+            app.root.ids.status_bar.ids.time.get_time_str()
             self.dismiss()
 
 

@@ -3,7 +3,7 @@
 # Copyright (C) 2022  Konstantin Vogel <konstantin.vogel@gmx.net>
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
-import os, time
+import os
 import json
 import logging
 

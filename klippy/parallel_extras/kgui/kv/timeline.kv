@@ -71,7 +71,7 @@
 <TimelineItem>:
     canvas:
         Color:
-            rgba: (0,0,0,0) if self.state == 'header' else (1,1,1,1) if self.thumbnail else p.medium_light_gray
+            rgba: (0,0,0,0) if self.state == 'header' else (1,1,1,1) if self.thumbnail else p.medium_gray
         Rectangle:
             source: self.thumbnail or p.kgui_dir + "/logos/file.png"
             size: dp(80), dp(80)
@@ -96,7 +96,7 @@
     padding: p.h_padding, dp(32)
     text_size: self.size
     font_size: p.normal_font
-    color: p.medium_light_gray
+    color: p.medium_gray
     Label:
         text: "" if root.state == 'header' else root.state.capitalize()
         size_hint: None, None
@@ -111,7 +111,7 @@
         font_size: p.normal_font
         color:
             {'finished': p.green, 'aborted': p.red, 'aborting': p.red, 'printing': (1,1,1,1), 'paused': (1,1,1,1),
-            'pausing': (1,1,1,1), 'queued': p.medium_light_gray, 'header': (0,0,0,0)}[root.state]
+            'pausing': (1,1,1,1), 'queued': p.medium_gray, 'header': (0,0,0,0)}[root.state]
     Label:
         text: root.name
         shorten: True
@@ -125,7 +125,7 @@
         padding_x: 2*p.h_padding + dp(80 - 20)
         text_size: self.size
         font_size: p.normal_font
-        color: p.medium_gray if root.state == 'header' else (1,1,1,1)
+        color: p.dark_gray if root.state == 'header' else (1,1,1,1)
     Divider:
         top: root.top
 
@@ -148,7 +148,7 @@
 
 <BtnQUp@FloatingButton>:
     id: q_up
-    btn_color: p.medium_gray
+    btn_color: p.dark_gray
     active: True
     canvas:
         Color:
@@ -160,7 +160,7 @@
                 self.center_x, self.top - dp(pad)
 
 <BtnQDown@FloatingButton>:
-    btn_color: p.medium_gray
+    btn_color: p.dark_gray
     active: True
     canvas:
         Color:

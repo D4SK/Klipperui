@@ -100,6 +100,7 @@ class GCodeDispatch:
         self.is_printer_ready = False
         self.mutex = printer.get_reactor().mutex()
         self.output_callbacks = []
+        self.input_callbacks = []
         self.base_gcode_handlers = self.gcode_handlers = {}
         self.ready_gcode_handlers = {}
         self.mux_commands = {}
@@ -158,6 +159,8 @@ class GCodeDispatch:
         return dict(self.gcode_help)
     def register_output_handler(self, cb):
         self.output_callbacks.append(cb)
+    def register_input_handler(self, cb):
+        self.input_callbacks.append(cb)
     def _handle_shutdown(self):
         if not self.is_printer_ready:
             return
@@ -173,6 +176,8 @@ class GCodeDispatch:
     # Parse input into commands
     args_r = re.compile('([A-Z_]+|[A-Z*/])')
     def _process_commands(self, commands, need_ack=True):
+        for cb in self.input_callbacks:
+            cb(commands)
         for line in commands:
             # Ignore comments and leading/trailing spaces
             line = origline = line.strip()

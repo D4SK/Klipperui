@@ -213,7 +213,7 @@ class Notifications(FloatLayout):
         if self.queue:
             self.show(**self.queue.popleft())
 
-    def show(self, title="", message="", level="info", log=True, delay=-1, color=None):
+    def show(self, title="", message="", level="info", delay=-1, log=True, color=None):
         """
         Show a notification popup with the given parameters. If log is set,
         also write to the log file.

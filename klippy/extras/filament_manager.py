@@ -226,7 +226,7 @@ class FilamentManager:
     def select_loading_material(self, extruder_id, material):
         idx = self.idx(extruder_id)
         material['amount'] = material['amount'] or 1
-        material['temp'] = self.get_info(material['guid'], "./m:settings/m:setting[@key='print temperature']", 200)
+        material['temp'] = float(self.get_info(material['guid'], "./m:settings/m:setting[@key='print temperature']", 200))
         if material['unloaded_idx'] is not None:
             unloaded = self.material['unloaded'].pop(material['unloaded_idx'])
             material['guid'] = material['guid'] or unloaded['guid']
@@ -257,7 +257,7 @@ class FilamentManager:
             'amount': material['amount'],
             'state': 'loading'})
         self.printer.send_event("filament_manager:material_changed", self.material)
-        self.gcode.run_script(f"LOAD_FILAMENT TEMPERATURE={material['temp']}")
+        self.gcode.run_script(f"LOAD_FILAMENT TEMPERATURE={material['temp']} T={idx}")
         if finalize:
             self._finalize_loading(extruder_id)
 
@@ -270,7 +270,7 @@ class FilamentManager:
             'state': 'loading'})
         self.preselected_material.pop(extruder_id)
         self.printer.send_event("filament_manager:material_changed", self.material)
-        self.gcode.run_script(f"PRIME_FILAMENT TEMPERATURE={material['temp']}")
+        self.gcode.run_script(f"PRIME_FILAMENT TEMPERATURE={material['temp']} T={idx}")
         self.material['loaded'][idx]['state'] = 'loaded'
         self.printer.send_event("filament_manager:material_changed", self.material)
         self.write_loaded_material_json()
@@ -285,7 +285,7 @@ class FilamentManager:
                 self.write_loaded_material_json()
                 temp = self.get_info(self.material['loaded'][idx]['guid'],
                     "./m:settings/m:setting[@key='print temperature']", temp)
-            self.gcode.run_script(f"UNLOAD_FILAMENT TEMPERATURE={temp}")
+            self.gcode.run_script(f"UNLOAD_FILAMENT TEMPERATURE={temp} T={idx}")
             if self.material['loaded'][idx]['guid']:
                 self.material['unloaded'].insert(0,
                     {'guid':self.material['loaded'][idx]['guid'],

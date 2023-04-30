@@ -403,6 +403,7 @@ class PrinterConfig:
     def cmd_SAVE_CONFIG(self, gcmd):
         self.save_config()
     def save_config(self, restart=True):
+        start = self.printer.reactor.monotonic()
         if not self.autosave.fileconfig.sections():
             return
         gcode = self.printer.lookup_object('gcode')
@@ -426,7 +427,7 @@ class PrinterConfig:
         self._disallow_include_conflicts(regular_data, self.config_path, gcode)
         data = regular_data.rstrip() + autosave_data
         self.write_config(data, self.config_path)
-
+        logging.info(f"Write config took {self.printer.reactor.monotonic() - start:.3f}")
         # Request a restart
         if restart:
             gcode.request_restart('restart')

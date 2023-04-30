@@ -56,7 +56,7 @@ class ContentManager:
                     "color": md.get_material_info("./m:metadata/m:name/m:color", i),
                     "material": md.get_material_type(i),
                 },
-                print_core_id="AA 0.4",
+                print_core_id=self.module.print_core_id,
             ))
         return ClusterPrintJobStatus(
             created_at=self.get_time_str(),
@@ -117,7 +117,7 @@ class ContentManager:
                 self.obtain_material_printjobs, wait=True)
         self.printer_status.configuration = [ClusterPrintCoreConfiguration(
             extruder_index=i,
-            print_core_id="AA 0.4",
+            print_core_id=self.module.print_core_id,
             material=material)
                 for i, material in enumerate(materials)]
         if self.module.testing:

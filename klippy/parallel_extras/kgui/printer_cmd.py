@@ -168,14 +168,23 @@ def get_usage(printer):
 def get_pos(printer):
     status = printer.objects['motion_report'].get_status(printer.reactor.monotonic())
     printer.reactor.cb(set_attribute, 'pos', status['live_position'], process='kgui')
+    kin = printer.objects['toolhead'].kin
+    printer.reactor.cb(set_attribute, 'print_area_min', [rail.print_area_min for rail in kin.rails], process='kgui') # assume cartesian kinematics
+    printer.reactor.cb(set_attribute, 'print_area_max', [rail.print_area_max for rail in kin.rails], process='kgui')
+    printer.reactor.cb(set_attribute, 'pos_min', [limit[0] for limit in kin.limits], process='kgui')
+    printer.reactor.cb(set_attribute, 'pos_max', [limit[1] for limit in kin.limits], process='kgui')
+
 def send_pos(printer, x=None, y=None, z=None, extruder=None, speed=15):
     new_pos = [x,y,z]
     homed_axes = printer.objects['toolhead'].get_status(printer.reactor.monotonic())['homed_axes']
     # check whether axes are still homed
     mv = ""
-    for new, name in zip(new_pos, 'xyz'):
+    kin = printer.objects['toolhead'].kin
+    for i, new, name in zip((0,1,2), new_pos, 'xyz'):
         if new != None and name in homed_axes:
-            mv += f"{name}{new} "
+            pos = min(new, kin.limits[i][1])
+            pos = max(new, kin.limits[i][0])
+            mv += f"{name}{pos} "
     if extruder:
         mv += f"e{extruder}"
     printer.objects['gcode'].run_script(
@@ -186,11 +195,6 @@ def send_pos(printer, x=None, y=None, z=None, extruder=None, speed=15):
         RESTORE_GCODE_STATE NAME=MOVE_STATE
         """)
     get_pos(printer)
-
-def get_pos_limits(printer):
-    rails = printer.objects['toolhead'].kin.rails
-    printer.reactor.cb(set_attribute, 'pos_min', [rail.print_area_min for rail in rails], process='kgui')
-    printer.reactor.cb(set_attribute, 'pos_max', [rail.print_area_max for rail in rails], process='kgui')
 
 def get_gcode_output(printer):
     def kgui_gcode_console(output):
@@ -355,20 +359,23 @@ def receive_event_history(kgui, events):
     kgui.reactor.register_event_handler("filament_manager:material_changed", kgui.handle_material_change)
     kgui.reactor.register_event_handler("filament_manager:request_material_choice", kgui.handle_request_material_choice)
     kgui.reactor.register_event_handler("filament_switch_sensor:runout", kgui.handle_material_runout)
+    kgui.reactor.register_event_handler("kgui:notification", kgui.handle_notification)
     for event, params in events:
         kgui.reactor.run_event(kgui, event, params)
 
 def start_stats(printer):
     statistics = printer.lookup_object('statistics')
     statistics.subscribers['kgui'] = lambda stats: printer.reactor.cb(set_attribute, 'stats', '\n'.join([s[1] for s in stats]), process='kgui')
-    plotjuggler = printer.lookup_object('plotjuggler')
-    plotjuggler.subscribers['kgui'] = lambda stats: printer.reactor.cb(set_attribute, 'plotjuggler_stats', stats, process='kgui')
+    plotjuggler = printer.lookup_object('plotjuggler', None)
+    if plotjuggler is not None:
+        plotjuggler.subscribers['kgui'] = lambda stats: printer.reactor.cb(set_attribute, 'plotjuggler_stats', stats, process='kgui')
 
 def stop_stats(printer):
     statistics = printer.lookup_object('statistics')
     statistics.subscribers.pop("kgui", None)
-    plotjuggler = printer.lookup_object('plotjuggler')
-    plotjuggler.subscribers.pop("kgui", None)
+    plotjuggler = printer.lookup_object('plotjuggler', None)
+    if plotjuggler is not None:
+        plotjuggler.subscribers.pop("kgui", None)
 
 def move_print(printer, idx, uuid, move):
     printer.objects['virtual_sdcard'].move_print(idx, uuid, move)

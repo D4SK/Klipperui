@@ -4,6 +4,7 @@ import os
 import traceback
 from os.path import join
 from subprocess import Popen
+from time import time
 
 os.environ['KIVY_NO_CONSOLELOG'] = '1'  # Only use file logging
 os.environ['KIVY_LOG_MODE'] = 'PYTHON'
@@ -29,7 +30,7 @@ from .nm_dbus import NetworkManager
 from .status import Notifications
 from . import parameters as p
 # Imports for KvLang Builder
-from . import files, home, settings, status, timeline, printer_cmd
+from . import files, home, settings, status, timeline, update, printer_cmd
 
 
 class MainApp(App, threading.Thread):
@@ -65,6 +66,8 @@ class MainApp(App, threading.Thread):
     pos = ListProperty([0, 0, 0, 0])
     pos_min = ListProperty([0, 0, 0])
     pos_max = ListProperty([0, 0, 0])
+    print_area_min = ListProperty([0, 0, 0])
+    print_area_max = ListProperty([0, 0, 0])
     material = DictProperty()
     tbc_to_guid = DictProperty()
     cura_connected = BooleanProperty(False)
@@ -101,7 +104,6 @@ class MainApp(App, threading.Thread):
         self.reactor = config.get_reactor()
         self.reactor.register_mp_callback_handler(kivy_callback)
         self.location = config.location
-        self.fd = config.get_printer().get_start_args().get("gcode_fd")
         # Read config
         self.xy_homing_controls = config.getboolean('xy_homing_controls', True)
         self.filament_diameter = config.getsection("extruder").getfloat("filament_diameter", 1.75)
@@ -130,7 +132,7 @@ class MainApp(App, threading.Thread):
             self.reactor.cb(printer_cmd.trim_history, process='printer')
 
     def handle_connect(self):
-        self.reactor.cb(printer_cmd.get_pos_limits)
+        self.reactor.cb(printer_cmd.get_pos)
         self.connected = True
         self.clean() # print_history should exist at this point since it is created from a callback in init
 
@@ -140,8 +142,10 @@ class MainApp(App, threading.Thread):
         self.reactor.cb(printer_cmd.get_material)
         self.reactor.cb(printer_cmd.get_tbc)
         self.reactor.cb(printer_cmd.get_collision_config)
+        self.reactor.cb(printer_cmd.get_idex_calibration)
+        # self.reactor.cb(printer_cmd.get_mesh)
         self.bind(print_state=self.handle_material_change)
-        Clock.schedule_interval(lambda dt: self.reactor.cb(printer_cmd.update), 1)
+        Clock.schedule_interval(lambda dt: self.reactor.cb(printer_cmd.update), 0.6)
         logging.info("Kivy app running")
 
     def handle_shutdown(self):
@@ -231,6 +235,9 @@ class MainApp(App, threading.Thread):
 
     def handle_material_mismatch(self, *args):
         MaterialMismatchPopup(*args).open()
+
+    def handle_notification(self, *args, **kwargs):
+        self.notify.show(*args, **kwargs)
 
     def set_led_brightness(self, val):
         self.led_brightness = val
