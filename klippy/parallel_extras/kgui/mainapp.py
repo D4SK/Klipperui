@@ -142,8 +142,6 @@ class MainApp(App, threading.Thread):
         self.reactor.cb(printer_cmd.get_material)
         self.reactor.cb(printer_cmd.get_tbc)
         self.reactor.cb(printer_cmd.get_collision_config)
-        self.reactor.cb(printer_cmd.get_idex_calibration)
-        # self.reactor.cb(printer_cmd.get_mesh)
         self.bind(print_state=self.handle_material_change)
         Clock.schedule_interval(lambda dt: self.reactor.cb(printer_cmd.update), 0.6)
         logging.info("Kivy app running")
