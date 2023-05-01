@@ -57,9 +57,11 @@ class Runner:
                 self.cleanup()
             return
         self.setup()
-        self.apt_install()
+        if not self.config.skip_apt:
+            self.apt_install()
         self.pre_pip()
-        self.pip_install()
+        if not self.config.skip_pip:
+            self.pip_install()
         self.run()
         if self.config.cleanup:
             self.cleanup()

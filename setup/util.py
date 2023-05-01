@@ -66,12 +66,13 @@ class Config:
         conf_path, args = self._get_config_file()
         conf = self._read_conf(conf_path)
         self.parser = conf
+        general = conf['general']
         cli_args = self._get_cli_args(args)
 
         # Print available actions and exit
         if cli_args.list:
             for a in all_actions:
-                print(f"{a.name()} - {a.description()}")
+                print(f"{a.name()}  -  {a.description()}")
             sys.exit(0)
 
         # Apply configuration changes from command line
@@ -79,27 +80,37 @@ class Config:
             if '__' in k:
                 sect, opt = k.split('__', 1)
                 conf.set(sect, opt, v)
-        
-        path = self._path
-        general = conf['general']
+
         self.verbose = general.getboolean('verbose')
         if self.verbose:
             logger = logging.getLogger()
             logger.setLevel(logging.DEBUG)
+
+        self.actions = self._resolve_actions(
+            general['include'].split(), cli_args,
+            [a.name() for a in all_actions])
+
+        # Print collected config and exit
+        if cli_args.print_config:
+            for sect in conf:
+                if sect != 'DEFAULT':
+                    print(sect)
+                for k, v in conf.items(sect):
+                    print('\t{} = {}'.format(k, v.replace('\n', ' ')))
+            sys.exit(0)
+
         self.cleanup = general.getboolean('cleanup')
         self.uninstall = general.getboolean('uninstall')
-
+        self.skip_apt = general.getboolean('skip-apt')
+        self.skip_pip = general.getboolean('skip-pip')
         self.graphics_provider = self.get_graphics_provider()
 
-        self.setup_dir = path(general['setup_dir'])
-        self.build_dir = path(general['build_dir'])
+        path = self._path
+        self.setup_dir = path(general['setup-dir'])
+        self.build_dir = path(general['build-dir'])
         self.srcdir = path(general['srcdir'])
         self.python = path(general['python'])
         self.venv = path(general['venv'])
-
-        actions = [a.name() for a in all_actions]
-        self.actions = self._resolve_actions(
-            general['include'].split(), cli_args, actions)
 
     def get_graphics_provider(self) -> str:
         provider = self.parser.get('graphics', 'provider')
@@ -162,8 +173,7 @@ class Config:
     def _get_config_file(self) -> tuple[Optional[Path], list[str]]:
         """See if a custom config file was specified via arguments"""
         parser = ArgumentParser(add_help=False)
-        parser.add_argument('-c', '--config', type=self._path,
-                            help="Specify a config file to use. Default: default.cfg")
+        parser.add_argument('-c', '--config', type=self._path)
         cli_args, other = parser.parse_known_args()
         conf_path = cli_args.config
         if conf_path is not None:
@@ -172,7 +182,7 @@ class Config:
 
     def _read_conf(self, path: Optional[Path] = None) -> configparser.ConfigParser:
         dyn_defaults = self._dynamic_defaults()
-        setup_dir = Path(dyn_defaults.get('general', 'setup_dir'))
+        setup_dir = Path(dyn_defaults.get('general', 'setup-dir'))
         if path is None:
             path = self.DEFAULT_FILE
         # Resolve relative to setup dir
@@ -214,8 +224,8 @@ class Config:
         setup_dir = Path(__file__).resolve().parent
         default.read_dict({'general': {
             'home': pwd.getpwuid(Unprivileged.UID).pw_dir,
-            'setup_dir': str(setup_dir),
-            'build_dir': str(setup_dir / 'builds'),
+            'setup-dir': str(setup_dir),
+            'build-dir': str(setup_dir / 'builds'),
             'srcdir': str(setup_dir.parent),
             'python': sys.executable,
             }
@@ -223,40 +233,52 @@ class Config:
         return default
 
     def _get_cli_args(self, args) -> Namespace:
-        parser = ArgumentParser()
-        parser.add_argument('-v', '--verbose', dest='general__verbose',
-                            action='store_const', const='True',
-                            default=SUPPRESS)
-        parser.add_argument('-c', '--config', type=self._path,
+        parser = ArgumentParser(usage='%(prog)s [options]')
+        parser.add_argument('-c', '--config', type=self._path, metavar='PATH',
                             help="Specify a config file to use. Default: default.cfg")
+        parser.add_argument('-v', '--verbose', dest='general__verbose',
+                            nargs='?', const='True', default=SUPPRESS,
+                            metavar='VERBOSE')
         parser.add_argument('-l', '--list', action='store_true',
                             help="List all available actions and exit")
+        parser.add_argument('-p', '--print-config', action='store_true',
+                            help="Dump all supplied configuration and exit")
+        parser.add_argument('-e', '--enable', nargs='+', metavar='ACTION',
+                            default=[], action='extend',
+                            help="Actions to enable additionally")
+        parser.add_argument('-d', '--disable', nargs='+', metavar='ACTION',
+                            default=[], action='extend',
+                            help="Actions to disable")
+        parser.add_argument('-i', '--include', nargs='+', default=[],
+                            action='extend', metavar='ACTION',
+                            help="Explicitly set all actions to include")
+        parser.add_argument('-x', '--exclude', nargs='+', default=[],
+                            action='extend', metavar='ACTION',
+                            help="Explicitly enable all actions except the specified ones")
+        parser.add_argument('--enable-all', action='store_true',
+                            help="Enable all actions")
         for section in self.parser.sections():
             if section == 'general':
                 for opt, _v in self.parser.items(section, raw=True):
-                    if opt not in {'verbose', 'include'}:
+                    if opt in {'cleanup', 'uninstall', 'skip-apt', 'skip-pip'}:
+                        # Interpret boolean options as flags
+                        parser.add_argument(f'--{opt}',
+                                            nargs='?',
+                                            const='True',
+                                            dest=f'general__{opt}',
+                                            default=SUPPRESS,
+                                            metavar='VAL')
+                    elif opt not in {'verbose', 'include'}:
                         parser.add_argument(f"--{opt}",
                                             dest=f"general__{opt}",
                                             default=SUPPRESS,
-                                            metavar=opt.upper())
+                                            metavar='VAL')
             else:
                 for opt, _v in self.parser.items(section, raw=True):
                     parser.add_argument(f"--{section}-{opt}",
                                         dest=f"{section}__{opt}",
                                         default=SUPPRESS,
-                                        metavar=opt.upper())
-        parser.add_argument('-e', '--enable', nargs='+',
-                            default=[], action='extend',
-                            help="Actions to enable additionally")
-        parser.add_argument('-d', '--disable', nargs='+',
-                            default=[], action='extend',
-                            help="Actions to disable")
-        parser.add_argument('--include', nargs='+', default=[], action='extend',
-                            help="Explicitly set all actions to include")
-        parser.add_argument('--exclude', nargs='+', default=[], action='extend',
-                            help="Explicitly enable all actions except the specified ones")
-        parser.add_argument('--enable-all', action='store_true',
-                            help="Enable all actions")
+                                        metavar='VAL')
         return parser.parse_args(args)
 
     @staticmethod

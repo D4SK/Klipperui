@@ -63,9 +63,9 @@ class Kivy(Action):
         super().__init__(config)
         self.version = self.config.get('version')
         # Not using X11 requires kivy to be compiled from source
-        self.from_source = (self.config.getboolean('from_source') or
+        self.from_source = (self.config.getboolean('from-source') or
                             self.general.graphics_provider == 'sdl2')
-        self.cython_version = self.config.get('cython_version')
+        self.cython_version = self.config.get('cython-version')
 
     def apt_depends(self) -> set[str]:
         # https://github.com/kivy/kivy/blob/master/doc/sources/installation/installation-rpi.rst
@@ -177,11 +177,11 @@ class Graphics(Action):
     def __init__(self, config: Config) -> None:
         super().__init__(config)
         self.build_path = self.general.build_dir / 'sdl2'
-        self.parts = ['SDL2-' + self.config.get('sdl_version'),
-                      'SDL2_image-' + self.config.get('sdl_image_version'),
-                      'SDL2_mixer-' + self.config.get('sdl_mixer_version'),
-                      'SDL2_ttf-' + self.config.get('sdl_ttf_version')]
-        self.from_source = (self.config.getboolean('sdl2_from_source') or
+        self.parts = ['SDL2-' + self.config.get('sdl-version'),
+                      'SDL2_image-' + self.config.get('sdl-image-version'),
+                      'SDL2_mixer-' + self.config.get('sdl-mixer-version'),
+                      'SDL2_ttf-' + self.config.get('sdl-ttf-version')]
+        self.from_source = (self.config.getboolean('sdl2-from-source') or
                             self.general.graphics_provider == 'sdl2')
 
     def apt_depends(self) -> set[str]:
@@ -325,12 +325,12 @@ class KlipperDepends(Action):
 
     def pip_depends(self) -> set[Union[str, PipPkg]]:
         return {
-            'cffi=='             + self.config['cffi_version'],
-            'pyserial=='         + self.config['pyserial_version'],
-            'greenlet=='         + self.config['greenlet_version'],
-            'Jinja2=='           + self.config['jinja2_version'],
-            'requests=='         + self.config['requests_version'],
-            'websocket-client==' + self.config['websocket_client_version'],
+            'cffi=='             + self.config['cffi-version'],
+            'pyserial=='         + self.config['pyserial-version'],
+            'greenlet=='         + self.config['greenlet-version'],
+            'Jinja2=='           + self.config['jinja2-version'],
+            'requests=='         + self.config['requests-version'],
+            'websocket-client==' + self.config['websocket-client-version'],
         }
 
 
@@ -421,7 +421,7 @@ class Wifi(Action):
 
     def pip_depends(self) -> set[Union[str, PipPkg]]:
         return {
-            "pydbus==" + self.config['pydbus_version'],
+            "pydbus==" + self.config['pydbus-version'],
             "PyGObject",  #TODO: fix version
         }
 
@@ -465,7 +465,7 @@ class MonitorConf(Action):
         self.rotation = self.config.getint('rotation')
         if self.rotation not in {0, 90, 180, 270}:
             raise ValueError(f"Invalid rotation value: {self.rotation}")
-        self.set_modeline = self.config.getboolean('set_modeline')
+        self.set_modeline = self.config.getboolean('set-modeline')
 
     LIBINPUT_CONF = """Section "InputClass"
         Identifier "libinput pointer catchall"
@@ -607,7 +607,7 @@ iptables-persistent iptables-persistent/autosave_v6 boolean false"""
         return {'iptables-persistent'}
 
     def pip_depends(self) -> set[Union[str, PipPkg]]:
-        return {'zeroconf==' + self.config.get('zeroconf_version')}
+        return {'zeroconf==' + self.config.get('zeroconf-version')}
 
     def run(self) -> None:
         self.reroute_ports()
