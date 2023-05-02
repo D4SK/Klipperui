@@ -175,7 +175,7 @@
             size_hint: None, None
             valign: 'bottom'
             halign: 'left'
-            padding_x: p.padding
+            padding: p.padding, 0
             color: p.light_gray
     TextInput:
         id: console_input
@@ -463,8 +463,7 @@
         size_hint: 1, 0.2
         valign: 'top'
         halign: 'left'
-        padding_x: p.padding
-        padding_y: p.padding - dp(10)
+        padding: p.padding, p.padding - dp(10)
         pos_hint: {'x':0, 'top':1}
         color: p.medium_gray
 
@@ -515,7 +514,7 @@
         halign: 'right'
         valign: 'middle'
         max_lines: 1
-        padding_x: p.h_padding
+        padding: p.h_padding, 0
         text_size: self.size
         font_size: p.normal_font
     Divider:
@@ -538,7 +537,7 @@
         size: p.screen_width, dp(90)
         halign: 'left'
         valign: 'bottom'
-        padding_x: p.padding
+        padding: p.padding, 0
         pos_hint: {'x':0, 'top':1}
         color: p.light_gray
     ScrollView:
@@ -645,7 +644,7 @@
     text_size: self.size
     valign: 'middle'
     halign: 'left'
-    padding_x: p.padding
+    padding: p.padding, 0
     color: (1,1,1,1) if self.enabled else p.medium_gray
     hidden: False
     Label:
@@ -660,7 +659,7 @@
         halign: 'right'
         y: root.y
         right: p.screen_width
-        padding_x: p.padding
+        padding: p.padding, 0
     Divider:
         top: root.y
         hidden: root.hidden
@@ -686,7 +685,7 @@
     text_size: self.size
     valign: 'middle'
     halign: 'left'
-    padding_x: p.padding
+    padding: p.padding, 0
     selected: False
     enabled: False
     color: (1,1,1,1) if self.enabled else p.medium_gray
@@ -711,8 +710,7 @@
     text_size: self.size
     valign: 'bottom'
     halign: 'left'
-    padding_x: p.padding
-    padding_y: p.padding
+    padding: p.padding, p.padding
     color: p.medium_gray
     Label:
         text: root.upper_title
@@ -723,8 +721,7 @@
         size_hint: None, None
         valign: 'top'
         halign: 'left'
-        padding_x: p.padding
-        padding_y: p.padding
+        padding: p.padding, p.padding
         pos: root.pos
     Btn:
         id: btn_install
@@ -905,7 +902,7 @@
             size: self.size
             pos: self.pos
     size_hint: None, None
-    padding_x: p.h_padding
+    padding: p.h_padding, 0
     font_size: p.normal_font
     text_size: self.size
     color: (1,1,1,1)

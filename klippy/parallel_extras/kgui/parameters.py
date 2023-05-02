@@ -45,7 +45,7 @@ notification_text_padding = dp(20)
 btn_spacing = padding + btn_height
 h_padding = padding*disp_vertical_stretch
 btn_temp_width = dp(158)
-btn_width = screen_width - 3*h_padding - btn_temp_width
+btn_width = screen_width - 3.5*h_padding - btn_temp_width
 
 background = [0.05, 0.05, 0.05, 1]
 notification_shadow = (0.065, 0.065, 0.065, 0.45)

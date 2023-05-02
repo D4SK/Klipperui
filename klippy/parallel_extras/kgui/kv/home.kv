@@ -114,7 +114,7 @@
             small_value: f"{app.temp[self.heater_id][0]:3.0f}" if app.temp[self.heater_id][0] != 0 else "Off"
             red: app.temp[self.heater_id][1] > 50
             right: temp_bed.right if app.extruder_count > 1 else p.mars
-            y: p.tab_height + p.padding*3 + p.progress_bar_height + p.btn_stop
+            y: p.tab_height + p.progress_bar_height + 4*p.padding + p.btn_height + p.btn_stop
         BtnTemp:
             canvas:
                 Color:
@@ -131,7 +131,7 @@
             small_value: f"{app.temp[self.heater_id][0]:3.0f}" if app.temp[self.heater_id][0] != 0 else "Off"
             red: app.temp[self.heater_id][1] > 50
             right: temp_bed.right
-            y: p.tab_height + p.progress_bar_height + 4*p.padding + p.btn_height + p.btn_stop
+            y: p.tab_height + p.padding*3 + p.progress_bar_height + p.btn_stop
         BtnTemp:
             canvas:
                 Color:
@@ -165,25 +165,37 @@
 <HomeScreen@Screen>:
     name: "homescreen"
     FloatLayout:
-        BtnMaterial:
-            gcode_id: 'T1'
-            tool_idx: 1
-            extruder_id: 'extruder1'
-            material:
-                self.material if not (app.material and len(app.material['loaded']) > self.tool_idx) \
-                else app.material['loaded'][self.tool_idx]
-            y: p.padding if app.extruder_count > 1 else p.mars
+        BoxLayout:
+            canvas:
+                Color:
+                    rgba: p.translucent_white
+                RoundedRectangle:
+                    radius: (p.popup_radius,)
+                    pos: self.x - p.padding/2, self.y - p.padding/2
+                    size: self.width + p.padding, self.height + p.padding
+            id: material_box
+            orientation: 'vertical'
+            size_hint: None, None
+            size: btn_tr_T0.width, (btn_tr_T0.height + p.padding)*2 - p.padding
+            y: p.padding
             right: p.screen_width - p.h_padding
-        BtnMaterial:
-            id: btn_tr_T0
-            gcode_id: 'T0'
-            tool_idx: 0
-            extruder_id: 'extruder'
-            material:
-                self.material if not (app.material and len(app.material['loaded']) > self.tool_idx) \
-                else app.material['loaded'][self.tool_idx]
-            y: p.padding*2 + p.btn_height
-            right: p.screen_width - p.h_padding
+            spacing: p.padding
+            BtnMaterial:
+                gcode_id: 'T1'
+                tool_idx: 1
+                extruder_id: 'extruder1'
+                pos_hint: {} if app.extruder_count > 1 else {'x': p.mars}
+                material:
+                    self.material if not (app.material and len(app.material['loaded']) > self.tool_idx) \
+                    else app.material['loaded'][self.tool_idx]
+            BtnMaterial:
+                id: btn_tr_T0
+                gcode_id: 'T0'
+                tool_idx: 0
+                extruder_id: 'extruder'
+                material:
+                    self.material if not (app.material and len(app.material['loaded']) > self.tool_idx) \
+                    else app.material['loaded'][self.tool_idx]
 
 <PrintingScreen@Screen>:
     name: "printingscreen"
@@ -260,7 +272,7 @@
     font_size: p.normal_font
     halign: 'center'
     valign: 'middle'
-    padding_y: 8
+    padding: 0, dp(8)
     text:
         {'loading': "Loading...",
         'unloading': "Unloading...",
@@ -610,7 +622,7 @@
         Rectangle:
             source: p.kgui_dir + {'bullet': '/logos/bullet.png', 'info': '/logos/info.png', 'red_x': '/logos/x.png', 'red': '/logos/warning.png', 'yellow': '/logos/warning.png', 'green': '/logos/checkmark.png', 'transparent': '/logos/transparent.png'}[self.state]
             size: dp(30*p.disp_vertical_stretch), dp(30)
-            pos: self.x - dp(47), self.top - dp(29) - self.padding_y
+            pos: self.x - dp(47), self.top - dp(29) - self.padding[1]
     height: self.texture_size[1]
     size_hint: None, None
     text_size: self.width, None
@@ -619,7 +631,7 @@
     valign: 'top'
     multiline: True
     line_height: 1.16
-    padding_y: dp(9)
+    padding: 0, dp(9)
 
 <MaterialMismatchPopup>:
     size_hint: 0.92, 0.54
@@ -818,7 +830,7 @@
             "show less" if root.filamentchooser.show_more[root.level] else ""
         text_size: self.size
         font_size: p.normal_font
-        padding_y: dp(5)
+        padding: 0, dp(5)
         valign: 'top'
         halign: 'center'
 

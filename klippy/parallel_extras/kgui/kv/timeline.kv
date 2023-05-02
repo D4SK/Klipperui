@@ -106,7 +106,7 @@
         halign: 'right'
         valign: 'middle'
         max_lines: 1
-        padding_x: p.h_padding
+        padding: p.h_padding, 0
         text_size: self.size
         font_size: p.normal_font
         color:
@@ -122,7 +122,7 @@
         size: root.width, dp(44) if root.state == 'header' else dp(110)
         x: root.x
         top: root.top
-        padding_x: 2*p.h_padding + dp(80 - 20)
+        padding: 2*p.h_padding + dp(80 - 20), 0
         text_size: self.size
         font_size: p.normal_font
         color: p.dark_gray if root.state == 'header' else (1,1,1,1)
