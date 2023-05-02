@@ -8,7 +8,7 @@ from math import log10
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.properties import (NumericProperty, BooleanProperty, StringProperty,
-                             ListProperty, ObjectProperty)
+                             ListProperty, ObjectProperty, DictProperty)
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.vkeyboard import VKeyboard
@@ -18,6 +18,8 @@ from kivy.graphics.vertex_instructions import RoundedRectangle
 
 from . import parameters as p
 from . import printer_cmd
+from .parameters import dp, sp
+from extras.filament_manager import Problem
 
 
 class Divider(Widget):
@@ -143,35 +145,55 @@ class PrintPopup(BasePopup):
         self.path = path
         self.filechooser = filechooser
         super().__init__(**kwargs)
-        self.populate_details()
         Clock.schedule_once(self._align, 0)
-
-    def populate_details(self):
-        md = self.md
-        if md is None:
+        if self.md is None:
             self.add_detail("Invalid File", "")
             return
+        else:
+            self.app.reactor.cb(printer_cmd.get_material_match, self.md, completion=self.populate_details)
 
-        weight = md.get_material_amount(measure='weight')
-        if weight is not None:
-            precision = max(1-int(log10(weight)), 0) # show up to 2 decimal places for small values
-            self.add_detail("Filament:", f"{weight:.{precision}f}g")
+    def populate_details(self, kgui=None, material_match=None):
+        loaded_materials, needed_materials, problems = material_match
+        md = self.md
+        app = App.get_running_app()
+        all_problems = Problem.OK
+        for needed_material, problem in zip(needed_materials, problems):
+            print_material_widget = PrintMaterial(needed_material, problem)
+            self.ids.settings_box.add_widget(print_material_widget)
+            all_problems |= print_material_widget.problems
+        for loaded_material in loaded_materials:
+            material_widget = BtnMaterial(material=loaded_material, width=dp(150), height=dp(65))
+            self.ids.material_box.add_widget(material_widget)
+            all_problems |= material_widget.problems
+        if all_problems & Problem.AMOUNT:
+            self.ids.state_text.text = f"Insufficient Material for {app.print_title}"
+            self.ids.state_text.state = 'yellow'
+        elif all_problems & Problem.EXTRUDER_COUNT:
+            self.ids.state_text.text = f"{app.print_title} requires {len(needed_materials)} extruders"
+            self.ids.state_text.state = 'red_x'
+        elif all_problems:
+            self.ids.state_text.text = f"Material Change required for {app.print_title}"
+            self.ids.state_text.state = 'red'
+        elif 1: # TODO doesnt collide
+            if len(app.jobs):
+                self.ids.state_text.text = f"Print Job will start automatically"
+                self.ids.state_text.state = 'green'
+            else:
+                self.ids.state_text.text = f"Ready to print"
+                self.ids.state_text.state = 'green'
+        else:
+            if len(app.jobs):
+                self.ids.state_text.text = f"Print Job will wait until the bed is cleared"
+                self.ids.state_text.state = 'green'
+            else:
+                self.ids.state_text.text = f"Clear the Build Plate before starting"
+                self.ids.state_text.state = 'red'
+
+        Clock.schedule_once(self._align, 0)
 
         time = md.get_time()
         if time is not None:
             self.add_detail("Print Time:", printer_cmd.format_time(time))
-
-        material_type = md.get_material_type()
-        if material_type:
-            self.add_detail("Material:", material_type)
-
-        n_extruders = md.get_extruder_count()
-        if n_extruders is not None:
-            self.add_detail("Extruder Count:", str(n_extruders))
-
-        slicer = md.get_slicer()
-        if slicer is not None:
-            self.add_detail("Sliced by:", slicer)
 
         size = md.get_file_size()
         if size is not None:
@@ -196,6 +218,8 @@ class PrintPopup(BasePopup):
         the filename label.
         """
         self.detailsbox.top = self.ids.thumbnail.y - p.padding
+        self.ids.material_box.center_y = self.center_y
+        self.ids.settings_box.center_y = self.center_y
 
     def confirm(self):
         self.dismiss()
@@ -237,6 +261,49 @@ class DeletePopup(BasePopup):
         self.dismiss()
         app.notify.show("File deleted", "Deleted " + basename(self.path), delay=4)
 
+class StateText(Label):
+    state = StringProperty('transparent')
+
+class BtnMaterial(RoundButton):
+    filament_amount = NumericProperty()
+    filament_color = ListProperty([0,0,0,0])
+    title = StringProperty()
+    gcode_id = StringProperty()
+    tool_idx = NumericProperty()
+    extruder_id = StringProperty()
+    material = DictProperty({'guid': None, 'state': "no material", 'amount': 0,
+                                'material_type': "", 'hex_color': None, 'brand': ""})
+
+class MaterialMismatchPopup(BasePopup):
+    def __init__(self, loaded_materials, needed_materials, problems):
+        super().__init__()
+        app = App.get_running_app()
+        all_problems = Problem.OK
+        for needed_material, problem in zip(needed_materials, problems):
+            material_widget = PrintMaterial(needed_material, problem)
+            self.ids.settings_box.add_widget(material_widget)
+            all_problems |= material_widget.problems
+        for loaded_material in loaded_materials:
+            material_widget = BtnMaterial(material=loaded_material, width=dp(150), height=dp(65))
+            self.ids.material_box.add_widget(material_widget)
+            all_problems |= material_widget.problems
+        if all_problems & Problem.AMOUNT:
+            self.title = f"Insufficient Material for {app.print_title}"
+        elif all_problems & Problem.EXTRUDER_COUNT:
+            self.title = f"{app.print_title} requires {len(needed_materials)} extruders"
+        else:
+            self.title = f"Material Change required for {app.print_title}"
+        Clock.schedule_once(self._align, 0)
+
+    def _align(self, dt):
+        self.ids.material_box.center_y = self.center_y
+        self.ids.settings_box.center_y = self.center_y
+
+class PrintMaterial(Label):
+    def __init__(self, material, problems):
+        self.material = material
+        self.problems = problems
+        super().__init__()
 
 class WarningPopup(BasePopup):
     def __init__(self, confirm_callback, **kwargs):

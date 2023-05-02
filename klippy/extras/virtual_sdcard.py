@@ -57,7 +57,7 @@ class PrintJob:
     def start(self):
         if self.state == 'queued':
             fm = self.manager.printer.lookup_object("filament_manager")
-            materials, needed_materials, problems = fm.get_material_match(self)
+            materials, needed_materials, problems = fm.get_material_match(self.md)
             if any(problems) and not self.no_material_check:
                 self.gcode.run_script("SAVE_GCODE_STATE NAME=PAUSE_STATE")
                 self.gcode.run_script("SET_GCODE_OFFSET X=0 Y=0")
@@ -219,7 +219,6 @@ class PrintJobManager:
             if (assume_clear_after == 0
             or self.jobs[0].print_end_time is not None and assume_clear_after < (now - self.jobs[0].print_end_time)):
                 self.clear_buildplate()
-                self.printer.send_event("virtual_sdcard:assume_build_plate_clear")
         no_material_check = (not self.jobs or
             (len(self.jobs) == 1 and self.jobs[0].state in ('finished', 'aborted'))
             and no_material_check_when_first)
@@ -299,7 +298,7 @@ class PrintJobManager:
             for i in range(1, len(self.jobs)):
                 pj = self.jobs[i]
                 if not collision.predict_availability(pj, self.jobs[:i]) or (
-                    any(fm.get_material_match(pj)[2]) and not pj.no_material_check):
+                    any(fm.get_material_match(pj.md)[2]) and not pj.no_material_check):
                     # Previous print job is the last continuous one
                     i = i-1
                     break

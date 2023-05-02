@@ -44,8 +44,8 @@ def material_dir():
     return path
 
 def log_dir():
-    path = os.path.join(_data_path, 'logs')
-    os.makedirs(path, exist_ok=True)
+    path = '/tmp/'
+    os.makedirs(path, mode=0o700, exist_ok=True)
     return path
 
 def metadata_cache():

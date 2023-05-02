@@ -23,8 +23,8 @@ from kivy.clock import Clock
 from kivy.lang import Builder
 from kivy.properties import (OptionProperty, BooleanProperty, DictProperty,
                             NumericProperty, ListProperty, StringProperty)
-from .elements import UltraKeyboard, CriticalErrorPopup, ErrorPopup
-from .home import FilamentChooserPopup, FilamentRunoutPopup, MaterialMismatchPopup
+from .elements import UltraKeyboard, CriticalErrorPopup, ErrorPopup, MaterialMismatchPopup
+from .home import FilamentChooserPopup, FilamentRunoutPopup
 from .freedir import freedir
 from .nm_dbus import NetworkManager
 from .status import Notifications
@@ -206,9 +206,6 @@ class MainApp(App, threading.Thread):
             self.progress = 0
             self.print_done_time = "Confirm Build Plate is clear"
             self.print_time = ""
-
-    def handle_assume_build_plate_clear(self):
-        self.notify.show("Clear Build Plate", "Please ensure all prints have been removed", delay=5)
 
     def hide_print(self):
         self.print_title = ""

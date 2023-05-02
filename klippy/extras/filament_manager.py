@@ -163,8 +163,7 @@ class FilamentManager:
             ns = {'m': 'http://www.ultimaker.com/material'}
             return tree.findtext(xpath, default, ns)
 
-    def get_material_match(self, printjob):
-        md = printjob.md
+    def get_material_match(self, md):
         loaded = self.get_status()["loaded"]
 
         loaded_materials = []

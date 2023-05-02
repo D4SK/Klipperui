@@ -5,7 +5,6 @@ from kivy.properties import ListProperty, NumericProperty, StringProperty, \
 from kivy.uix.label import Label
 
 from .elements import BaseButton, BasePopup, UltraSlider, RoundButton
-from extras.filament_manager import Problem
 from .printer_cmd import hex_to_rgba, calculate_filament_color
 from . import parameters as p
 from . import printer_cmd
@@ -64,45 +63,8 @@ class TempSlider(UltraSlider):
         return max(self.x, x)
 
 class CalibrationPopup(BasePopup):
-    def __init__(self):
-        super().__init__()
-
-class BtnMaterial(RoundButton):
-    filament_amount = NumericProperty()
-    filament_color = ListProperty([0,0,0,0])
-    title = StringProperty()
-    gcode_id = StringProperty()
-    tool_idx = NumericProperty()
-    extruder_id = StringProperty()
-    material = DictProperty({'guid': None, 'state': "no material", 'amount': 0,
-                                'material_type': "", 'hex_color': None, 'brand': ""})
-
-class MaterialMismatchPopup(BasePopup):
-    def __init__(self, loaded_materials, needed_materials, problems):
-        super().__init__()
-        app = App.get_running_app()
-        all_problems = Problem.OK
-        for extruder_info in zip(loaded_materials, needed_materials, problems):
-            material_widget = Material(*extruder_info)
-            self.ids.material_box.add_widget(material_widget)
-            all_problems |= material_widget.problems
-        if all_problems & Problem.AMOUNT:
-            self.title = f"Insufficient Material for {app.print_title}"
-        elif all_problems & Problem.EXTRUDER_COUNT:
-            self.title = f"{app.print_title} requires {len(needed_materials)} extruders"
-        else:
-            self.title = f"Material Change required for {app.print_title}"
-        Clock.schedule_once(self._align, 0)
-
-    def _align(self, dt):
-        self.ids.material_box.center_y = self.center_y
-
-class Material(Label):
-    def __init__(self, material, needed_material, problems):
-        self.material = material
-        self.needed_material = needed_material
-        self.problems = problems
-        super().__init__()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
 class FilamentRunoutPopup(BasePopup):
     def __init__(self, extruder_id):

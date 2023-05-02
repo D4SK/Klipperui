@@ -261,49 +261,6 @@
 
 # BUTTONS
 
-<BtnMaterial>:
-    size_hint: None, None
-    size: p.btn_width, p.btn_height
-    enabled: app.state == "ready" and app.material
-    filament_amount: self.material['amount']
-    filament_color: printer_cmd.calculate_filament_color(printer_cmd.hex_to_rgba(self.material['hex_color']))
-    color: (1,1,1,1) if self.enabled else p.btn_disabled
-    text_size: self.size
-    font_size: p.normal_font
-    halign: 'center'
-    valign: 'middle'
-    padding: 0, dp(8)
-    text:
-        {'loading': "Loading...",
-        'unloading': "Unloading...",
-        'loaded': f"{self.material['amount']*1000:3.0f}g {self.material['material_type']}\n(unload)",
-        'no material': "Load Material"}[self.material['state']]
-    on_release:
-        Factory.FilamentChooserPopup(root.extruder_id).open() if root.material['state'] == "no material" else \
-        Factory.FilamentPopup(root.extruder_id, False, root.material).open() if root.material['state'] == 'loaded' else None
-    canvas.before:
-        Color:
-            rgba: self.filament_color
-        RoundedRectangle:
-            size: max(0, self.width*self.filament_amount), self.height
-            pos: self.pos
-            radius:
-                [p.radius, \
-                max(0, p.radius - self.width + self.width*self.filament_amount), \
-                max(0, p.radius - self.width + self.width*self.filament_amount), \
-                p.radius]
-        Color:
-            rgba: p.btn_outline
-        Line:
-            width: 1
-            rounded_rectangle: (self.x, self.y, self.width, self.height, p.radius)
-        Color:
-            rgba: p.btn_outline if self.filament_amount > 0 else (0,0,0,0)
-        Line:
-            points:
-                self.x + self.filament_amount * self.width, self.y + p.btn_divider_padding, \
-                self.x + self.filament_amount * self.width, self.top - p.btn_divider_padding
-
 <BtnTemp@BaseButton>:
     red: False
     enabled: app.state == "ready"
@@ -615,87 +572,6 @@
         multiline: True
         color: p.light_gray
 
-<StateText>:
-    canvas:
-        Color:
-            rgba: {'bullet': self.color, 'info': p.medium_gray, 'red_x': p.red, 'red': p.red, 'yellow': p.yellow, 'green': p.green, 'transparent': (0,0,0,0)}[self.state]
-        Rectangle:
-            source: p.kgui_dir + {'bullet': '/logos/bullet.png', 'info': '/logos/info.png', 'red_x': '/logos/x.png', 'red': '/logos/warning.png', 'yellow': '/logos/warning.png', 'green': '/logos/checkmark.png', 'transparent': '/logos/transparent.png'}[self.state]
-            size: dp(30*p.disp_vertical_stretch), dp(30)
-            pos: self.x - dp(47), self.top - dp(29) - self.padding[1]
-    height: self.texture_size[1]
-    size_hint: None, None
-    text_size: self.width, None
-    font_size: p.normal_font - dp(1)
-    halign: 'left'
-    valign: 'top'
-    multiline: True
-    line_height: 1.16
-    padding: 0, dp(9)
-
-<MaterialMismatchPopup>:
-    size_hint: 0.92, 0.54
-    FloatLayout:
-        BoxLayout:
-            pos_hint: {'center_x': 0.5}
-            size_hint: None, None
-            height: self.minimum_height
-            orientation: 'vertical'
-            id: material_box
-            spacing: p.padding
-            center_y: 2*p.mars
-            width: dp(450)
-        BtnPConfirm:
-            enabled: True
-            text: "Ok"
-            width: root.width
-            pos: root.pos
-            on_release: root.dismiss()
-
-<Material>:
-    size: dp(450), dp(80)
-    text: "<" if self.problems & Problem.AMOUNT else "≠" if self.problems else ""
-    text_size: self.size
-    font_size: p.large_font + sp(6)
-    valign: 'middle'
-    halign: 'center'
-    size_hint: None, None
-    canvas.before:
-        Color:
-            rgba: printer_cmd.calculate_filament_color(printer_cmd.hex_to_rgba(self.material.color))
-        RoundedRectangle:
-            size: dp(160)*self.material.amount, self.height
-            pos: self.x, self.y
-            radius:
-                ([p.radius] +
-                ([0, 0] if dp(160)*self.material.amount < dp(160) - p.radius else [p.radius, p.radius]) +
-                [p.radius])
-        Color:
-            rgba: p.btn_outline
-        Line:
-            width: 1
-            rounded_rectangle: (self.x, self.y, dp(160), self.height, p.radius)
-    Label:
-        size: root.size
-        y: root.y
-        center_x: root.right - dp(160/2)
-        text:
-            # needed_material can be None if extruder count doesn't match
-            (f"{root.needed_material.amount:.0f}g {root.needed_material.type}"
-            if root.needed_material else "")
-        font_size: p.normal_font
-        valign: 'middle'
-        halign: 'center'
-        color: (1,1,1,1) if root.problems else p.light_gray
-    Label:
-        size: root.size
-        y: root.y
-        center_x: root.x + dp(160/2)
-        valign: 'middle'
-        halign: 'center'
-        font_size: p.normal_font
-        text: f"{root.material.amount:.0f}g {root.material.type}"
-        color: (1,1,1,1) if root.problems else p.light_gray
 
 <ExtTempPopup@BasePopup>:
     size_hint: 0.94, 0.4
