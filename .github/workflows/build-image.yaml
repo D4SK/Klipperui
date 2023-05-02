@@ -1,0 +1,51 @@
+name: 'Build custom Raspberry Pi OS image with Klippo'
+
+on:
+  #TODO don't do automatically yet
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout Klippo
+        uses: actions/checkout@v3
+        with:
+          path: klippo
+
+      - name: Checkout klippo-image
+        uses: actions/checkout@v3
+        with:
+          repository: Gobbel2000/klippo-image
+          ref: klippo
+          path: klippo-image
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            coreutils quilt parted qemu-user-static debootstrap zerofree zip \
+            dosfstools libarchive-tools libcap2-bin grep rsync xz-utils file \
+            git curl bc qemu-utils kpartx gpg pigz btrfs-progs debhelper \
+            build-essential
+
+      - name: Run build.sh
+        env:
+          IMG_NAME: RaspbianKlippo
+          DEPLOY_COMPRESSION: xz
+          COMPRESSION_LEVEL: 9
+          FIRST_USER_NAME: print
+          FIRST_USER_PASS: printerpw
+          DISABLE_FIRST_BOOT_USER_RENAME: 1
+        run: |
+          cd klippo-image
+          # Don't export stage2 (Raspbian-Lite) image
+          touch stage2/SKIP_IMAGES
+          sudo -E ./build.sh
+
+      - name: Upload
+        uses: actions/upload-artifact@v3
+        with:
+          name: image
+          path: klippo-image/deploy/image_*.xz
