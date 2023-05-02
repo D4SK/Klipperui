@@ -207,9 +207,13 @@ class _UFPReader(metaclass=_UFPMetaClass):
         UFPParserClass = _UFPReader.add_baseclass(ParserClass)
         ufp_parser = object.__new__(UFPParserClass)
         try:
-            from .gcode_metadata import MPMetadata
+            from .gcode_metadata import MPMetadata, GCodeMetadata
             from klippy import get_main_config
-            ufp_parser._module = MPMetadata(get_main_config())
+            config = get_main_config()
+            if config.reactor.process_name == 'printer':
+                ufp_parser._module = GCodeMetadata(config)
+            else:
+                ufp_parser._module = MPMetadata(config)
         except (ImportError, AttributeError):
             # Ease inspection of pickled files
             ufp_parser._module = None

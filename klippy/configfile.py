@@ -17,6 +17,8 @@ main_config = None
 class ConfigWrapper:
     error = configparser.Error
     def __init__(self, printer, fileconfig, access_tracking, section):
+        global main_config
+        main_config = self
         self.printer = printer
         self.fileconfig = fileconfig
         self.access_tracking = access_tracking
