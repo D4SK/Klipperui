@@ -134,8 +134,6 @@ class StopPopup(BasePopup):
 
 class PrintPopup(BasePopup):
 
-    detailsbox = ObjectProperty(None)
-
     def __init__(self, path, filechooser=None, **kwargs):
         self.app = App.get_running_app()
         try:
@@ -162,9 +160,11 @@ class PrintPopup(BasePopup):
             self.ids.settings_box.add_widget(print_material_widget)
             all_problems |= print_material_widget.problems
         for loaded_material in loaded_materials:
-            material_widget = BtnMaterial(material=loaded_material, width=dp(150), height=dp(65))
+            material_dict = vars(loaded_material)
+            material_dict['hex_color'] = material_dict['color']
+            material_dict['material_type'] = material_dict['type']
+            material_widget = BtnMaterial(material=material_dict, width=dp(150), height=dp(65))
             self.ids.material_box.add_widget(material_widget)
-            all_problems |= material_widget.problems
         if all_problems & Problem.AMOUNT:
             self.ids.state_text.text = f"Insufficient Material for {app.print_title}"
             self.ids.state_text.state = 'yellow'
@@ -177,39 +177,25 @@ class PrintPopup(BasePopup):
         elif 1: # TODO doesnt collide
             if len(app.jobs):
                 self.ids.state_text.text = f"Print Job will start automatically"
-                self.ids.state_text.state = 'green'
+                self.ids.state_text.state = 'play'
             else:
                 self.ids.state_text.text = f"Ready to print"
-                self.ids.state_text.state = 'green'
+                self.ids.state_text.state = 'play'
         else:
             if len(app.jobs):
                 self.ids.state_text.text = f"Print Job will wait until the bed is cleared"
-                self.ids.state_text.state = 'green'
+                self.ids.state_text.state = 'pause'
             else:
                 self.ids.state_text.text = f"Clear the Build Plate before starting"
                 self.ids.state_text.state = 'red'
-
+        print_time = md.get_time()
+        if print_time is not None:
+            self.ids.print_time.text = f"Print Time: {printer_cmd.format_time(print_time)}"
+            self.ids.print_time.state = "time"
+        else:
+            self.ids.print_time.text = ""
+            self.ids.print_time.state = "transparent"
         Clock.schedule_once(self._align, 0)
-
-        time = md.get_time()
-        if time is not None:
-            self.add_detail("Print Time:", printer_cmd.format_time(time))
-
-        size = md.get_file_size()
-        if size is not None:
-            for ext in ("B", "KiB", "MiB", "GiB", "TiB"):
-                if size < 1024:
-                    break
-                size /= 1024
-            try:
-                precision = max(1-int(log10(size)), 0)
-            except ValueError:  # Cannot take logarithm when size is 0
-                precision = 0
-            self.add_detail("G-Code Size:", f"{size:.{precision}f} {ext}")
-
-    def add_detail(self, key, value):
-        detail = PrintPopupDetail(key=key, value=value)
-        self.detailsbox.add_widget(detail)
 
     def _align(self, *args):
         """
@@ -217,9 +203,8 @@ class PrintPopup(BasePopup):
         readjusted after adding elements to always start right below
         the filename label.
         """
-        self.detailsbox.top = self.ids.thumbnail.y - p.padding
-        self.ids.material_box.center_y = self.center_y
-        self.ids.settings_box.center_y = self.center_y
+        self.ids.material_box.center_y = self.center_y - dp(100)
+        self.ids.settings_box.center_y = self.center_y - dp(100)
 
     def confirm(self):
         self.dismiss()
@@ -284,9 +269,11 @@ class MaterialMismatchPopup(BasePopup):
             self.ids.settings_box.add_widget(material_widget)
             all_problems |= material_widget.problems
         for loaded_material in loaded_materials:
-            material_widget = BtnMaterial(material=loaded_material, width=dp(150), height=dp(65))
+            material_dict = vars(loaded_material)
+            material_dict['hex_color'] = material_dict['color']
+            material_dict['material_type'] = material_dict['type']
+            material_widget = BtnMaterial(material=material_dict, width=dp(150), height=dp(65))
             self.ids.material_box.add_widget(material_widget)
-            all_problems |= material_widget.problems
         if all_problems & Problem.AMOUNT:
             self.title = f"Insufficient Material for {app.print_title}"
         elif all_problems & Problem.EXTRUDER_COUNT:
@@ -302,6 +289,8 @@ class MaterialMismatchPopup(BasePopup):
 class PrintMaterial(Label):
     def __init__(self, material, problems):
         self.material = material
+        if not self.material.amount:
+            self.material.amount = 0
         self.problems = problems
         super().__init__()
 

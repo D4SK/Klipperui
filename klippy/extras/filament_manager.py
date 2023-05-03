@@ -183,7 +183,7 @@ class FilamentManager:
                 l_mat = None
             else:
                 l_mat = Material(self, loaded[extruder]["guid"],
-                                 amount=loaded[extruder]["amount"] * 1000)
+                                 amount=loaded[extruder]["amount"] * 1000, state=loaded[extruder]["state"])
 
                 # Ignore if printjob does not specify needed material
                 if (n_mat.amount is not None and
@@ -362,7 +362,7 @@ class FilamentManager:
 class Material:
 
     def __init__(self, fm=None, guid=None,
-        type=None, brand=None, color=None, amount=None):
+        type=None, brand=None, color=None, amount=None, state=None):
         self.guid = guid
         if isinstance(fm, FilamentManager) and guid in fm.guid_to_path:
             self.type  = fm.get_info(guid, './m:metadata/m:name/m:material')
@@ -373,6 +373,7 @@ class Material:
             self.brand = brand
             self.color = color # Hex color-code like "#1188ff"
         self.amount = amount  # [g]
+        self.state = state
 
 
 class Problem(Flag):
