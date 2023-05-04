@@ -536,20 +536,16 @@ EndSection
             'hdmi_group': 2,
             'hdmi_mode': 87,
             'hdmi_cvt': '1024 600 60 6 0 0 0',
-            'display_hdmi_rotate': 0,
             'hdmi_blanking': 1,
         }
         if self.rotation == 0:
             input_matrix = '1 0 0 0 1 0 0 0 1'
         elif self.rotation == 90:
             input_matrix = '0 1 0 -1 0 1 0 0 1'
-            lcd_config['display_hdmi_rotate'] = 1
         elif self.rotation == 180:
             input_matrix = '1 0 1 0 -1 1 0 0 1'
-            lcd_config['display_hdmi_rotate'] = 2
         elif self.rotation == 270:
             input_matrix = '0 -1 1 1 0 0 0 0 1'
-            lcd_config['display_hdmi_rotate'] = 3
         else:
             raise ValueError(f"Invalid rotation value: {self.rotation}")
 
