@@ -100,10 +100,7 @@ class Kivy(Action):
                 "python3-dev",
                 "python3-setuptools",
                 "tk-dev",
-                # some stuff thats needed for installing gi",
-                "libcairo2-dev",
                 "libgif-dev",
-                "libgirepository1.0-dev",
 
                 # Kivy Raspberry 4 specifics
                 "build-essential",
@@ -420,13 +417,18 @@ class Wifi(Action):
     def apt_depends(self) -> set[str]:
         return {
             "network-manager",
-            "python3-gi",  #TODO: Is this still needed?
+            # Dependencies for building PyGObject
+            "libgirepository1.0-dev",
+            "gcc",
+            "libcairo2-dev",
+            "pkg-config",
+            "python3-dev",
         }
 
     def pip_depends(self) -> set[Union[str, PipPkg]]:
         return {
             "pydbus==" + self.config['pydbus-version'],
-            "PyGObject",  #TODO: fix version
+            "PyGObject== " + self.config['pygobject-version'],
         }
 
     def run(self) -> None:
