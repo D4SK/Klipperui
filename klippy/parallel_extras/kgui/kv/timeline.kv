@@ -77,20 +77,20 @@
             size: dp(80), dp(80)
             pos: p.h_padding - dp(10), self.top - dp(55 + 40)
         Color:
+            rgba: (1,1,1,1) if self.continuous else (0, 0, 0, 0)
+        Rectangle:
+            source: p.kgui_dir + ("/logos/transparent.png" if self.state != 'queued' else "/logos/play.png" if self.continuous else "/logos/pause.png")
+            size: dp(36), dp(35)
+            pos: self.right - p.padding - dp(34), self.center_y - dp(35/2)
+        Color:
             rgba: p.translucent_white if (self.selected or self.pressed) else (0,0,0,0)
         Rectangle:
             size: self.width, self.height - 1
             pos: self.pos
-    canvas.after:
-        Color:
-            rgba: p.accent if self.continuous else (0, 0, 0, 0)
-        Rectangle:
-            size: p.status_bar_height, self.height
-            pos: self.right - p.status_bar_height, self.y
     #Label
     text: app.print_time if self.state in ('printing', 'pausing', 'paused', 'aborting') else ""
     size_hint: 1, None
-    height: dp(44) if self.state == "header" else dp(150) if self.state in ('printing', 'pausing', 'paused', 'aborting') else dp(110)
+    height: dp(60) if self.state == "header" else dp(150) if self.state in ('printing', 'pausing', 'paused', 'aborting') else dp(110)
     halign: 'right'
     valign: 'bottom'
     padding: p.h_padding, dp(32)
@@ -106,7 +106,7 @@
         halign: 'right'
         valign: 'middle'
         max_lines: 1
-        padding: p.h_padding, 0
+        padding: (p.h_padding*2 if root.state == 'queued' else p.h_padding), 0
         text_size: self.size
         font_size: p.normal_font
         color:
@@ -119,7 +119,7 @@
         halign: 'center' if root.state == 'header' else 'left'
         valign: 'middle'
         size_hint: None, None
-        size: root.width, dp(44) if root.state == 'header' else dp(110)
+        size: root.width, dp(60) if root.state == 'header' else dp(110)
         x: root.x
         top: root.top
         padding: 2*p.h_padding + dp(80 - 20), 0

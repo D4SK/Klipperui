@@ -28,10 +28,14 @@ class Timeline(RecycleView):
         queue = [{'name': job.name, 'path': job.path, 'state': job.state, 'continuous': job.continuous,
             'thumbnail': self.app.gcode_metadata.get_metadata(job.path).get_thumbnail_path()}
             for job in reversed(self.app.jobs)]
-
+        if len(queue) > 0:
+            queue.insert(-2, {'name': "Currently printing"})
+        if len(queue) > 2:
+            queue.insert(0, {"name": "Queue"})
         history = []
         if self.app.history != []:
             # latest date in history
+            history.append({"name": "History"})
             prev_date = date.fromtimestamp(self.app.history[0][2])
             for job in self.app.history:
                 md = self.app.gcode_metadata.get_metadata(job[0])

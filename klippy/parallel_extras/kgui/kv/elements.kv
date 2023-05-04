@@ -1,5 +1,6 @@
 #:import Factory kivy.factory.Factory
 #:import basename os.path.basename
+#:import splitext os.path.splitext
 
 #:import p parallel_extras.kgui.parameters
 #:import printer_cmd parallel_extras.kgui.printer_cmd
@@ -129,7 +130,7 @@
         Color:
             rgba: p.translucent_white if self.pressed else (0,0,0,0)
         RoundedRectangle:
-            radius:(0,0,p.radius,p.popup_radius) if self.single else (0,0,0, p.popup_radius)
+            radius: (0,0,p.popup_radius,p.popup_radius) if self.single else (0,0,0,p.popup_radius)
             pos: self.pos
             size: self.size
 
@@ -418,9 +419,9 @@
             on_release: root.dismiss(); app.reactor.cb(printer_cmd.send_stop)
 
 <PrintPopup>:
-    title: basename(root.path)
+    title: splitext(basename(root.path))[0]
     title_size: p.large_font
-    size_hint: 0.9, 0.68
+    size_hint: 0.91, 0.69
     FloatLayout:
         Widget:
             id: thumbnail
@@ -433,17 +434,15 @@
                     pos: self.pos
             size_hint: None, 0.25
             width: self.height
-            pos_hint: {'center_x': 0.5, 'top': 0.95}
+            pos_hint: {'center_x': 0.5, 'top': 1}
         StateText:
-            x: root.x + 2*p.padding
-            top: root.top - dp(170)
-            size: root.width - 3*p.padding, self.texture_size[1]
+            pos: root.x + 2*p.padding, root.center_y + dp(8)
+            width: root.width - 3*p.padding
             id: state_text
             state: 'green'
         StateText:
-            x: root.x + 2*p.padding
-            top: state_text.y
-            size: root.width - 3*p.padding, root.height
+            pos: root.x + 2*p.padding, state_text.top
+            width: root.width - 3*p.padding
             id: print_time
             state: 'info'
         BoxLayout:
@@ -452,32 +451,35 @@
             height: self.minimum_height
             orientation: 'vertical'
             id: settings_box
-            spacing: p.padding
-            center_y: 2*p.mars
+            spacing: dp(25)
+            y: p.mars
             width: dp(250)
-        Label:
-            id: materials_label
-            text: "Currently loaded"
-            x: material_box.x
-            y: material_box.top + dp(8)
-            font_size: p.normal_font
-            color: p.translucent_white
         BoxLayout:
-            canvas:
+            canvas.before:
                 Color:
-                    rgba: p.translucent_white
+                    rgba: p.translucent_panel
                 RoundedRectangle:
                     radius: (p.popup_radius,)
                     pos: self.x - p.padding/2, self.y - p.padding/2
-                    size: self.width + p.padding, self.height + p.padding
-            right: root.right - p.padding
+                    size: self.width + p.padding, self.height + p.padding*1.5
+            right: root.right - p.padding*1.5
             size_hint: None, None
             height: self.minimum_height
             orientation: 'vertical'
             id: material_box
-            spacing: p.padding
-            center_y: 2*p.mars
-            width: dp(250)
+            spacing: dp(25)
+            y: p.mars
+            width: dp(180)
+        Label:
+            id: materials_label
+            text: "Printer"
+            x: material_box.x
+            size: self.texture_size
+            text_size: self.size
+            y: p.mars
+            font_size: p.normal_font - sp(5)
+            bold: True
+            color: p.medium_gray
         BtnPCancel:
             id: btn_cancel
             width: root.width/3
@@ -497,7 +499,7 @@
             pos: btn_del.right, root.y
             on_release: root.confirm()
 
-<PrintPopupDetail>:  # @Label
+<PopupDetail>:  # @Label
     text_size: self.width, None
     size_hint: None, None
     width: dp(350)
@@ -589,10 +591,10 @@
 
 <PrintMaterial>:
     size_hint: None, None
-    size: dp(200), dp(60)
+    size: dp(150), dp(60)
     # needed_material can be None if extruder count doesn't match
     text: f"{root.material.amount:.0f}g {root.material.type}" if root.material else ""
-    font_size: p.normal_font
+    font_size: p.normal_font - dp(5)
     valign: 'middle'
     halign: 'center'
     color: (1,1,1,1) if root.problems else p.light_gray
@@ -600,28 +602,27 @@
         Color:
             rgba: printer_cmd.calculate_filament_color(printer_cmd.hex_to_rgba(self.material.color))
         RoundedRectangle:
-            size: self.width*self.material.amount/1000, self.height
+            size: self.width, self.height
             pos: self.x, self.y
-            radius:
-                ([p.radius] +
-                ([0, 0] if self.width*self.material.amount/1000 < self.width - p.radius else [p.radius, p.radius]) +
-                [p.radius])
+            radius: (p.radius,)
     Label:
         size: root.size
-        pos: root.right, root.y
-        text: "<" if root.problems & Problem.AMOUNT else "≠" if root.problems else ""
+        pos: root.right + dp(28), root.y
+        text: ">" if root.problems & Problem.AMOUNT else "≠" if root.problems else ""
         text_size: self.size
-        font_size: p.large_font + sp(6)
+        font_size: p.large_font + sp(7)
         valign: 'middle'
         halign: 'left'
+        color: p.yellow
         size_hint: None, None
+        bold: True
 
 <StateText>:
     canvas:
         Color:
-            rgba: {'bullet': self.color, 'info': p.medium_gray, 'red_x': p.red, 'red': p.red, 'yellow': p.yellow, 'green': p.green, 'transparent': (0,0,0,0)}[self.state]
+            rgba: {'bullet': self.color, 'info': p.medium_gray, 'red_x': p.red, 'red': p.red, 'yellow': p.yellow, 'green': p.green, 'transparent': (0,0,0,0), 'play': p.accent, 'pause': p.medium_gray, 'time': p.medium_gray}[self.state]
         Rectangle:
-            source: p.kgui_dir + {'bullet': '/logos/bullet.png', 'info': '/logos/info.png', 'red_x': '/logos/x.png', 'red': '/logos/warning.png', 'yellow': '/logos/warning.png', 'green': '/logos/checkmark.png', 'transparent': '/logos/transparent.png'}[self.state]
+            source: p.kgui_dir + {'bullet': '/logos/bullet.png', 'info': '/logos/info.png', 'red_x': '/logos/x.png', 'red': '/logos/warning.png', 'yellow': '/logos/warning.png', 'green': '/logos/checkmark.png', 'transparent': '/logos/transparent.png', 'play': '/logos/play.png', 'pause': '/logos/pause.png', 'time': '/logos/time.png'}[self.state]
             size: dp(30*p.disp_vertical_stretch), dp(30)
             pos: self.x - dp(47), self.top - dp(29) - self.padding[1]
     height: self.texture_size[1]
@@ -636,7 +637,6 @@
 
 <BtnMaterial>:
     size_hint: None, None
-    size: p.btn_width, p.btn_height
     enabled: app.state == "ready" and app.material
     filament_amount: self.material['amount']
     filament_color: printer_cmd.calculate_filament_color(printer_cmd.hex_to_rgba(self.material['hex_color']))

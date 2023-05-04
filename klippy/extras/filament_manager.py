@@ -180,29 +180,28 @@ class FilamentManager:
 
             if extruder >= len(loaded):
                 problems |= Problem.EXTRUDER_COUNT
-                l_mat = None
             else:
                 l_mat = Material(self, loaded[extruder]["guid"],
                                  amount=loaded[extruder]["amount"] * 1000, state=loaded[extruder]["state"])
 
-                # Ignore if printjob does not specify needed material
-                if (n_mat.amount is not None and
-                    (l_mat.amount - n_mat.amount) < self.material_tolerance):
-                    problems |= Problem.AMOUNT
+                if n_mat.amount: # Ignore problems if amount is 0 or None
 
-                if self.material_condition != "any" and (
-                    n_mat.guid is None or l_mat.guid != n_mat.guid):
-                    if (n_mat.type is None or l_mat.type is None or
-                        n_mat.type.lower() != l_mat.type.lower()):
-                        problems |= Problem.TYPE
+                    if (l_mat.amount - n_mat.amount) < self.material_tolerance:
+                        problems |= Problem.AMOUNT
 
-                    if self.material_condition != "type":
-                        if (n_mat.brand is None or l_mat.brand is None or
-                            n_mat.brand.lower() != l_mat.brand.lower()):
-                            problems |= Problem.BRAND
-                        if (n_mat.color is None or l_mat.color is None or
-                            n_mat.color != n_mat.color):
-                            problems |= Problem.COLOR
+                    if self.material_condition != "any" and (
+                        n_mat.guid is None or l_mat.guid != n_mat.guid):
+                        if (n_mat.type is None or l_mat.type is None or
+                            n_mat.type.lower() != l_mat.type.lower()):
+                            problems |= Problem.TYPE
+
+                        if self.material_condition != "type":
+                            if (n_mat.brand is None or l_mat.brand is None or
+                                n_mat.brand.lower() != l_mat.brand.lower()):
+                                problems |= Problem.BRAND
+                            if (n_mat.color is None or l_mat.color is None or
+                                n_mat.color != n_mat.color):
+                                problems |= Problem.COLOR
 
             loaded_materials.append(l_mat)
             needed_materials.append(n_mat)

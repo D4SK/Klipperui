@@ -3,12 +3,11 @@ import shutil
 from os.path import join, basename
 from os import remove
 from time import time
-from math import log10
 
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.properties import (NumericProperty, BooleanProperty, StringProperty,
-                             ListProperty, ObjectProperty, DictProperty)
+                             ListProperty, DictProperty)
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.vkeyboard import VKeyboard
@@ -155,25 +154,23 @@ class PrintPopup(BasePopup):
         md = self.md
         app = App.get_running_app()
         all_problems = Problem.OK
-        for needed_material, problem in zip(needed_materials, problems):
+        for needed_material, problem in zip(reversed(needed_materials), reversed(problems)):
             print_material_widget = PrintMaterial(needed_material, problem)
             self.ids.settings_box.add_widget(print_material_widget)
             all_problems |= print_material_widget.problems
-        for loaded_material in loaded_materials:
+        for loaded_material in reversed(loaded_materials):
             material_dict = vars(loaded_material)
             material_dict['hex_color'] = material_dict['color']
             material_dict['material_type'] = material_dict['type']
-            material_widget = BtnMaterial(material=material_dict, width=dp(150), height=dp(65))
+            material_dict['amount'] /= 1000
+            material_widget = BtnMaterial(material=material_dict, width=dp(180), height=dp(60), font_size=(p.normal_font-sp(5)), line_height=0.9)
             self.ids.material_box.add_widget(material_widget)
         if all_problems & Problem.AMOUNT:
-            self.ids.state_text.text = f"Insufficient Material for {app.print_title}"
+            self.ids.state_text.text = f"Not enough Material"
             self.ids.state_text.state = 'yellow'
-        elif all_problems & Problem.EXTRUDER_COUNT:
-            self.ids.state_text.text = f"{app.print_title} requires {len(needed_materials)} extruders"
-            self.ids.state_text.state = 'red_x'
         elif all_problems:
-            self.ids.state_text.text = f"Material Change required for {app.print_title}"
-            self.ids.state_text.state = 'red'
+            self.ids.state_text.text = f"Material Change required"
+            self.ids.state_text.state = 'yellow'
         elif 1: # TODO doesnt collide
             if len(app.jobs):
                 self.ids.state_text.text = f"Print Job will start automatically"
@@ -190,7 +187,7 @@ class PrintPopup(BasePopup):
                 self.ids.state_text.state = 'red'
         print_time = md.get_time()
         if print_time is not None:
-            self.ids.print_time.text = f"Print Time: {printer_cmd.format_time(print_time)}"
+            self.ids.print_time.text = printer_cmd.format_time(print_time)
             self.ids.print_time.state = "time"
         else:
             self.ids.print_time.text = ""
@@ -203,8 +200,9 @@ class PrintPopup(BasePopup):
         readjusted after adding elements to always start right below
         the filename label.
         """
-        self.ids.material_box.center_y = self.center_y - dp(100)
-        self.ids.settings_box.center_y = self.center_y - dp(100)
+        self.ids.material_box.y = self.ids.btn_cancel.top + p.padding*1.5
+        self.ids.settings_box.y = self.ids.btn_cancel.top + p.padding*1.5
+        self.ids.materials_label.y = self.ids.material_box.top + dp(12)
 
     def confirm(self):
         self.dismiss()
@@ -272,7 +270,8 @@ class MaterialMismatchPopup(BasePopup):
             material_dict = vars(loaded_material)
             material_dict['hex_color'] = material_dict['color']
             material_dict['material_type'] = material_dict['type']
-            material_widget = BtnMaterial(material=material_dict, width=dp(150), height=dp(65))
+            material_dict['amount'] /= 1000
+            material_widget = BtnMaterial(material=material_dict, width=dp(180), height=dp(60))
             self.ids.material_box.add_widget(material_widget)
         if all_problems & Problem.AMOUNT:
             self.title = f"Insufficient Material for {app.print_title}"

@@ -4,7 +4,7 @@ from kivy.properties import ListProperty, NumericProperty, StringProperty, \
     BooleanProperty, DictProperty
 from kivy.uix.label import Label
 
-from .elements import BaseButton, BasePopup, UltraSlider, RoundButton
+from .elements import BaseButton, BasePopup, UltraSlider
 from .printer_cmd import hex_to_rgba, calculate_filament_color
 from . import parameters as p
 from . import printer_cmd
