@@ -4,14 +4,14 @@
 <svg
    width="100"
    height="100"
-   viewBox="0 0 26.458333 26.458334"
+   viewBox="0 0 24.51264 24.51264"
    version="1.1"
    id="svg5"
    sodipodi:docname="info.svg"
    inkscape:version="1.2.1 (9c6d41e410, 2022-07-14)"
    inkscape:export-filename="info.png"
-   inkscape:export-xdpi="100"
-   inkscape:export-ydpi="100"
+   inkscape:export-xdpi="96.289986"
+   inkscape:export-ydpi="96.289986"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -28,8 +28,8 @@
      showgrid="false"
      units="px"
      inkscape:zoom="11.313709"
-     inkscape:cx="48.878756"
-     inkscape:cy="52.237513"
+     inkscape:cx="48.613591"
+     inkscape:cy="52.679455"
      inkscape:window-width="3840"
      inkscape:window-height="2054"
      inkscape:window-x="2149"
@@ -57,122 +57,17 @@
        apply_with_radius="true"
        only_selected="false"
        hide_knots="false" />
-    <inkscape:path-effect
-       effect="fillet_chamfer"
-       id="path-effect2590"
-       is_visible="true"
-       lpeversion="1"
-       nodesatellites_param="F,0,0,1,0,0.52916667,0,1 @ F,0,0,1,0,0.52916667,0,1 @ F,0,0,1,0,0.52916667,0,1 @ F,0,0,1,0,0.52916667,0,1 @ F,0,0,1,0,0.52916667,0,1 @ F,0,0,1,0,0.52916667,0,1 @ F,0,0,1,0,0.52916667,0,1 @ F,0,0,1,0,0.52916667,0,1 @ F,0,0,1,0,0.52916667,0,1 @ F,0,0,1,0,0.52916667,0,1"
-       unit="px"
-       method="auto"
-       mode="F"
-       radius="2"
-       chamfer_steps="1"
-       flexible="false"
-       use_knot_distance="true"
-       apply_no_radius="true"
-       apply_with_radius="true"
-       only_selected="false"
-       hide_knots="false" />
-    <inkscape:path-effect
-       effect="fillet_chamfer"
-       id="path-effect2160"
-       is_visible="true"
-       lpeversion="1"
-       nodesatellites_param="F,0,0,1,0,0,0,1 @ F,0,0,1,0,0,0,1 @ F,0,0,1,0,0,0,1 @ F,0,0,1,0,0,0,1 | F,0,0,1,0,0,0,1 @ F,0,0,1,0,0,0,1 @ F,0,0,1,0,0,0,1 @ F,0,0,1,0,0,0,1 | F,0,0,1,0,0,0,1 @ F,0,0,1,0,0,0,1 @ F,0,0,1,0,0,0,1 @ F,0,0,1,0,0,0,1 | F,0,0,1,0,0,0,1 @ F,0,0,1,0,0,0,1 @ F,0,0,1,0,0,0,1 @ F,0,0,1,0,0,0,1 | F,0,0,1,0,0,0,1 @ F,0,0,1,0,0,0,1 @ F,0,0,1,0,0,0,1 @ F,0,0,1,0,0,0,1 @ F,0,0,1,0,0,0,1 @ F,0,0,1,0,0,0,1 @ F,0,0,1,0,0,0,1 @ F,0,0,1,0,0,0,1"
-       unit="px"
-       method="auto"
-       mode="F"
-       radius="0"
-       chamfer_steps="1"
-       flexible="false"
-       use_knot_distance="true"
-       apply_no_radius="true"
-       apply_with_radius="true"
-       only_selected="false"
-       hide_knots="false" />
-    <rect
-       x="111.54609"
-       y="193.74725"
-       width="183.31743"
-       height="203.82352"
-       id="rect2144" />
-    <rect
-       x="22.804193"
-       y="24.925513"
-       width="48.61359"
-       height="69.826793"
-       id="rect2138" />
-    <rect
-       x="31.819804"
-       y="108.89444"
-       width="0.17677669"
-       height="56.214988"
-       id="rect2132" />
-    <rect
-       x="15.556349"
-       y="18.296388"
-       width="55.507881"
-       height="59.83891"
-       id="rect2126" />
-    <rect
-       x="20.506096"
-       y="27.046834"
-       width="76.632695"
-       height="49.14392"
-       id="rect2120" />
-    <rect
-       x="23.069358"
-       y="21.301591"
-       width="85.47153"
-       height="68.324191"
-       id="rect2064" />
-    <filter
-       id="mask-powermask-path-effect1624_inverse"
-       inkscape:label="filtermask-powermask-path-effect1624"
-       style="color-interpolation-filters:sRGB"
-       height="100"
-       width="100"
-       x="-50"
-       y="-50">
-      <feColorMatrix
-         id="mask-powermask-path-effect1624_primitive1"
-         values="1"
-         type="saturate"
-         result="fbSourceGraphic" />
-      <feColorMatrix
-         id="mask-powermask-path-effect1624_primitive2"
-         values="-1 0 0 0 1 0 -1 0 0 1 0 0 -1 0 1 0 0 0 1 0 "
-         in="fbSourceGraphic" />
-    </filter>
-    <filter
-       id="mask-powermask-path-effect1629_inverse"
-       inkscape:label="filtermask-powermask-path-effect1629"
-       style="color-interpolation-filters:sRGB"
-       height="100"
-       width="100"
-       x="-50"
-       y="-50">
-      <feColorMatrix
-         id="mask-powermask-path-effect1629_primitive1"
-         values="1"
-         type="saturate"
-         result="fbSourceGraphic" />
-      <feColorMatrix
-         id="mask-powermask-path-effect1629_primitive2"
-         values="-1 0 0 0 1 0 -1 0 0 1 0 0 -1 0 1 0 0 0 1 0 "
-         in="fbSourceGraphic" />
-    </filter>
   </defs>
   <g
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
      id="layer1"
-     style="display:inline">
+     style="display:inline"
+     transform="translate(-1.0097575,-1.0097575)">
     <path
        id="path2008"
        style="display:inline;fill:#ffffff;stroke-width:2.02233;stroke-linecap:round;stroke-linejoin:round"
-       d="M 13.229167 1.0097575 A 12.219229 12.219229 0 0 0 1.0097575 13.229167 A 12.219229 12.219229 0 0 0 13.229167 25.448576 A 12.219229 12.219229 0 0 0 25.448576 13.229167 A 12.219229 12.219229 0 0 0 13.229167 1.0097575 z M 13.229167 4.5382243 A 2.1753924 2.1753924 0 0 1 15.404744 6.7138021 A 2.1753924 2.1753924 0 0 1 13.229167 8.8888631 A 2.1753924 2.1753924 0 0 1 11.053589 6.7138021 A 2.1753924 2.1753924 0 0 1 13.229167 4.5382243 z M 10.509436 10.821562 L 14.469918 10.821562 A 0.52916667 0.52916667 0 0 1 14.999084 11.350728 L 14.999084 17.95601 A 0.52916667 0.52916667 0 0 0 15.528251 18.485177 L 16.833081 18.485177 A 0.52916667 0.52916667 0 0 1 17.362248 19.014343 L 17.362248 20.506242 A 0.52916661 0.52916661 0 0 1 16.833081 21.035409 L 9.7177531 21.035409 A 0.52916673 0.52916673 0 0 1 9.1885864 20.506242 L 9.1885864 19.038631 A 0.52916667 0.52916667 0 0 1 9.7177531 18.509465 L 11.729 18.509465 A 0.52916667 0.52916667 0 0 0 12.258167 17.980298 L 12.258167 13.831197 A 0.52916667 0.52916667 0 0 0 11.729 13.30203 L 10.509436 13.30203 A 0.52916667 0.52916667 0 0 1 9.9802694 12.772864 L 9.9802694 11.350728 A 0.52916667 0.52916667 0 0 1 10.509436 10.821562 z " />
+       d="M 13.266078,1.0466683 A 12.219229,12.219229 0 0 0 1.0466683,13.266078 12.219229,12.219229 0 0 0 13.266078,25.485487 12.219229,12.219229 0 0 0 25.485487,13.266078 12.219229,12.219229 0 0 0 13.266078,1.0466683 Z m 0,3.5284668 a 2.1753924,2.1753924 0 0 1 2.175577,2.1755778 2.1753924,2.1753924 0 0 1 -2.175577,2.175061 2.1753924,2.1753924 0 0 1 -2.175578,-2.175061 2.1753924,2.1753924 0 0 1 2.175578,-2.1755778 z m -2.719731,6.2833379 h 3.960482 a 0.52916667,0.52916667 0 0 1 0.529166,0.529166 v 6.605282 a 0.52916667,0.52916667 0 0 0 0.529167,0.529167 h 1.30483 a 0.52916667,0.52916667 0 0 1 0.529167,0.529166 v 1.491899 A 0.52916661,0.52916661 0 0 1 16.869992,21.07232 H 9.7546639 A 0.52916673,0.52916673 0 0 1 9.2254972,20.543153 v -1.467611 a 0.52916667,0.52916667 0 0 1 0.5291667,-0.529166 h 2.0112471 a 0.52916667,0.52916667 0 0 0 0.529167,-0.529167 V 13.868108 A 0.52916667,0.52916667 0 0 0 11.765911,13.338941 H 10.546347 A 0.52916667,0.52916667 0 0 1 10.01718,12.809775 v -1.422136 a 0.52916667,0.52916667 0 0 1 0.529167,-0.529166 z" />
     <circle
        style="display:none;fill:#333333;fill-opacity:1;stroke:none;stroke-width:2.64248;stroke-linecap:round;stroke-linejoin:round"
        id="path2644"

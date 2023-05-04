@@ -4,14 +4,14 @@
 <svg
    width="100"
    height="100"
-   viewBox="0 0 26.458333 26.458334"
+   viewBox="0 0 24.51264 24.51264"
    version="1.1"
    id="svg5"
    sodipodi:docname="play.svg"
    inkscape:version="1.2.1 (9c6d41e410, 2022-07-14)"
    inkscape:export-filename="play.png"
-   inkscape:export-xdpi="100"
-   inkscape:export-ydpi="100"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -28,8 +28,8 @@
      showgrid="false"
      units="px"
      inkscape:zoom="16"
-     inkscape:cx="68.9375"
-     inkscape:cy="51.9375"
+     inkscape:cx="64.8125"
+     inkscape:cy="47.8125"
      inkscape:window-width="3840"
      inkscape:window-height="2054"
      inkscape:window-x="2149"
@@ -82,33 +82,33 @@
        id="rect2144" />
     <rect
        x="22.804193"
-       y="24.925513"
+       y="24.925512"
        width="48.61359"
-       height="69.826793"
+       height="69.82679"
        id="rect2138" />
     <rect
-       x="31.819804"
+       x="31.819803"
        y="108.89444"
        width="0.17677669"
-       height="56.214988"
+       height="56.214989"
        id="rect2132" />
     <rect
        x="15.556349"
-       y="18.296388"
+       y="18.296389"
        width="55.507881"
-       height="59.83891"
+       height="59.838909"
        id="rect2126" />
     <rect
        x="20.506096"
-       y="27.046834"
-       width="76.632695"
-       height="49.14392"
+       y="27.046835"
+       width="76.632698"
+       height="49.143921"
        id="rect2120" />
     <rect
-       x="23.069358"
-       y="21.301591"
-       width="85.47153"
-       height="68.324191"
+       x="23.069359"
+       y="21.301592"
+       width="85.471527"
+       height="68.324188"
        id="rect2064" />
     <filter
        id="mask-powermask-path-effect1624_inverse"
@@ -151,10 +151,11 @@
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
      id="layer1"
-     style="display:inline">
+     style="display:inline"
+     transform="translate(-1.0097575,-1.0097575)">
     <path
        id="path2008"
        style="display:inline;fill:#ffffff;stroke:none;stroke-width:2.02233;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1"
-       d="M 13.229167,1.0097575 A 12.219229,12.219229 0 0 0 1.0097575,13.229167 12.219229,12.219229 0 0 0 13.229167,25.448576 12.219229,12.219229 0 0 0 25.448576,13.229167 12.219229,12.219229 0 0 0 13.229167,1.0097575 Z M 8.658903,6.4817749 20.346045,13.229167 8.658903,19.976558 Z" />
+       d="M 13.266078,1.0466683 A 12.219229,12.219229 0 0 0 1.0466683,13.266078 12.219229,12.219229 0 0 0 13.266078,25.485487 12.219229,12.219229 0 0 0 25.485487,13.266078 12.219229,12.219229 0 0 0 13.266078,1.0466683 Z M 8.6958138,6.5186857 20.382956,13.266078 8.6958138,20.013469 Z" />
   </g>
 </svg>
