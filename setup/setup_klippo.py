@@ -75,6 +75,8 @@ class Runner:
         packages = set()
         for a in self.actions:
             packages |= a.apt_depends()
+        if not self.config.skip_pip:
+            packages.add("python3-venv")
         apt_install(packages)
 
     def pre_pip(self) -> None:

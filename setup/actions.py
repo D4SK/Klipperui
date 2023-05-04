@@ -63,77 +63,81 @@ class Kivy(Action):
         super().__init__(config)
         self.version = self.config.get('version')
         # Not using X11 requires kivy to be compiled from source
-        self.from_source = (self.config.getboolean('from-source') or
-                            self.general.graphics_provider == 'sdl2')
+        self.from_source = self.config.getboolean('from-source')
         self.cython_version = self.config.get('cython-version')
 
     def apt_depends(self) -> set[str]:
-        # https://github.com/kivy/kivy/blob/master/doc/sources/installation/installation-rpi.rst
-        return {
-            "gstreamer1.0-alsa",
-            "gstreamer1.0-omx",
-            "gstreamer1.0-plugins-bad",
-            "gstreamer1.0-plugins-base",
-            "gstreamer1.0-plugins-good",
-            "gstreamer1.0-plugins-ugly",
-            "libbz2-dev",
-            "libc6-dev",
-            "libgdbm-dev",
-            "libgl1-mesa-dev",
-            "libgles2-mesa-dev",
-            "libgstreamer1.0-dev",
-            "libjpeg-dev",
-            "libmtdev-dev",
-            "libncursesw5-dev",
-            "libsqlite3-dev",
-            "libssl-dev",
-            "pkg-config",
-            "python3-dev",
-            "python3-pip",
-            "python3-setuptools",
-            "python3-venv",
-            "tk-dev",
+        packages = {
+            "libgl1-mesa-glx",
+            "libgles2-mesa",
+            "libmtdev1",
+            "libegl1-mesa",
+            "libjpeg62",
             "xclip",
             "xsel",
-            # some stuff thats needed for installing gi",
-            "libcairo2-dev",
-            "libgif-dev",
-            "libgirepository1.0-dev",
-            "libjpeg-dev",
-
-            # Kivy Raspberry 4 specifics
-            "build-essential",
-            "gir1.2-ibus-1.0",
-            "libasound2-dev",
-            "libdbus-1-dev",
-            "libdrm-dev",
-            "libegl1-mesa-dev",
-            "libfreetype6-dev",
-            "libgbm-dev",
-            "libibus-1.0-5",
-            "libibus-1.0-dev",
-            "libice-dev",
-            "libjpeg-dev",
-            "liblzma-dev",
-            "libsm-dev",
-            "libsndio-dev",
-            "libtiff-dev",
-            "libudev-dev",
-            "libwayland-bin",
-            "libwayland-dev",
-            "libwebp-dev",
-            "libxi-dev",
-            "libxinerama-dev",
-            "libxkbcommon-dev",
-            "libxrandr-dev",
-            "libxss-dev",
-            "libxt-dev",
-            "libxv-dev",
-            "x11proto-randr-dev",
-            "x11proto-scrnsaver-dev",
-            "x11proto-video-dev",
-            "x11proto-xinerama-dev",
         }
+        if self.from_source:
+            # https://github.com/kivy/kivy/blob/master/doc/sources/installation/installation-rpi.rst
+            packages |= {
+                "gstreamer1.0-alsa",
+                "gstreamer1.0-omx",
+                "gstreamer1.0-plugins-bad",
+                "gstreamer1.0-plugins-base",
+                "gstreamer1.0-plugins-good",
+                "gstreamer1.0-plugins-ugly",
+                "libbz2-dev",
+                "libc6-dev",
+                "libgdbm-dev",
+                "libgl1-mesa-dev",
+                "libgles2-mesa-dev",
+                "libgstreamer1.0-dev",
+                "libjpeg-dev",
+                "libmtdev-dev",
+                "libncursesw5-dev",
+                "libsqlite3-dev",
+                "libssl-dev",
+                "pkg-config",
+                "python3-dev",
+                "python3-setuptools",
+                "tk-dev",
+                # some stuff thats needed for installing gi",
+                "libcairo2-dev",
+                "libgif-dev",
+                "libgirepository1.0-dev",
+
+                # Kivy Raspberry 4 specifics
+                "build-essential",
+                "gir1.2-ibus-1.0",
+                "libasound2-dev",
+                "libdbus-1-dev",
+                "libdrm-dev",
+                "libegl1-mesa-dev",
+                "libfreetype6-dev",
+                "libgbm-dev",
+                "libibus-1.0-5",
+                "libibus-1.0-dev",
+                "libice-dev",
+                "liblzma-dev",
+                "libsm-dev",
+                "libsndio-dev",
+                "libtiff-dev",
+                "libudev-dev",
+                "libwayland-bin",
+                "libwayland-dev",
+                "libwebp-dev",
+                "libxi-dev",
+                "libxinerama-dev",
+                "libxkbcommon-dev",
+                "libxrandr-dev",
+                "libxss-dev",
+                "libxt-dev",
+                "libxv-dev",
+                "x11proto-randr-dev",
+                "x11proto-scrnsaver-dev",
+                "x11proto-video-dev",
+                "x11proto-xinerama-dev",
+            }
+        return packages
 
     def pip_depends(self) -> set[Union[PipPkg, str]]:
         return {PipPkg("Cython", self.cython_version),
@@ -141,7 +145,8 @@ class Kivy(Action):
 
     def run(self) -> None:
         self.setup_config()
-        if self.version > "2.0.0":
+        version_tuple = tuple(int(v) for v in self.version.split('.')[:2])
+        if (2, 0) <= version_tuple < (2, 2):
             try:
                 self.vkeyboard_patch()
             except CalledProcessError:
@@ -181,8 +186,7 @@ class Graphics(Action):
                       'SDL2_image-' + self.config.get('sdl-image-version'),
                       'SDL2_mixer-' + self.config.get('sdl-mixer-version'),
                       'SDL2_ttf-' + self.config.get('sdl-ttf-version')]
-        self.from_source = (self.config.getboolean('sdl2-from-source') or
-                            self.general.graphics_provider == 'sdl2')
+        self.from_source = self.config.getboolean('sdl2-from-source')
 
     def apt_depends(self) -> set[str]:
         pkgs = set()
@@ -190,7 +194,7 @@ class Graphics(Action):
             pkgs.add('xorg')
         if self.from_source:
             pkgs |= {'gcc', 'make'}
-        else:
+        elif self.general.parser.get('kivy', 'from-source'):
             pkgs |= {'libsdl2-dev',
                      'libsdl2-image-dev',
                      'libsdl2-mixer-dev',
@@ -672,7 +676,8 @@ class MjpgStreamer(Action):
         with Unprivileged():
             describe = run(['git', '-C', self.repo_path, 'describe', '--tags'],
                            capture_output=True, text=True)
-            if describe.returncode != 0 or describe.stdout != tag:
+            if describe.returncode != 0 or describe.stdout.rstrip() != tag:
+                self.cleanup()
                 logging.debug("Checking out mjpg-streamer at %s", self.repo_path)
                 git_checkout(self.MJPG_STREAMER_URL, self.repo_path, branch='v1.0.0')
             else:
@@ -730,9 +735,9 @@ class Usbmount(Action):
     def run(self) -> None:
         if not self.test_usbmount():
             pkg = self.package()
-            if run(['dpkg', '-i', pkg]).returncode == 1:
-                # Install dependencies using apt
-                run(['apt-get', 'install', '--yes', '--fix-broken'], check=True)
+            run(['dpkg', '--force-confold', '--force-depends', '-i', pkg])
+            # Install dependencies using apt
+            run(['apt-get', 'install', '--yes', '--fix-broken'], check=True)
         else:
             logging.debug("Usbmount already installed, skipping")
         shutil.copy(self.general.setup_dir / 'usbmount.conf', '/etc/usbmount/')
