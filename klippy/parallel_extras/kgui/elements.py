@@ -132,100 +132,70 @@ class StopPopup(BasePopup):
 
 class PrintPopup(BasePopup):
 
-    def __init__(self, path, filechooser=None, job=None, **kwargs):
+    detailsbox = ObjectProperty(None)
+
+    def __init__(self, path, filechooser=None, **kwargs):
         self.app = App.get_running_app()
-        self.path = path
-        self.filechooser = filechooser
-        self.job = job
-        self.confirm_only = bool(job)
         try:
             self.md = self.app.gcode_metadata.get_metadata(path)
         except (ValueError, AttributeError):
             self.md = None
+        self.path = path
+        self.filechooser = filechooser
         super().__init__(**kwargs)
-        if self.md is None:
-            self.ids.material_state.text = "No Metadata"
-            self.ids.material_state.state = 'yellow'
-            self.ids.print_time.text = ""
-            self.ids.print_time.state = "transparent"
-        else:
-            self.request_material_match()
-        self.app.bind(jobs=self.request_material_match, material=self.request_material_match)
-
-    def request_material_match(self, *args):
-        if self.md is not None:
-            self.app.reactor.cb(printer_cmd.get_print_continuity, self.md, self.job, completion=self.populate_details)
-
-    def populate_details(self, kgui=None, continuity=None):
-        (available, offset), (loaded_materials, needed_materials, problems) = continuity
-        all_problems = Problem.OK
-        for needed_material, problem in zip(reversed(needed_materials), reversed(problems)):
-            print_material_widget = PrintMaterial(needed_material, problem)
-            self.ids.settings_box.add_widget(print_material_widget)
-            all_problems |= print_material_widget.problems
-        for loaded_material in reversed(loaded_materials):
-            material_dict = vars(loaded_material)
-            material_dict['hex_color'] = material_dict['color']
-            material_dict['material_type'] = material_dict['type']
-            material_dict['amount'] /= 1000
-            material_widget = BtnMaterial(material=material_dict, width=dp(180), height=dp(60),
-                                          font_size=(p.normal_font-sp(5)), line_height=0.9)
-            self.ids.material_box.add_widget(material_widget)
-        queue_job = len(self.app.jobs) and not self.confirm_only and not (len(self.app.jobs) == 1 and self.app.jobs[0].state in ('finished', 'aborted'))
-
-        # Material
-        if all_problems & Problem.TYPE:
-            if queue_job:
-                self.ids.material_state.text = "Print job will wait for material change"
-                self.ids.material_state.state = "pause"
-            else:
-                self.ids.material_state.text = "Material change required"
-                self.ids.material_state.state = 'yellow'
-        elif all_problems:
-            if queue_job:
-                self.ids.material_state.text = "Print job will wait for material reload"
-                self.ids.material_state.state = "pause"
-            else:
-                self.ids.material_state.text = "Not enough Material"
-                self.ids.material_state.state = 'yellow'
-        else:
-            self.ids.material_state.text = "Correct Material loaded"
-            self.ids.material_state.state = 'green'
-
-        # Collision
-        if available and not (offset[0] or offset[1]):
-            if queue_job:
-                self.ids.collision_state.text = "No Collisions"
-                self.ids.collision_state.state = 'green'
-            else:
-                self.ids.collision_state.text = ""
-                self.ids.collision_state.state = 'transparent'
-        elif available:
-            self.ids.collision_state.text = f"Print job will be repositioned by {offset} to avoid collisions"
-            self.ids.collision_state.state = 'info'
-        else:
-            if queue_job:
-                self.ids.collision_state.text = "Print job will wait until the print bed is cleared"
-                self.ids.collision_state.state = 'pause'
-            else:
-                self.ids.collision_state.text = "Clear build plate before starting"
-                self.ids.collision_state.state = 'red'
-
-        # Print time
-        print_time = self.md.get_time()
-        if print_time and not self.confirm_only:
-            self.ids.print_time.text = printer_cmd.format_time(print_time)
-            self.ids.print_time.state = "time"
-        else:
-            self.ids.print_time.text = ""
-            self.ids.print_time.state = "transparent"
+        self.populate_details()
         Clock.schedule_once(self._align, 0)
 
+    def populate_details(self):
+        md = self.md
+        if md is None:
+            self.add_detail("Invalid File", "")
+            return
+
+        weight = md.get_material_amount(measure='weight')
+        if weight is not None:
+            precision = max(1-int(log10(weight)), 0) # show up to 2 decimal places for small values
+            self.add_detail("Filament:", f"{weight:.{precision}f}g")
+
+        time = md.get_time()
+        if time is not None:
+            self.add_detail("Print Time:", printer_cmd.format_time(time))
+
+        material_type = md.get_material_type()
+        if material_type:
+            self.add_detail("Material:", material_type)
+
+        n_extruders = md.get_extruder_count()
+        if n_extruders is not None:
+            self.add_detail("Extruder Count:", str(n_extruders))
+
+        slicer = md.get_slicer()
+        if slicer is not None:
+            self.add_detail("Sliced by:", slicer)
+
+        size = md.get_file_size()
+        if size is not None:
+            for ext in ("B", "KiB", "MiB", "GiB", "TiB"):
+                if size < 1024:
+                    break
+                size /= 1024
+            try:
+                precision = max(1-int(log10(size)), 0)
+            except ValueError:  # Cannot take logarithm when size is 0
+                precision = 0
+            self.add_detail("G-Code Size:", f"{size:.{precision}f} {ext}")
+
+    def add_detail(self, key, value):
+        detail = PrintPopupDetail(key=key, value=value)
+        self.detailsbox.add_widget(detail)
+
     def _align(self, *args):
-        """ readjust ui after adding widgets """
-        self.ids.material_box.y = self.ids.btn_cancel.top + p.padding*1.5
-        self.ids.settings_box.y = self.ids.btn_cancel.top + p.padding*1.5
-        self.ids.materials_label.y = self.ids.material_box.top + dp(12)
+        """
+        Detailsbox is anchored at its bottom, so it needs to be
+        readjusted after adding elements to always start right below
+        the filename label.
+        """
+        self.detailsbox.top = self.ids.thumbnail.y - p.padding
 
     def confirm(self):
         self.dismiss()
@@ -254,7 +224,7 @@ class DeletePopup(BasePopup):
         super().__init__(**kwargs)
 
     def confirm(self):
-        """ Deletes the file and closes the popup """
+        """Deletes the file and closes the popup"""
         remove(self.path)
         app = App.get_running_app()
         # Update the filechooser and print_history
@@ -267,26 +237,6 @@ class DeletePopup(BasePopup):
         self.dismiss()
         app.notify.show("File deleted", "Deleted " + basename(self.path), delay=4)
 
-class StateText(Label):
-    state = StringProperty('transparent')
-
-class BtnMaterial(RoundButton):
-    filament_amount = NumericProperty()
-    filament_color = ListProperty([0,0,0,0])
-    title = StringProperty()
-    gcode_id = StringProperty()
-    tool_idx = NumericProperty()
-    extruder_id = StringProperty()
-    material = DictProperty({'guid': None, 'state': "no material", 'amount': 0,
-                                'material_type': "", 'hex_color': None, 'brand': ""})
-
-class PrintMaterial(Label):
-    def __init__(self, material, problems):
-        self.material = material
-        if not self.material.amount:
-            self.material.amount = 0
-        self.problems = problems
-        super().__init__()
 
 class WarningPopup(BasePopup):
     def __init__(self, confirm_callback, **kwargs):
@@ -353,7 +303,8 @@ class UltraSlider(Widget):
 
     def on_touch_down(self, touch):
         if (touch.pos[0] > self.x - 30 and touch.pos[0] < self.right + 30 and
-            touch.pos[1] > self.y - 18 and touch.pos[1] < self.top + 18 and self.initialized):
+                touch.pos[1] > self.y - 18 and touch.pos[1] < self.top + 18 and
+                self.initialized):
             self.pressed = True
             touch.grab(self)
             self.on_touch_move(touch)

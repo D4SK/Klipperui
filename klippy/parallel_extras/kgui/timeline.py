@@ -1,4 +1,3 @@
-import logging
 from datetime import date
 from os.path import splitext, basename
 
@@ -27,12 +26,9 @@ class Timeline(RecycleView):
 
     def load_all(self, *args, clear_scroll_pos=False, clear_selection=True):
         queue = [{'name': job.name, 'path': job.path, 'state': job.state, 'continuous': job.continuous,
-                  'thumbnail': self.app.gcode_metadata.get_metadata(job.path).get_thumbnail_path()}
-                      for job in reversed(self.app.jobs)]
-        if len(queue) > 0:
-            queue.insert(-1, {'name': "Currently printing", "state": 'header'})
-        if len(queue) > 2:
-            queue.insert(0, {"name": "Queue", "state": 'header'})
+            'thumbnail': self.app.gcode_metadata.get_metadata(job.path).get_thumbnail_path()}
+            for job in reversed(self.app.jobs)]
+
         history = []
         if self.app.history != []:
             # latest date in history
@@ -43,7 +39,7 @@ class Timeline(RecycleView):
                 # This print happened on a later day than the previous
                 if new_date != prev_date:
                     # Format date like "25. Aug 1991"
-                    history.append({"name": prev_date.strftime("%d. %b %Y"), "state": 'date_header'})
+                    history.append({"name": prev_date.strftime("%d. %b %Y")})
                     prev_date = new_date
                 new = {"path": job[0],
                     "state": job[1],
@@ -52,11 +48,13 @@ class Timeline(RecycleView):
                     'thumbnail': md.get_thumbnail_path(),
                     'continuous': job[3]}
                 history.append(new)
-            history.append({"name": new_date.strftime("%d. %b %Y"), "state": 'date_header'})
+            # Also show the newest date, but not if the last print happened today
+            if new_date != date.today():
+                history.append({"name": new_date.strftime("%d. %b %Y")})
             history.reverse() # sort history to last file at end (bottom)
 
         if queue or history:
-            self.data = queue + history + [{'state': 'divider_header'}] # for a dividing line after last element
+            self.data = queue + history + [{'height': 1}] # for a dividing line after last element
         if clear_scroll_pos:
             self.scroll_y = 1
         if clear_selection and self.next_selection is None:
@@ -108,7 +106,7 @@ class TimelineItem(RecycleDataViewBehavior, Label):
     name = StringProperty()
     path = StringProperty()
     state = OptionProperty("header", options=
-        ["header", "date_header", "divider_header", "queued", "printing", "pausing", "paused", "aborting", "aborted", "finished"])
+        ["header", "queued", "printing", "pausing", "paused", "aborting", "aborted", "finished"])
     continuous = BooleanProperty()
     timestamp = NumericProperty(0)
     index = None
@@ -128,7 +126,7 @@ class TimelineItem(RecycleDataViewBehavior, Label):
         # Add selection on touch down
         if super().on_touch_down(touch):
             return True
-        if "header" in self.state:
+        if self.state == "header":
             return False
         if self.collide_point(*touch.pos):
             self.pressed = True

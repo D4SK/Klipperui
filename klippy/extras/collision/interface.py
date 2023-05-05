@@ -151,7 +151,6 @@ class CollisionInterface:
 
         printjob can be either a PrintJob object or metadata object.
         """
-        offset = (0, 0)
         try:
             object_queue = [self.printjob_to_cuboid(pj) for pj in queue]
             if isinstance(printjob, PrintJob):
@@ -159,13 +158,13 @@ class CollisionInterface:
             else:
                 cuboid = self.metadata_to_cuboid(printjob)
         except MissingMetadataError:
-            return False, offset
+            return False
         predict_collision = self.collision.replicate_with_objects(object_queue)
         available = not predict_collision.object_collides(cuboid)
         if not available and self.reposition:
             offset = predict_collision.find_offset(cuboid)
             available = offset is not None
-        return available, offset
+        return available
 
     def _handle_print_end(self, _printjobs, printjob: PrintJob) -> None:
         try:

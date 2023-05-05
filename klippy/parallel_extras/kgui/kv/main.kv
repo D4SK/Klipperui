@@ -31,10 +31,7 @@ FloatLayout:
     orientation: 'horizontal'
     canvas:
         Color:
-            rgba:
-                p.red if 'error' in app.state else \
-                p.accent if app.print_state == 'printing' else \
-                p.flat_accent
+            rgba: p.red if 'error' in app.state else p.accent if app.print_state == 'printing' else p.flat_accent
         Rectangle:
             size: self.size
             pos: self.pos
@@ -50,11 +47,7 @@ FloatLayout:
         x: root.x
         Label:
             id: state
-            text:
-                "error" if app.state == "error" else \
-                "initializing" if app.state == "startup" else \
-                "" if app.print_state in ("no print job", "aborted", "finished") else \
-                app.print_state
+            text: "error" if app.state == "error" else "initializing" if app.state == "startup" else "" if app.print_state in ("no print job", "aborted", "finished") else app.print_state
             size_hint_x: None
             size: self.texture_size
             font_size: p.normal_font

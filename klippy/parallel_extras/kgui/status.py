@@ -14,7 +14,6 @@ from kivy.uix.widget import Widget
 
 from . import parameters as p
 from . import printer_cmd
-from .parameters import dp, sp
 
 
 class StatusBar(BoxLayout):
@@ -176,7 +175,7 @@ class Notifications(FloatLayout):
         super().__init__()
         self.root_widget = App.get_running_app().root
         self.size_hint = (None, None)
-        self.size = self.root_widget.width - 2*p.notification_padding, dp(120)
+        self.size = self.root_widget.width - 2*p.notification_padding, 110
         self.x = self.root_widget.x + p.notification_padding
         self.top = self.root_widget.top - p.notification_padding
         with self.canvas:
@@ -200,7 +199,9 @@ class Notifications(FloatLayout):
         self.add_widget(title)
         self.title_label = title
 
-        message = Label(size_hint = (None, None), font_size = p.normal_font,)
+        message = Label(
+                size_hint = (None, None),
+                font_size = p.normal_font,)
         message.size = (self.width, message.font_size)
         message.text_size = message.size
         message.x = self.x + p.notification_text_padding

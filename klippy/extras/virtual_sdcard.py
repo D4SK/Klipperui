@@ -14,7 +14,7 @@ RESTORE_GCODE_POS_SPEED = 100
 
 
 class PrintJob:
-    def __init__(self, path, manager):
+    def __init__(self, path, manager, no_material_check):
         self.manager = manager
         self.reactor = manager.reactor
         self.toolhead = manager.toolhead
@@ -23,7 +23,7 @@ class PrintJob:
         self.gcode_metadata = manager.gcode_metadata
 
         self.continuous = False
-        self.was_queued = len(manager.jobs) and not (len(manager.jobs) == 1 and manager.jobs[0].state in ('finished', 'aborted'))
+        self.no_material_check = no_material_check
         self.path = path
         self.state = None
         self.set_state('queued') # queued -> printing -> pausing -> paused -> printing -> finished
@@ -57,13 +57,14 @@ class PrintJob:
     def start(self):
         if self.state == 'queued':
             fm = self.manager.printer.lookup_object("filament_manager")
-            materials, needed_materials, problems = fm.get_material_match(self.md)
-            if any(problems) and self.was_queued:
+            materials, needed_materials, problems = fm.get_material_match(self)
+            if any(problems) and not self.no_material_check:
                 self.gcode.run_script("SAVE_GCODE_STATE NAME=PAUSE_STATE")
                 self.gcode.run_script("SET_GCODE_OFFSET X=0 Y=0")
                 self.set_state('paused')
                 self.reactor.send_event("virtual_sdcard:print_start", self.manager.jobs, self)
-                self.reactor.send_event("virtual_sdcard:material_mismatch", self)
+                self.reactor.send_event("virtual_sdcard:material_mismatch",
+                        materials, needed_materials, problems)
             else:
                 self.last_start_time = self.toolhead.mcu.estimated_print_time(self.reactor.monotonic())
                 self.set_state('printing') # set_state only after last_start_time is set but before entering work handler
@@ -195,9 +196,13 @@ class PrintJobManager:
         self.gcode.register_command('PAUSE', self.cmd_PAUSE)
         self.gcode.register_command('RESUME', self.cmd_RESUME)
         self.gcode.register_command('STOP', self.cmd_STOP)
+
+        # Index of the last print job in self.jobs that can be printed
+        # continuously. If self.jobs is empty, this is set to 0.
+        self.continuous_index = 0
         self.jobs = [] # Print jobs, first is current
 
-    def add_print(self, path, assume_clear_after=None):
+    def add_print(self, path, assume_clear_after=None, no_material_check_when_first=False):
         """Add new print job to queue
 
         By specifying a timespan in seconds for assume_clear_after the print
@@ -214,7 +219,11 @@ class PrintJobManager:
             if (assume_clear_after == 0
             or self.jobs[0].print_end_time is not None and assume_clear_after < (now - self.jobs[0].print_end_time)):
                 self.clear_buildplate()
-        job = PrintJob(path, self)
+                self.printer.send_event("virtual_sdcard:assume_build_plate_clear")
+        no_material_check = (not self.jobs or
+            (len(self.jobs) == 1 and self.jobs[0].state in ('finished', 'aborted'))
+            and no_material_check_when_first)
+        job = PrintJob(path, self, no_material_check)
         self.jobs.append(job)
         self.check_queue()
         self.printer.send_event("virtual_sdcard:print_added", self.jobs, job)
@@ -289,12 +298,13 @@ class PrintJobManager:
             fm = self.printer.lookup_object("filament_manager")
             for i in range(1, len(self.jobs)):
                 pj = self.jobs[i]
-                available, offset = collision.predict_availability(pj, self.jobs[:i])
-                if not available or any(fm.get_material_match(pj.md)[2]):
+                if not collision.predict_availability(pj, self.jobs[:i]) or (
+                    any(fm.get_material_match(pj)[2]) and not pj.no_material_check):
                     # Previous print job is the last continuous one
                     i = i-1
                     break
 
+        self.continuous_index = i
         # Update continuous attributes of all print jobs in queue
         changed = False
         for j, pj in enumerate(self.jobs):
