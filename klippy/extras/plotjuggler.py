@@ -23,6 +23,7 @@ class Plotjuggler:
             self.handle_disconnect)
         self.printer.register_event_handler("klippy:ready", self.handle_ready)
         Thread(target=self.run_server, args=[]).start()
+        self.subscribers = {}
 
     def handle_ready(self):
         self.reactor.register_timer(self.plot_trapq,
@@ -34,6 +35,7 @@ class Plotjuggler:
             try:
                 self.ws.send(data)
             except:
+                # logging.info(f"failed sending {data}")
                 now = time.time()
                 if now > self.reconnect_time:
                     self.reconnect_time = now + 5
