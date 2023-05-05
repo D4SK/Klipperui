@@ -284,6 +284,20 @@ def get_tbc(printer):
         return
     printer.reactor.cb(set_attribute, 'tbc_to_guid', fm.get_tbc(), process='kgui')
 
+def get_print_continuity(printer, md, job):
+    fm = printer.lookup_object('filament_manager')
+    material_match = fm.get_material_match(md)
+    collision = printer.lookup_object('collision', None)
+    if collision:
+        if job:
+            collision_check = collision.check_available(job)
+        else:
+            jobs = printer.objects['virtual_sdcard'].jobs
+            collision_check = collision.predict_availability(md, jobs)
+    else:
+        collision_check = True, (0, 0)
+    return collision_check, material_match
+
 def send_print(printer, filepath):
     printer.objects['virtual_sdcard'].add_print(filepath, assume_clear_after=0)
 
