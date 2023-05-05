@@ -283,7 +283,7 @@ class PopupExceptionHandler(ExceptionHandler):
 def handle_exception_in_thread(exception):
     app = App.get_running_app()
     if app:
-        app.handle_critical_error(str(exception.exc_value))
+        Clock.schedule_del_safe(lambda: app.handle_critical_error(str(exception.exc_value)))
         logging.exception("Thread-Exception, popup invoked \n\n" + str(exception.exc_value))
     else:
         logging.exception("Exception occured while graphics are unavailable")

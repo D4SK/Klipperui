@@ -468,7 +468,7 @@
                     radius: (p.popup_radius,)
                     pos: self.x - p.padding/2, self.y - p.padding/2
                     size: self.width + p.padding, self.height + p.padding*1.5
-            right: root.right - p.padding*1.5
+            right: root.right - p.padding*1
             size_hint: None, None
             height: self.minimum_height
             orientation: 'vertical'
@@ -484,7 +484,7 @@
             text_size: self.size
             y: p.mars
             font_size: p.normal_font - sp(5)
-            bold: True
+            bold: False
             color: p.medium_gray
         BtnPCancel:
             id: btn_cancel
@@ -594,7 +594,8 @@
                 'transparent': (0,0,0,0), \
                 'play': p.accent, \
                 'pause': p.medium_gray, \
-                'time': p.medium_gray}[self.state]
+                'time': p.medium_gray, \
+                'loading': (0,0,0,0)}[self.state]
         Rectangle:
             source:
                 p.kgui_dir + \
@@ -607,9 +608,15 @@
                 'transparent': '/logos/transparent.png', \
                 'play': '/logos/play.png', \
                 'pause': '/logos/pause.png', \
-                'time': '/logos/time.png'}[self.state]
+                'time': '/logos/time.png', \
+                'loading': '/logos/tranparent.png'}[self.state]
             size: dp(28*p.disp_vertical_stretch), dp(28)
             pos: self.x - dp(46), self.top - dp(27) - self.padding[1]
+        Color:
+            rgba: p.medium_gray if self.state == 'loading' else (0,0,0,0)
+        Line:
+            width: dp(4)
+            circle: self.x - dp(46-28), self.top - dp(28), dp(11), self.start_angle, self.end_angle
     height: self.texture_size[1]
     size_hint: None, None
     text_size: self.width, None

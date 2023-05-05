@@ -58,6 +58,14 @@ def thumbnails():
     os.makedirs(path, exist_ok=True)
     return path
 
+def update_dir():
+    path = os.path.join(_data_path, 'updates')
+    os.makedirs(path, exist_ok=True)
+    return path
+
+def version_file():
+    return os.path.join(os.path.dirname(os.path.dirname(__file__)), 'VERSION')
+
 
 class Location:
     """Paths that may depend on configuration"""

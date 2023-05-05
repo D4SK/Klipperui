@@ -528,22 +528,29 @@
         Rectangle:
             pos: 0, 0
             size: self.size
-    Label:
+    StateText:
         id: message
         text: ""
-        font_size: p.large_font
-        size_hint: 1, None
-        text_size: self.size
-        size: p.screen_width, dp(90)
-        halign: 'left'
-        valign: 'bottom'
-        padding: p.padding, 0
-        pos_hint: {'x':0, 'top':1}
+        state: 'transparent'
+        width: p.screen_width - 3*p.padding
+        x: 2*p.padding
+        pos_hint: {'top': 0.95}
+        font_size: p.normal_font + sp(3)
+        color: p.light_gray
+    StateText:
+        id: version_label
+        text: ""
+        state: 'loading'
+        size_hint: None, None
+        width: p.screen_width - 3*p.padding
+        x: 2*p.padding
+        top: message.y
+        font_size: p.normal_font + sp(3)
         color: p.light_gray
     ScrollView:
         always_overscroll: False
         size_hint: 1, None
-        height: root.height - message.height
+        height: root.height - message.height - version_label.height - 2*p.padding
         pos_hint: {'x': 0, 'y': 0}
         do_scroll_x: False
         BoxLayout:
@@ -714,14 +721,13 @@
     color: p.medium_gray
     Label:
         text: root.upper_title
-        font_size: p.large_font
+        font_size: p.normal_font + sp(3)
         text_size: self.size
-        color: p.light_gray
         size: dp(350), root.height
         size_hint: None, None
         valign: 'top'
         halign: 'left'
-        padding: p.padding, p.padding
+        padding: p.padding, p.padding - dp(2)
         pos: root.pos
     Btn:
         id: btn_install
@@ -730,6 +736,10 @@
         on_release: Factory.ReleasePopup(root.release).open()
         size_hint: None, None
         right: root.right - p.h_padding
+        y: root.y + p.padding
+    Divider:
+        width: root.width - 2*p.small_padding
+        x: root.x + p.small_padding
         y: root.y
 
 # POPUPS
@@ -970,11 +980,11 @@
             on_release: Factory.DownloadPopup(root.release).open(), root.dismiss()
 
 <DownloadPopup>:
-    size_hint: 0.94, 0.68
+    size_hint: 0.9, 0.5
     title: "Downloading " + root.release['tag_name']
     FloatLayout:
         Label:
-            text: "Done" if root.updater.download_finished else f"{root.updater.downloaded_bytes/1000000:4.2f} MB"
+            text: "Done" if root.updater.download_finished else "{:4.2f} MB".format(root.updater.downloaded_bytes/1000000)
             size_hint: None, None
             size: root.width, dp(100)
             center_y: root.center_y

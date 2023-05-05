@@ -270,6 +270,30 @@ class DeletePopup(BasePopup):
 
 class StateText(Label):
     state = StringProperty('transparent')
+    start_angle = NumericProperty(0)
+    end_angle = NumericProperty(90)
+
+    def __init__(self, **kwargs):
+        self.scheduled_updating = None
+        super().__init__(**kwargs)
+
+    def on_state(self, instance, state):
+        if state == 'loading':
+            if not self.scheduled_updating:
+                self.animation_pos = 0
+                self.scheduled_updating = Clock.schedule_interval(self.update_animation_pos, 0.02)
+        else:
+            if self.scheduled_updating:
+                Clock.unschedule(self.scheduled_updating)
+                self.scheduled_updating = None
+
+    def update_animation_pos(self, dt):
+        start = self.start_angle + 1
+        end = self.end_angle + 2.5
+        start %= 360
+        end %= 360
+        self.start_angle = start
+        self.end_angle = end
 
 class BtnMaterial(RoundButton):
     filament_amount = NumericProperty()
