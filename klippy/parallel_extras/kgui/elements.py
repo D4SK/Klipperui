@@ -3,6 +3,7 @@ import shutil
 from os.path import join, basename
 from os import remove
 from time import time
+from math import cos, radians
 
 from kivy.app import App
 from kivy.clock import Clock
@@ -169,7 +170,7 @@ class PrintPopup(BasePopup):
             material_dict['hex_color'] = material_dict['color']
             material_dict['material_type'] = material_dict['type']
             material_dict['amount'] /= 1000
-            material_widget = BtnMaterial(material=material_dict, width=dp(180), height=dp(60),
+            material_widget = BtnMaterial(material=material_dict, width=dp(170), height=dp(60),
                                           font_size=(p.normal_font-sp(5)), line_height=0.9)
             self.ids.material_box.add_widget(material_widget)
         queue_job = len(self.app.jobs) and not self.confirm_only and not (len(self.app.jobs) == 1 and self.app.jobs[0].state in ('finished', 'aborted'))
@@ -280,20 +281,17 @@ class StateText(Label):
     def on_state(self, instance, state):
         if state == 'loading':
             if not self.scheduled_updating:
-                self.animation_pos = 0
+                self.start_angle = 0
+                self.update_animation_pos()
                 self.scheduled_updating = Clock.schedule_interval(self.update_animation_pos, 0.02)
         else:
             if self.scheduled_updating:
                 Clock.unschedule(self.scheduled_updating)
                 self.scheduled_updating = None
 
-    def update_animation_pos(self, dt):
-        start = self.start_angle + 1
-        end = self.end_angle + 2.5
-        start %= 360
-        end %= 360
-        self.start_angle = start
-        self.end_angle = end
+    def update_animation_pos(self, dt=None):
+        self.start_angle += 3
+        self.end_angle = self.start_angle + 100 - cos(radians(self.start_angle/2)) * 90
 
 class BtnMaterial(RoundButton):
     filament_amount = NumericProperty()

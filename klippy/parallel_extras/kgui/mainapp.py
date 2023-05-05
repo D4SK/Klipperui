@@ -202,7 +202,7 @@ class MainApp(App, threading.Thread):
         if job.state in ('finished', 'aborted'):
             self.thumbnail = p.kgui_dir + '/logos/transparent.png'
             self.progress = 0
-            self.print_done_time = "Confirm Build Plate is clear"
+            self.print_done_time = ""
             self.print_time = ""
 
     def hide_print(self):

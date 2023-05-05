@@ -540,7 +540,7 @@
     StateText:
         id: version_label
         text: ""
-        state: 'loading'
+        state: 'transparent'
         size_hint: None, None
         width: p.screen_width - 3*p.padding
         x: 2*p.padding
@@ -945,7 +945,7 @@
             on_release: app.reactor.cb(printer_cmd.set_config, f"output_pin {app.led_controls}", "value", slider.val/100), root.dismiss()
 
 <ReleasePopup>:
-    size_hint: 0.94, 0.68
+    size_hint: 0.92, 0.66
     title: self.release['tag_name']
     FloatLayout:
         id: content
@@ -965,7 +965,7 @@
                 text_size: self.width, None
                 height: self.texture_size[1]
                 font_size: p.normal_font
-                color: p.medium_gray
+                color: p.light_gray
         BtnPCancel:
             id: btn_cancel
             width: root.width/2
@@ -980,7 +980,7 @@
             on_release: Factory.DownloadPopup(root.release).open(), root.dismiss()
 
 <DownloadPopup>:
-    size_hint: 0.9, 0.5
+    size_hint: 0.92, 0.66
     title: "Downloading " + root.release['tag_name']
     FloatLayout:
         Label:
@@ -1008,7 +1008,7 @@
             on_release: Factory.InstallPopup(root.release).open(), root.dismiss()
 
 <InstallPopup>:
-    size_hint: 0.94, 0.68
+    size_hint: 0.92, 0.66
     title: "Install"
     auto_dismiss: False
     FloatLayout:

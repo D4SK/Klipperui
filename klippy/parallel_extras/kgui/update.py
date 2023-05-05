@@ -285,7 +285,7 @@ class SIRelease(Label):
     def __init__(self, release, **kwargs):
         self.release = release
         self.upper_title = self.release['tag_name']
-        self.lower_title = ""
+        self.lower_title = "Currently installed" if release['distance'] == 0 else ""
         super().__init__(**kwargs)
         self.ids.btn_install.text = "Install" if release['distance'] > 0 else "Reinstall" if release['distance'] == 0 else "Downgrade"
 

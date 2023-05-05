@@ -421,7 +421,7 @@
 <PrintPopup>:
     title: ("Change Material for " if self.confirm_only else "") + splitext(basename(root.path))[0]
     title_size: p.large_font
-    size_hint: 0.91, 0.69
+    size_hint: 0.92, 0.7
     FloatLayout:
         Widget:
             id: thumbnail
@@ -447,12 +447,12 @@
             id: collision_state
             state: 'transparent'
         StateText:
-            pos: root.x + 2*p.padding, root.center_y + dp(8)
+            pos: root.x + 2*p.padding, root.center_y + dp(0)
             width: root.width - 3*p.padding
             id: material_state
             state: 'transparent'
         BoxLayout:
-            x: root.x + p.padding
+            x: root.x + p.padding*1.5
             size_hint: None, None
             height: self.minimum_height
             orientation: 'vertical'
@@ -468,14 +468,14 @@
                     radius: (p.popup_radius,)
                     pos: self.x - p.padding/2, self.y - p.padding/2
                     size: self.width + p.padding, self.height + p.padding*1.5
-            right: root.right - p.padding*1
+            right: root.right - p.padding*1.5
             size_hint: None, None
             height: self.minimum_height
             orientation: 'vertical'
             id: material_box
             spacing: dp(25)
             y: p.mars
-            width: dp(180)
+            width: dp(170)
         Label:
             id: materials_label
             text: "Printer"
@@ -555,7 +555,7 @@
 
 <PrintMaterial>:
     size_hint: None, None
-    size: dp(150), dp(60)
+    size: dp(170), dp(60)
     # needed_material can be None if extruder count doesn't match
     text: f"{root.material.amount:.0f}g {root.material.type}" if root.material else ""
     font_size: p.normal_font - dp(5)
@@ -571,7 +571,7 @@
             radius: (p.radius,)
     Label:
         size: root.size
-        pos: root.right + dp(28), root.y
+        pos: root.right + dp(22), root.y
         text: ">" if root.problems & Problem.AMOUNT else "≠" if root.problems else ""
         text_size: self.size
         font_size: p.large_font + sp(7)
@@ -615,8 +615,8 @@
         Color:
             rgba: p.medium_gray if self.state == 'loading' else (0,0,0,0)
         Line:
-            width: dp(3.5)
-            circle: self.x - dp(46-28), self.top - dp(28), dp(11), self.start_angle, self.end_angle
+            width: dp(3)
+            circle: self.x - dp(43-11), self.top - dp(26), dp(11), self.start_angle, self.end_angle
     height: self.texture_size[1]
     size_hint: None, None
     text_size: self.width, None

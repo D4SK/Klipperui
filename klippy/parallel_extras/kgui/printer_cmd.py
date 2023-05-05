@@ -99,7 +99,7 @@ def reset_pressure_advance(printer):
             extruder.extruder_stepper._set_pressure_advance(pa, extruder.extruder_stepper.pressure_advance_smooth_time)
 
 def get_acceleration(printer):
-    acceleration = printer.objects['toolhead'].max_accel
+    acceleration = printer.objects['toolhead'].max_accel/1000
     acceleration_factor = printer.objects['toolhead'].accel_factor*100
     printer.reactor.cb(set_attribute, 'acceleration', acceleration, process='kgui')
     printer.reactor.cb(set_attribute, 'acceleration_factor', acceleration_factor, process='kgui')

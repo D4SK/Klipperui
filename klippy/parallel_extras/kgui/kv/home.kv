@@ -73,8 +73,7 @@
             right: btn_stop.x
         BtnClear:
             on_release: app.hide_print(); app.reactor.cb(printer_cmd.clear_buildplate)
-            size: btn_stop.size
-            y: btn_stop.y
+            y: p.padding + p.tab_height if self.enabled else p.mars
             right: p.screen_width - p.h_padding
         Label:
             id: l_filename
@@ -219,7 +218,7 @@
         BtnTemp:
             id: acceleration
             on_release: Factory.AccPopup(val=app.acceleration_factor).open()
-            large_value: f"{app.acceleration:6.0f}mm/s²"
+            large_value: f"{app.acceleration:3.1f}m/s²"
             small_value: "Acceleration"
             right: p.screen_width - p.h_padding
             center_y: z_offset.center_y + 2*p.btn_spacing
@@ -343,18 +342,29 @@
             size: 0.39*p.btn_stop, p.btn_stop
             radius: (p.icon_radius,)
 
-<BtnClear@RoundButton>:
+<BtnClear@BaseButton>:
     enabled: app.print_state in ('finished', 'aborted', 'queued')
+    text: "        Confirm Print Removal"
+    size: dp(350), p.btn_height
     canvas:
         Color:
-            rgba: p.green if self.enabled else (0,0,0,0)
-        Line:
-            width: p.icon_radius*2.2
-            points:
-                self.center_x - dp(ph*1.5), self.center_y, \
-                self.center_x - dp(ph/2), self.center_y - dp(ph), \
-                self.center_x + dp(ph*1.5), self.center_y + dp(ph)
-            close: False
+            rgba: p.green
+        Rectangle:
+            pos: self.x + self.height/2 - dp(25), self.center_y - dp(25)
+            size: dp(50)*p.disp_vertical_stretch, dp(50)
+            source: p.kgui_dir + "/logos/checkmark.png"
+        Color:
+            rgba: p.translucent_panel
+        RoundedRectangle:
+            radius: (p.popup_radius,)
+            pos: self.pos
+            size: self.size
+        Color:
+            rgba: p.translucent_white if self.pressed and self.enabled else (0,0,0,0)
+        RoundedRectangle:
+            radius: (p.popup_radius,)
+            pos: self.pos
+            size: self.size
 
 # POPUPS
 
