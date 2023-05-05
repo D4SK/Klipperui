@@ -418,23 +418,38 @@
             on_release: root.dismiss(); app.reactor.cb(printer_cmd.send_stop)
 
 <PrintPopup>:
-    detailsbox: detailsbox
-    title: basename(root.path)
+    title: ("Change Material for " if self.confirm_only else "") + splitext(basename(root.path))[0]
     title_size: p.large_font
     size_hint: 0.9, 0.68
     FloatLayout:
         Widget:
             id: thumbnail
+            thumbnail_path: None if not root.md else root.md.get_thumbnail_path()
             canvas:
                 Color:
-                    rgba: (1, 1, 1, 1) if root.md.get_thumbnail_path() else p.medium_gray
+                    rgba: (1, 1, 1, 1) if self.thumbnail_path else p.medium_gray
                 Rectangle:
-                    source: root.md.get_thumbnail_path() or p.kgui_dir + "/logos/file.png"
+                    source: self.thumbnail_path or p.kgui_dir + "/logos/file.png"
                     size: self.size
                     pos: self.pos
             size_hint: None, 0.25
             width: self.height
-            pos_hint: {'center_x': 0.5, 'top': 0.95}
+            pos_hint: {'center_x': 0.5, 'top': 1}
+        StateText:
+            pos: root.x + 2*p.padding, collision_state.top
+            width: root.width - 3*p.padding
+            id: print_time
+            state: 'transparent'
+        StateText:
+            pos: root.x + 2*p.padding, material_state.top
+            width: root.width - 3*p.padding
+            id: collision_state
+            state: 'transparent'
+        StateText:
+            pos: root.x + 2*p.padding, root.center_y + dp(8)
+            width: root.width - 3*p.padding
+            id: material_state
+            state: 'transparent'
         BoxLayout:
             id: detailsbox
             pos_hint: {'center_x': 0.5}
@@ -444,7 +459,7 @@
             orientation: 'vertical'
         BtnPCancel:
             id: btn_cancel
-            width: root.width/3
+            width: root.width/2 if root.confirm_only else root.width/3
             pos: root.pos
             on_release: root.dismiss()
         BtnPConfirm:
@@ -452,13 +467,13 @@
             text: 'Delete'
             enabled: app.state == "ready"
             width: root.width/3
-            pos: btn_cancel.right, root.y
+            pos: btn_cancel.right, (p.mars if root.confirm_only else root.y)
             on_release: Factory.DeletePopup(path = root.path, filechooser=root.filechooser).open(); root.dismiss()
         BtnPConfirm:
             text: 'Print'
             enabled: app.state == "ready"
-            width: root.width/3
-            pos: btn_del.right, root.y
+            width: root.width/2 if root.confirm_only else root.width/3
+            pos: root.x + (root.width/2 if root.confirm_only else root.width*2/3), root.y
             on_release: root.confirm()
 
 <PrintPopupDetail>:  # @Label
@@ -508,9 +523,118 @@
             pos: root.center_x, root.y
             on_release: root.confirm()
 
+<PrintMaterial>:
+    size_hint: None, None
+    size: dp(150), dp(60)
+    # needed_material can be None if extruder count doesn't match
+    text: f"{root.material.amount:.0f}g {root.material.type}" if root.material else ""
+    font_size: p.normal_font - dp(5)
+    valign: 'middle'
+    halign: 'center'
+    color: (1,1,1,1) if root.problems else p.light_gray
+    canvas.before:
+        Color:
+            rgba: printer_cmd.calculate_filament_color(printer_cmd.hex_to_rgba(self.material.color))
+        RoundedRectangle:
+            size: self.width, self.height
+            pos: self.x, self.y
+            radius: (p.radius,)
+    Label:
+        size: root.size
+        pos: root.right + dp(28), root.y
+        text: ">" if root.problems & Problem.AMOUNT else "≠" if root.problems else ""
+        text_size: self.size
+        font_size: p.large_font + sp(7)
+        valign: 'middle'
+        halign: 'left'
+        color: p.yellow
+        size_hint: None, None
+        bold: True
+
+<StateText>:
+    canvas:
+        Color:
+            rgba:
+                {'bullet': self.color, \
+                'info': p.medium_gray, \
+                'red_x': p.red, \
+                'red': p.red, \
+                'yellow': p.yellow, \
+                'green': p.green, \
+                'transparent': (0,0,0,0), \
+                'play': p.accent, \
+                'pause': p.medium_gray, \
+                'time': p.medium_gray}[self.state]
+        Rectangle:
+            source:
+                p.kgui_dir + \
+                {'bullet': '/logos/bullet.png', \
+                'info': '/logos/info.png', \
+                'red_x': '/logos/x.png', \
+                'red': '/logos/warning.png', \
+                'yellow': '/logos/warning.png', \
+                'green': '/logos/checkmark.png', \
+                'transparent': '/logos/transparent.png', \
+                'play': '/logos/play.png', \
+                'pause': '/logos/pause.png', \
+                'time': '/logos/time.png'}[self.state]
+            size: dp(28*p.disp_vertical_stretch), dp(28)
+            pos: self.x - dp(46), self.top - dp(27) - self.padding[1]
+    height: self.texture_size[1]
+    size_hint: None, None
+    text_size: self.width, None
+    font_size: p.normal_font - dp(1)
+    halign: 'left'
+    valign: 'top'
+    multiline: True
+    line_height: 1.16
+    padding: 0, dp(9)
+
+<BtnMaterial>:
+    size_hint: None, None
+    enabled: app.state == "ready" and app.material
+    filament_amount: self.material['amount']
+    filament_color: printer_cmd.calculate_filament_color(printer_cmd.hex_to_rgba(self.material['hex_color']))
+    color: (1,1,1,1) if self.enabled else p.btn_disabled
+    text_size: self.size
+    font_size: p.normal_font
+    halign: 'center'
+    valign: 'middle'
+    padding: 0, dp(8)
+    text:
+        {'loading': "Loading...",
+        'unloading': "Unloading...",
+        'loaded': f"{self.material['amount']*1000:3.0f}g {self.material['material_type']}\n(unload)",
+        'no material': "Load Material"}[self.material['state']]
+    on_release:
+        Factory.FilamentChooserPopup(root.extruder_id).open() if root.material['state'] == "no material" else \
+        Factory.FilamentPopup(root.extruder_id, False, root.material).open() if root.material['state'] == 'loaded' else None
+    canvas.before:
+        Color:
+            rgba: self.filament_color
+        RoundedRectangle:
+            size: max(0, self.width*self.filament_amount), self.height
+            pos: self.pos
+            radius:
+                [p.radius, \
+                max(0, p.radius - self.width + self.width*self.filament_amount), \
+                max(0, p.radius - self.width + self.width*self.filament_amount), \
+                p.radius]
+        Color:
+            rgba: p.btn_outline
+        Line:
+            width: 1
+            rounded_rectangle: (self.x, self.y, self.width, self.height, p.radius)
+        Color:
+            rgba: p.btn_outline if self.filament_amount > 0 else (0,0,0,0)
+        Line:
+            points:
+                self.x + self.filament_amount * self.width, self.y + p.btn_divider_padding, \
+                self.x + self.filament_amount * self.width, self.top - p.btn_divider_padding
+
 <WarningPopup>:
     size_hint: 0.9, 0.4
-    message: "Are you sure you want to proceed, the ongoing Print Jobs will be aborted"
+    message: "Are you sure you want to proceed, all print jobs will be aborted"
     title: ''
     FloatLayout:
         canvas:
@@ -518,18 +642,20 @@
                 rgba: p.red
             Rectangle:
                 source: p.kgui_dir+'/logos/warning.png'
-                size: dp(60*p.disp_vertical_stretch), dp(60)
-                pos: root.x + p.padding, root.center_y
+                size: dp(50*p.disp_vertical_stretch), dp(50)
+                pos: root.x + p.padding, message.top - dp(40)
         Label:
+            id: message
             text: root.message
             halign: 'center'
             valign: 'middle'
             size_hint: None, None
-            size: root.width - 2*p.padding - dp(30) - dp(60), root.height
+            width: root.width - 2*p.padding - dp(30) - dp(60)
+            text_size: self.texture_size
             center_y: root.center_y
             x: root.x + p.padding + dp(30) + dp(60)
             text_size: self.size
-            font_size: p.large_font
+            font_size: p.normal_font + dp(3)
         BtnPCancel:
             id: btn_cancel
             width: root.width/2

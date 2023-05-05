@@ -23,8 +23,8 @@ from kivy.clock import Clock
 from kivy.lang import Builder
 from kivy.properties import (OptionProperty, BooleanProperty, DictProperty,
                             NumericProperty, ListProperty, StringProperty)
-from .elements import UltraKeyboard, CriticalErrorPopup, ErrorPopup
-from .home import FilamentChooserPopup, FilamentRunoutPopup, MaterialMismatchPopup
+from .elements import UltraKeyboard, CriticalErrorPopup, ErrorPopup, PrintPopup
+from .home import FilamentChooserPopup, FilamentRunoutPopup
 from .freedir import freedir
 from .nm_dbus import NetworkManager
 from .status import Notifications
@@ -175,9 +175,7 @@ class MainApp(App, threading.Thread):
         self.reactor.cb(printer_cmd.get_homing_state)
 
     def handle_print_change(self, jobs):
-        """
-        Update the configuration of print jobs and the state of 1. print job
-        """
+        """ Update the configuration of print jobs and the state of 1. print job """
         if jobs:
             self.print_state = jobs[0].state
             if self.print_state == 'aborting':
@@ -231,8 +229,8 @@ class MainApp(App, threading.Thread):
     def handle_material_runout(self, extruder_id):
         FilamentRunoutPopup(extruder_id).open()
 
-    def handle_material_mismatch(self, *args):
-        MaterialMismatchPopup(*args).open()
+    def handle_material_mismatch(self, job):
+        PrintPopup(job.path, job=job).open()
 
     def handle_notification(self, *args, **kwargs):
         self.notify.show(*args, **kwargs)
