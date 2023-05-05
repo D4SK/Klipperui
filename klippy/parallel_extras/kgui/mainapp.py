@@ -164,9 +164,16 @@ class MainApp(App, threading.Thread):
         self.reactor.register_async_callback(self.reactor.end)
         self.stop()
 
-    def handle_critical_error(self, message):
+    def handle_critical_error(self, title=None, message="", exception=None):
+        logging.info("Kivy app.handle_critical_error")
+        if exception:
+            tr = '\n'.join(traceback.format_tb(exception.__traceback__))
+            message = tr + "\n\n" + repr(exception)
+            title = title or "Unknown Error - Restart needed"
+        else:
+            title = title or "Error - Restart needed"
         self.state = "error"
-        CriticalErrorPopup(message = message).open()
+        CriticalErrorPopup(message=message, title=title, is_exception=bool(exception)).open()
 
     def handle_error(self, message):
         ErrorPopup(message = message).open()
@@ -272,29 +279,27 @@ def run_callback(reactor, callback, completion_id, waiting_process, *args, **kwa
 def kivy_callback(*args, **kwargs):
     Clock.schedule_del_safe(lambda: run_callback(*args, **kwargs))
 
-# Catch KGUI exceptions and display popups
+# kgui exceptions
 class PopupExceptionHandler(ExceptionHandler):
     def handle_exception(self, exception):
-        tr = ''.join(traceback.format_tb(exception.__traceback__))
-        App.get_running_app().handle_critical_error(tr + "\n\n" + repr(exception))
+        App.get_running_app().handle_critical_error(exception=exception)
         logging.exception("UI-Exception, popup invoked")
         return ExceptionManager.PASS
+ExceptionManager.add_handler(PopupExceptionHandler())
 
-def handle_exception_in_thread(exception):
+# thread exceptions
+def thread_exception_handler(exception):
     app = App.get_running_app()
     if app:
-        Clock.schedule_del_safe(lambda: app.handle_critical_error(str(exception.exc_value)))
+        Clock.schedule_del_safe(lambda: app.handle_critical_error(exception=exception))
         logging.exception("Thread-Exception, popup invoked \n\n" + str(exception.exc_value))
     else:
         logging.exception("Exception occured while graphics are unavailable")
-
-ExceptionManager.add_handler(PopupExceptionHandler())
-threading.excepthook = handle_exception_in_thread
+threading.excepthook = thread_exception_handler
 
 # Load kv-files:
 # load a custom style.kv with changes to popup and more
 Builder.unload_file(join(kivy_data_dir, "style.kv"))
 # All files to read (order is important), main.kv is read first, automatically
-for fname in ("style.kv", "elements.kv", "home.kv",
-              "timeline.kv", "files.kv", "settings.kv"):
+for fname in ("style.kv", "elements.kv", "home.kv", "timeline.kv", "files.kv", "settings.kv"):
     Builder.load_file(join(p.kgui_dir, "kv", fname))

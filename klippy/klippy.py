@@ -205,23 +205,24 @@ class Printer:
             self.reactor.send_event_wait("klippy:connect", check_status=message_startup)
         except (self.config_error, pins.error) as e:
             logging.exception("Config error")
-            self.send_event("klippy:critical_error", "Config error")
+            self.send_event("klippy:critical_error", "Config Error", str(e))
             self._set_state("%s\n%s" % (str(e), message_restart))
             return
         except msgproto.error as e:
             logging.exception("Protocol error")
+            self.send_event("klippy:critical_error", "Protocol Error", self._build_protocol_error_message(e))
             self._set_state(self._build_protocol_error_message(e))
             util.dump_mcu_build()
             return
         except mcu.error as e:
             logging.exception("MCU error during connect")
-            self.send_event("klippy:critical_error", "MCU error during connect")
+            self.send_event("klippy:critical_error", "MCU error during connect", str(e) + message_mcu_connect_error)
             self._set_state("%s%s" % (str(e), message_mcu_connect_error))
             util.dump_mcu_build()
             return
         except Exception as e:
             logging.exception("Unhandled exception during connect")
-            self.send_event("klippy:critical_error", "Unhandled exception during connect")
+            self.send_event("klippy:critical_error", "Unhandled exception during connect", str(e))
             self._set_state("Internal error during connect: %s\n%s" % (
                 str(e), message_restart,))
             return
@@ -271,8 +272,8 @@ class Printer:
             return
         logging.error("Transition to shutdown state: %s", msg)
         self.in_shutdown_state = True
+        self.send_event("klippy:critical_error", "Error - Safety Shutdown activated", msg)
         self._set_state("%s%s" % (msg, message_shutdown))
-        self.send_event("klippy:critical_error", msg)
         for cb in self.reactor.event_handlers.get("klippy:shutdown", []):
             try:
                 cb()

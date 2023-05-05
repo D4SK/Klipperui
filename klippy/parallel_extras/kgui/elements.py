@@ -125,6 +125,8 @@ class BasePopup(Popup):
 
 class CriticalErrorPopup(BasePopup):
     message = StringProperty()
+    title = StringProperty()
+    is_exception = BooleanProperty(False)
 
 class ErrorPopup(BasePopup):
     message = StringProperty()

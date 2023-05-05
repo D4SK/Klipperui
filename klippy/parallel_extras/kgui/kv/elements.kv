@@ -341,10 +341,11 @@
             size: self.width, 1
 
 <CriticalErrorPopup>:
-    size_hint: 0.9, 0.68
+    size_hint: (0.95, 0.7) if self.is_exception else (0.87, 0.6)
     error: True
-    message: "--"
-    title: "Error - Firmware stopped"
+    message: ""
+    title: ""
+    is_exception: False
     FloatLayout:
         id: content
         ScrollView:
@@ -357,11 +358,11 @@
                 text: root.message
                 halign: 'left'
                 valign: 'top'
-                padding: p.small_padding, p.small_padding
+                padding: (p.small_padding, p.small_padding) if root.is_exception else (p.padding, p.padding)
                 size_hint_y: None
                 text_size: self.width, None
                 height: self.texture_size[1]
-                font_size: p.normal_font - 2
+                font_size: p.small_font if root.is_exception else p.normal_font
                 color: p.light_gray
         BtnPCancel:
             id: btn_cancel
