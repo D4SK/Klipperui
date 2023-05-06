@@ -6,6 +6,7 @@ import os
 import subprocess
 import requests
 import time
+import lzma
 from threading import Thread
 
 from kivy.uix.screenmanager import Screen
@@ -38,6 +39,7 @@ class Updater(EventDispatcher):
         self._install_process = None
         self._terminate_installation = False
         self.abort_download = False
+        self.register_event_type('on_install_finished')
         try:
             with open(location.version_file(), 'r') as f:
                 self.current_version = f.read()
@@ -53,6 +55,7 @@ class Updater(EventDispatcher):
 
         # Leave some time after startup in case WiFi isn't connected yet
         self._fetch_retries = 0
+        self.total_bytes = 1
         self.fetch_clock = Clock.schedule_once(self.fetch, 15)
         self.bind(show_all_versions=self.process_releases)
         self.register_event_type("on_new_releases")
@@ -130,7 +133,12 @@ class Updater(EventDispatcher):
         if self._install_process is not None: # Install is currently running
             logging.warning("Update: Attempted to install while script is running")
             return
-        cmd = ['sudo', 'svup', 'install', '-h']
+        with lzma.open(self.local_filename, 'rb') as compressed_file:
+            with open("/tmp/test", 'wb') as decompressed_file:
+                for chunk in iter(lambda: compressed_file.read(1024), b''):
+                    decompressed_file.write(chunk)
+
+        cmd = ['sudo', 'svup', '-h']
         # Capture both stderr and stdout in stdout
         self._install_process = subprocess.Popen(cmd, text=True,
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -159,6 +167,7 @@ class Updater(EventDispatcher):
             headers=self._headers | {"Accept": "application/octet-stream"},
             timeout=10,
         ) as r:
+            self.total_bytes = int(r.headers["content-length"])
             r.raise_for_status()
             with open(self.local_filename, 'wb') as f:
                 for chunk in r.iter_content(chunk_size=262144):
@@ -185,14 +194,14 @@ class Updater(EventDispatcher):
             if self._terminate_installation:
                 self._install_process.terminate()
                 logging.info("Update: Installation aborted!")
-                self.dispatch("on_install_finished", None)
+                Clock.schedule_del_safe(lambda: self.dispatch("on_install_finished", None))
                 self._terminate_installation = False
                 self._install_process = None
                 break
             line = proc.stdout.readline()
             if not line:
                 rc = proc.wait()
-                self.dispatch("on_install_finished", rc)
+                Clock.schedule_del_safe(lambda: self.dispatch("on_install_finished", rc))
                 self._install_process = None
                 success = rc == 0
                 break
@@ -210,6 +219,8 @@ class Updater(EventDispatcher):
     def on_new_releases(self, *args):
         pass
 
+    def on_install_finished(self, *args):
+        pass
 
 updater = Updater()
 

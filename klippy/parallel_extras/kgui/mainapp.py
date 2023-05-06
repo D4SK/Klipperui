@@ -166,16 +166,17 @@ class MainApp(App, threading.Thread):
         self.reactor.register_async_callback(self.reactor.end)
         self.stop()
 
-    def handle_critical_error(self, title=None, message="", exception=None):
+    def handle_critical_error(self, title=None, message="", exception=None, is_exception=False):
         logging.info("Kivy app.handle_critical_error")
         if exception:
             tr = '\n'.join(traceback.format_tb(exception.__traceback__))
             message = tr + "\n\n" + repr(exception)
             title = title or "Unknown Error - Restart needed"
+            is_exception = True
         else:
             title = title or "Error - Restart needed"
         self.state = "error"
-        CriticalErrorPopup(message=message, title=title, is_exception=bool(exception)).open()
+        CriticalErrorPopup(message=message, title=title, is_exception=is_exception).open()
 
     def handle_error(self, message):
         ErrorPopup(message = message).open()
@@ -293,7 +294,7 @@ ExceptionManager.add_handler(PopupExceptionHandler())
 def thread_exception_handler(exception):
     app = App.get_running_app()
     if app:
-        Clock.schedule_del_safe(lambda: app.handle_critical_error(exception=exception))
+        Clock.schedule_del_safe(lambda: app.handle_critical_error(message=str(exception.exc_value), is_exception=True))
         logging.exception("Thread-Exception, popup invoked \n\n" + str(exception.exc_value))
     else:
         logging.exception("Exception occured while graphics are unavailable")
