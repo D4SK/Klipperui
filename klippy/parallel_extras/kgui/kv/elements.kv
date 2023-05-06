@@ -438,17 +438,17 @@
             width: self.height
             pos_hint: {'center_x': 0.5, 'top': 1}
         StateText:
-            pos: root.x + 2*p.padding, collision_state.top
+            pos: root.x + 2.5*p.padding, collision_state.top
             width: root.width - 3*p.padding
             id: print_time
             state: 'transparent'
         StateText:
-            pos: root.x + 2*p.padding, material_state.top
+            pos: root.x + 2.5*p.padding, material_state.top
             width: root.width - 3*p.padding
             id: collision_state
             state: 'transparent'
         StateText:
-            pos: root.x + 2*p.padding, root.center_y + dp(0)
+            pos: root.x + 2.5*p.padding, root.center_y + dp(0)
             width: root.width - 3*p.padding
             id: material_state
             state: 'transparent'
@@ -570,17 +570,6 @@
             size: self.width, self.height
             pos: self.x, self.y
             radius: (p.radius,)
-    Label:
-        size: root.size
-        pos: root.right + dp(22), root.y
-        text: ">" if root.problems & Problem.AMOUNT else "≠" if root.problems else ""
-        text_size: self.size
-        font_size: p.large_font + sp(7)
-        valign: 'middle'
-        halign: 'left'
-        color: p.yellow
-        size_hint: None, None
-        bold: True
 
 <StateText>:
     canvas:

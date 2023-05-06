@@ -25,7 +25,7 @@ checkbox_radius = dp(6)
 popup_radius = dp(16)
 key_radius = dp(6)
 status_bar_height = dp(31)
-btn_height = dp(84)
+btn_height = dp(78)
 btn_stop = dp(65)
 progress_bar_height = dp(10)
 tab_height = dp(100)
@@ -33,19 +33,17 @@ title_bar_height = dp(110)
 #generate even spacing based on all contents on homescreen
 small_padding = dp(15)
 btn_divider_padding = dp(8)
-padding = (screen_height\
-        - status_bar_height\
-        - btn_height*6\
-        - btn_stop\
-        - progress_bar_height\
-        - tab_height)\
-        /7 # remaining space has to contain 7* padding
+home_padding = dp(45)
+material_padding = home_padding * 0.8
+material_height = btn_height + home_padding - material_padding
+home_h_padding = home_padding*disp_vertical_stretch
+padding = dp(45)
+h_padding = padding*disp_vertical_stretch
 notification_padding = status_bar_height
 notification_text_padding = dp(20)
-btn_spacing = padding + btn_height
-h_padding = padding*disp_vertical_stretch
-btn_temp_width = dp(158)
-btn_width = screen_width - 3.5*h_padding - btn_temp_width
+btn_spacing = home_padding + btn_height
+btn_temp_width = dp(165)
+btn_width = screen_width - 3*home_h_padding - 2*material_padding - btn_temp_width
 
 background = [0.05, 0.05, 0.05, 1]
 notification_shadow = (0.065, 0.065, 0.065, 0.45)
@@ -56,7 +54,8 @@ divider = (1, 1, 1, 0.09)
 btn = (1, 1, 1, 0.08)
 btn_outline = (1, 1, 1, 0.095)
 btn_disabled = (1, 1, 1, 0.35)
-nozzle = (1, 1, 1, 0.15)
+nozzle = (1, 1, 1, 0.2)
+btn_temp = (1, 1, 1, 0.38)
 
 translucent_white = (1, 1, 1, 0.1)
 translucent_panel = (1, 1, 1, 0.05)

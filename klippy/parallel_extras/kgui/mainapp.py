@@ -88,6 +88,8 @@ class MainApp(App, threading.Thread):
     acceleration = NumericProperty(0)
     acceleration_factor = NumericProperty(100)
     pressure_advance = NumericProperty(0)
+    force = ListProperty([0,0])
+    moisture = ListProperty([0,0])
     # Config
     continuous_printing = BooleanProperty(False)
     reposition = BooleanProperty(False)

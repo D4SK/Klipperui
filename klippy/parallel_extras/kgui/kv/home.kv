@@ -31,15 +31,15 @@
         PrintProgressBar:
             id: progress_bar
             size_hint: None, None
-            size: p.screen_width - 2*p.h_padding + 2, p.progress_bar_height
-            pos: p.h_padding - 1, p.tab_height + p.padding
+            size: p.screen_width - 2*p.home_h_padding + 2, p.progress_bar_height
+            pos: p.home_h_padding - 1, p.tab_height + p.home_padding
         Label:
             text: app.print_time
             size_hint: None, None
-            size: p.screen_width - 2*p.padding, p.normal_font
+            size: p.screen_width - 2*p.home_padding, p.normal_font
             text_size: self.size
             font_size: p.normal_font
-            x: p.h_padding - 2
+            x: p.home_h_padding - 2
             top: progress_bar.y - dp(5)
             color: (1,1,1,1)
             halign: 'left'
@@ -47,10 +47,10 @@
         Label:
             text: app.print_done_time
             size_hint: None, None
-            size: p.screen_width - 2*p.padding, p.normal_font
+            size: p.screen_width - 2*p.home_padding, p.normal_font
             text_size: self.size
             font_size: p.normal_font
-            x: p.h_padding - 2
+            x: p.home_h_padding - 2
             top: progress_bar.y - dp(5) if app.print_state in ('printing', 'pausing', 'paused') else progress_bar.y + dp(12)
             color: p.btn_disabled
             halign: 'right'
@@ -59,8 +59,8 @@
             on_release: Factory.StopPopup().open()
             id: btn_stop
             size: dp(118), dp(118)
-            center_y: progress_bar.top + p.padding + p.btn_stop/2
-            center_x: p.screen_width - p.btn_stop/2 - p.h_padding
+            center_y: progress_bar.top + p.home_padding + p.btn_stop/2
+            center_x: p.screen_width - p.btn_stop/2 - p.home_h_padding
         BtnPlay:
             on_release: app.reactor.cb(printer_cmd.send_resume)
             size: btn_stop.size
@@ -72,9 +72,10 @@
             y: btn_stop.y
             right: btn_stop.x
         BtnClear:
+            id: btn_clear
             on_release: app.hide_print(); app.reactor.cb(printer_cmd.clear_buildplate)
-            y: p.padding + p.tab_height if self.enabled else p.mars
-            right: p.screen_width - p.h_padding
+            y: p.home_padding + p.tab_height if self.enabled else p.mars
+            x: p.home_h_padding
         Label:
             id: l_filename
             text: app.print_title
@@ -83,8 +84,8 @@
             size: dp(280), dp(134)
             text_size: self.size
             font_size: p.large_font
-            x: p.h_padding - dp(3)
-            center_y: btn_stop.center_y
+            x: p.home_h_padding - dp(3)
+            center_y: btn_stop.center_y + (p.home_padding if btn_clear.enabled else 0)
             shorten: True
             halign: 'left'
             valign: 'middle'
@@ -110,10 +111,12 @@
             heater_id: "extruder1"
             on_release: Factory.ExtTempPopup(creator=self, val=app.temp).open()
             large_value: f"{app.temp[self.heater_id][1]:3.0f}°C" if app.temp[self.heater_id][1] > 0 else "--"
-            small_value: f"{app.temp[self.heater_id][0]:3.0f}" if app.temp[self.heater_id][0] != 0 else "Off"
+            small_value:
+                f"{app.force[1]:.2f}N {app.moisture[1]:.0f}%" if app.print_state in ('printing', 'pausing', 'paused') else \
+                f"{app.temp[self.heater_id][0]:3.0f}" if app.temp[self.heater_id][0] != 0 else "Off"
             red: app.temp[self.heater_id][1] > 50
             right: temp_bed.right if app.extruder_count > 1 else p.mars
-            y: p.tab_height + p.progress_bar_height + 4*p.padding + p.btn_height + p.btn_stop
+            y: p.tab_height + p.progress_bar_height + 5*p.home_padding + p.btn_height + p.btn_stop
         BtnTemp:
             canvas:
                 Color:
@@ -127,10 +130,12 @@
             heater_id: "extruder"
             on_release: Factory.ExtTempPopup(creator=self, val=app.temp).open()
             large_value: f"{app.temp[self.heater_id][1]:3.0f}°C" if app.temp[self.heater_id][1] > 0 else "--"
-            small_value: f"{app.temp[self.heater_id][0]:3.0f}" if app.temp[self.heater_id][0] != 0 else "Off"
+            small_value:
+                f"{app.force[0]:.2f}N {app.moisture[0]:.0f}%" if app.print_state in ('printing', 'pausing', 'paused') else \
+                f"{app.temp[self.heater_id][0]:3.0f}" if app.temp[self.heater_id][0] != 0 else "Off"
             red: app.temp[self.heater_id][1] > 50
             right: temp_bed.right
-            y: p.tab_height + p.padding*3 + p.progress_bar_height + p.btn_stop
+            y: p.tab_height + p.home_padding*4 + p.progress_bar_height + p.btn_stop
         BtnTemp:
             canvas:
                 Color:
@@ -144,8 +149,8 @@
             large_value: f"{app.temp['heater_bed'][1]:3.0f}°C"
             small_value: f"{app.temp['heater_bed'][0]:3.0f}" if app.temp['heater_bed'][0] != 0 else "Off"
             red: app.temp['heater_bed'][1] > 50
-            x: p.h_padding
-            y: p.tab_height + p.progress_bar_height + 5*p.padding + 2*p.btn_height + p.btn_stop
+            x: p.home_h_padding
+            y: p.tab_height + p.progress_bar_height + 6*p.home_padding + 2*p.btn_height + p.btn_stop
         BtnTemp:
             canvas:
                 Color:
@@ -159,7 +164,7 @@
             large_value: f"{app.chamber_temp[1]:3.0f}°C"
             small_value: f"{app.chamber_fan_speed:3.0f}%" if app.chamber_fan_speed != 0 else "Off"
             right: temp_bed.right
-            y: p.tab_height + p.progress_bar_height + 6*p.padding + 3*p.btn_height + p.btn_stop
+            y: p.tab_height + p.progress_bar_height + 7*p.home_padding + 3*p.btn_height + p.btn_stop
 
 <HomeScreen@Screen>:
     name: "homescreen"
@@ -170,21 +175,22 @@
                     rgba: p.translucent_panel
                 RoundedRectangle:
                     radius: (p.popup_radius,)
-                    pos: self.x - p.padding/2, self.y - p.padding/2
-                    size: self.width + p.padding, self.height + p.padding
+                    pos: self.pos
+                    size: self.size
             id: material_box
             orientation: 'vertical'
             size_hint: None, None
-            size: p.btn_width, (p.btn_height + p.padding)*2 - p.padding
-            y: p.padding
-            right: p.screen_width - p.h_padding
-            spacing: p.padding
+            size: p.btn_width+2*p.material_padding, (p.material_height + p.material_padding)*2 + p.material_padding
+            y: p.home_padding*2+p.btn_height/2 - p.material_height/2 - p.material_padding
+            right: p.screen_width - p.home_h_padding
+            spacing: p.material_padding
+            padding: (p.material_padding, )
             BtnMaterial:
                 gcode_id: 'T1'
                 tool_idx: 1
                 extruder_id: 'extruder1'
                 pos_hint: {} if app.extruder_count > 1 else {'x': p.mars}
-                size: p.btn_width, p.btn_height
+                size: p.btn_width, p.material_height
                 material:
                     self.material if not (app.material and len(app.material['loaded']) > self.tool_idx) \
                     else app.material['loaded'][self.tool_idx]
@@ -193,7 +199,7 @@
                 gcode_id: 'T0'
                 tool_idx: 0
                 extruder_id: 'extruder'
-                size: p.btn_width, p.btn_height
+                size: p.btn_width, p.material_height
                 material:
                     self.material if not (app.material and len(app.material['loaded']) > self.tool_idx) \
                     else app.material['loaded'][self.tool_idx]
@@ -206,42 +212,42 @@
             on_release: Factory.FlowPopup(val=app.flow_factor).open()
             large_value: f"{app.flow*pi*(app.filament_diameter/2)**2:3.0f}mm³/s"
             small_value: "Material Flow"
-            right: p.screen_width - p.h_padding
+            right: p.screen_width - p.home_h_padding
             center_y: z_offset.center_y + 4*p.btn_spacing
         BtnTemp:
             id: speed
             on_release: Factory.SpeedPopup(val=app.speed_factor).open()
             large_value: f"{app.speed:3.0f}mm/s"
             small_value: "Print Speed"
-            right: p.screen_width - p.h_padding
+            right: p.screen_width - p.home_h_padding
             center_y: z_offset.center_y + 3*p.btn_spacing
         BtnTemp:
             id: acceleration
             on_release: Factory.AccPopup(val=app.acceleration_factor).open()
             large_value: f"{app.acceleration:3.1f}m/s²"
             small_value: "Acceleration"
-            right: p.screen_width - p.h_padding
+            right: p.screen_width - p.home_h_padding
             center_y: z_offset.center_y + 2*p.btn_spacing
         BtnTemp:
             id: pressure_advance
             on_release: Factory.PressureAdvancePopup(val=app.pressure_advance).open()
             large_value: f"{app.pressure_advance:4.3f}s"
             small_value: "Pressure Advance"
-            right: p.screen_width - p.h_padding
+            right: p.screen_width - p.home_h_padding
             center_y: z_offset.center_y + p.btn_spacing
         BtnTemp:
             id: z_offset
             on_release: Factory.ZOffsetPopup(val=app.z_offset).open()
             large_value: f"{app.z_offset:3.2f}mm"
-            small_value: "Z Calibration"
-            right: p.screen_width - p.h_padding
-            center_y: p.padding + p.btn_height/2
+            small_value: "Z Offset"
+            right: p.screen_width - p.home_h_padding
+            center_y: 2*p.home_padding + p.btn_height/2
         BtnTemp:
             id: fan
             on_release: Factory.FanPopup(val=app.fan_speed).open()
             large_value: f"{app.fan_speed:3.0f}%"
-            small_value: "Print Cooling"
-            x: p.h_padding
+            small_value: "Part Cooling"
+            x: p.home_h_padding
             center_y: flow.center_y
 
 <PrintProgressBar@Widget>:
@@ -276,23 +282,23 @@
             size: self.width + dp(40), self.height + dp(40)
             pos: self.x - dp(20), self.y - dp(20)
     Label:
-        color: p.red if root.red else (1,1,1,1) if root.enabled else p.btn_disabled
+        color: p.red if root.red else (1,1,1,0.7)
         text: root.large_value
         size_hint: None, None
         size: root.width + dp(50), root.height
         text_size: self.size
-        y: root.y + dp(6)
+        y: root.y
         right: root.right
-        font_size: p.large_font - sp(2)
+        font_size: p.normal_font + sp(4)
         valign: 'top'
         halign: 'right'
     Label:
-        color: p.btn_disabled
+        color: p.btn_temp
         text: root.small_value
         size_hint: None, None
         size: root.width + dp(50), root.height
         text_size: self.size
-        y: root.y - dp(2)
+        y: root.y
         right: root.right
         font_size: p.normal_font
         valign: 'bottom'
@@ -345,20 +351,20 @@
 <BtnClear@BaseButton>:
     enabled: app.print_state in ('finished', 'aborted', 'queued')
     text: "        Confirm Print Removal"
-    size: dp(350), p.btn_height
+    size: dp(350), dp(85)
     canvas:
-        Color:
-            rgba: p.green
-        Rectangle:
-            pos: self.x + self.height/2 - dp(25), self.center_y - dp(25)
-            size: dp(50)*p.disp_vertical_stretch, dp(50)
-            source: p.kgui_dir + "/logos/checkmark.png"
         Color:
             rgba: p.translucent_panel
         RoundedRectangle:
             radius: (p.popup_radius,)
             pos: self.pos
             size: self.size
+        Color:
+            rgba: p.green
+        Rectangle:
+            pos: self.x + self.height/2 - dp(25), self.center_y - dp(25)
+            size: dp(50)*p.disp_vertical_stretch, dp(50)
+            source: p.kgui_dir + "/logos/checkmark.png"
         Color:
             rgba: p.translucent_white if self.pressed and self.enabled else (0,0,0,0)
         RoundedRectangle:

@@ -272,7 +272,7 @@ class Printer:
             return
         logging.error("Transition to shutdown state: %s", msg)
         self.in_shutdown_state = True
-        self.send_event("klippy:critical_error", "Error - Safety Shutdown activated", msg)
+        self.send_event("klippy:critical_error", "Error - Safety Shutdown", msg)
         self._set_state("%s%s" % (msg, message_shutdown))
         for cb in self.reactor.event_handlers.get("klippy:shutdown", []):
             try:

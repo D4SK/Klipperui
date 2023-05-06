@@ -8,7 +8,7 @@ import json
 import logging
 
 class Usage:
-    usage_path = os.path.expanduser('~/usage.json')
+    usage_path = os.path.expanduser('~/config/usage.json')
 
     def __init__(self, config):
         # TODO add total print time, up time, aborted prints, finished prints
