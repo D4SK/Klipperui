@@ -216,7 +216,7 @@ class Printer:
             return
         except mcu.error as e:
             logging.exception("MCU error during connect")
-            self.send_event("klippy:critical_error", "MCU error during connect", str(e) + message_mcu_connect_error)
+            self.send_event("klippy:critical_error", "MCU error during connect", str(e))
             self._set_state("%s%s" % (str(e), message_mcu_connect_error))
             util.dump_mcu_build()
             return
