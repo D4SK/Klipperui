@@ -1,77 +1,51 @@
-from .elements import BasePopup, MICheckbox, Divider
-from .settings import SetItem
-
+from functools import partial
 import logging
-import os
-import subprocess
-import requests
-import time
 import lzma
+import os
+import requests
+import subprocess
 from threading import Thread
+import time
 
-from kivy.uix.screenmanager import Screen
-from kivy.uix.label import Label
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.event import EventDispatcher
-from kivy.properties import StringProperty, ListProperty, BooleanProperty, NumericProperty
-from kivy.factory import Factory
+from kivy.properties import (StringProperty, ListProperty, BooleanProperty,
+    NumericProperty, ObjectProperty)
+from kivy.uix.label import Label
+from kivy.uix.screenmanager import Screen
 
+from .elements import BasePopup, Divider
+from .settings import SetItem
 import location
-
-from . import parameters as p
 
 
 class Updater(EventDispatcher):
 
     RELEASES_URL = "https://api.github.com/repos/D4SK/servoklippo/releases"
+    _headers = {"X-GitHub-Api-Version": "2022-11-28"}
 
-    install_output = StringProperty()
     releases = ListProperty()
-    raw_releases = ListProperty()
-    show_all_versions = BooleanProperty(False)
     current_version_idx = NumericProperty(0)
-    downloaded_bytes = NumericProperty(0)
-    download_finished = BooleanProperty(False)
 
     def __init__(self):
         super().__init__()
-        self._install_process = None
-        self._terminate_installation = False
-        self.abort_download = False
-        self.register_event_type('on_install_finished')
         try:
             with open(location.version_file(), 'r') as f:
                 self.current_version = f.read()
-        except:
+        except OSError:
             self.current_version = "Unknown"
-        self._headers = {"X-GitHub-Api-Version": "2022-11-28"}
         try:
             with open(os.path.expanduser("~/TOKEN"), 'r') as f:
                 token = f.read()
                 self._headers["Authorization"] = "Bearer " + token
-        except:
+        except OSError:
             logging.info('Updater: no token found')
 
         # Leave some time after startup in case WiFi isn't connected yet
         self._fetch_retries = 0
         self.total_bytes = 1
         self.fetch_clock = Clock.schedule_once(self.fetch, 15)
-        self.bind(show_all_versions=self.process_releases)
-        self.register_event_type("on_new_releases")
-
-    def _execute(self, cmd, ignore_errors=False):
-        """Execute a command, and return its stdout
-        This function blocks until it returns.
-        In case of an error an error message is displayed,
-        unless ignore_errors is set to True.
-        """
-        cmd = self._base_cmd + cmd
-        proc = subprocess.run(cmd, capture_output=True, text=True)
-        if proc.returncode != 0 and not ignore_errors:
-            logging.error("Command failed: " + " ".join(cmd) + "\n" + proc.stdout + " " + proc.stderr)
-        # The output always ends with a newline, we don't want that
-        return proc.stdout.rstrip("\n")
 
     def fetch(self, *args):
         # Fetch automatically every 24h = 86400s
@@ -90,30 +64,32 @@ class Updater(EventDispatcher):
             self._fetch_retries = 0
             raw_releases = requ.json()
             raw_releases.sort(key=self.semantic_versioning_key)
-            self.raw_releases = raw_releases
-            Clock.schedule_del_safe(self.process_releases)
+            Clock.schedule_del_safe(partial(self.process_releases, raw_releases))
         elif self._fetch_retries <= 3:
             self._fetch_retries += 1
             Clock.schedule_once(self.fetch, 20)
 
-    def process_releases(self, *args):
+    def process_releases(self, raw_releases):
         current_version_idx = 0
         releases = []
-        for release in self.raw_releases:
-            if not release['prerelease'] or self.show_all_versions:
-                releases.append(release)
+        for release in raw_releases:
+            try:
+                rel = Release(release)
+            except (ValueError, LookupError, TypeError) as e:
+                logging.info("Error while reading release info: %s", str(e))
+            else:
+                releases.append(rel)
         for i, release in enumerate(releases):
-            if release['tag_name'] == updater.current_version:
+            if release.version == self.current_version:
                 current_version_idx = i
         for i in range(len(releases)):
-            releases[i]['distance'] = i - current_version_idx
+            releases[i].distance = i - current_version_idx
         self.current_version_idx = current_version_idx
         self.releases = releases
-        self.dispatch("on_new_releases")
 
     def semantic_versioning_key(self, release):
         try:
-            tag = release['tag_name']
+            tag = release.version
             tag = tag.lstrip('vV')
             tag = tag.replace('-beta.', ".")
             tag = tag.replace('-beta', ".0")
@@ -128,48 +104,59 @@ class Updater(EventDispatcher):
             return 0
         return key
 
-    def install(self):
-        """Run the installation script"""
-        if self._install_process is not None: # Install is currently running
-            logging.warning("Update: Attempted to install while script is running")
-            return
-        with lzma.open(self.local_filename, 'rb') as compressed_file:
-            with open("/tmp/test", 'wb') as decompressed_file:
-                for chunk in iter(lambda: compressed_file.read(1024), b''):
-                    decompressed_file.write(chunk)
 
-        cmd = ['sudo', 'svup', '-h']
-        # Capture both stderr and stdout in stdout
-        self._install_process = subprocess.Popen(cmd, text=True,
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        Thread(target=self._capture_install_output).start()
+class Release(EventDispatcher):
 
-    def start_download(self, release):
-        self.downloaded_bytes = 0
+    downloaded_bytes = NumericProperty(0)
+    download_finished = BooleanProperty(False)
+    install_output = StringProperty()
+
+    def __init__(self, data):
+        """Read data from GitHub API into object. For Response schema see:
+        https://docs.github.com/en/rest/releases/releases?apiVersion=2022-11-28
+        """
+        self.register_event_type('on_install_finished')
+        self.abort_download = False
+        self.terminate_installation = False
+
+        self.version = data['tag_name']
+        self.draft = data['draft']
+        self.prerelease = data['prerelease']
+        self.title = data['name']
+        self.message = data['body']
+        self.distance = -1
+
         try:
-            asset = next(a for a in release['assets'] if a['name'].startswith('image'))
+            asset = next(a for a in data['assets'] if a['name'].startswith('image'))
         except (StopIteration, LookupError):
-            notify = App.get_running_app().notify
-            notify.show("Could not download update", "No image found",
-                        level="warning", delay=15)
-        self.local_filename = os.path.join(location.update_dir(), asset['name'])
-        Thread(target=self.download, args=[asset]).start()
+            raise ValueError("Could not find image asset in release data") from None
+        self.update_url = asset['url']
+        self.update_filename = asset['name']
+        self.update_path = os.path.join(location.update_dir(), self.update_filename)
+        # Download to PATH.part first
+        self.download_path = self.update_path + '.part'
+        self.download_size = asset['size']
 
-    def download(self, asset):
-        url = asset['url']
+    def download(self):
+        if os.path.isfile(self.update_filename):
+            #TODO Verify existing file
+            self.download_finished = True
+            return
+        self.downloaded_bytes = 0
+        Thread(target=self._download_thread, name="Download-Update-Thread").start()
+
+    def _download_thread(self):
         aborted = False
-        #TODO Download into <NAME>.part first
-        if os.path.exists(self.local_filename):
-            os.remove(self.local_filename)
-        with requests.get(url,
+        if os.path.exists(self.download_path):
+            os.remove(self.download_path)
+        with requests.get(self.update_url,
             stream=True,
             allow_redirects=True,
-            headers=self._headers | {"Accept": "application/octet-stream"},
+            headers=Updater._headers | {"Accept": "application/octet-stream"},
             timeout=10,
         ) as r:
-            self.total_bytes = int(r.headers["content-length"])
             r.raise_for_status()
-            with open(self.local_filename, 'wb') as f:
+            with open(self.download_path, 'wb') as f:
                 for chunk in r.iter_content(chunk_size=262144):
                     self.downloaded_bytes += len(chunk)
                     if self.abort_download:
@@ -177,19 +164,33 @@ class Updater(EventDispatcher):
                         break
                     f.write(chunk)
         if aborted:
-            os.remove(self.local_filename)
+            os.remove(self.download_path)
+            logging.info("Aborted downloading of %s", self.update_filename)
         else:
+            os.rename(self.download_path, self.update_path)
             self.download_finished = True
         #TODO Verify downloaded file
 
-    def _capture_install_output(self):
+    def decompress(self):
+        """Run the installation script"""
+        with lzma.open(self.local_filename, 'rb') as compressed_file:
+            with open("/tmp/test", 'wb') as decompressed_file:
+                for chunk in iter(lambda: compressed_file.read(1024), b''):
+                    decompressed_file.write(chunk)
+
+    def install(self):
+        cmd = ['sudo', 'svup', '-h']
+        # Capture both stderr and stdout in stdout
+        proc = subprocess.Popen(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        Thread(target=self._capture_install_output, args=(proc,),
+               name="Install-Output-Thread").start()
+
+    def _capture_install_output(self, proc):
         """
         Run in a seperate thread as proc.stdout.readline() blocks until
         the next line is received.
         """
-        proc = self._install_process
         self.install_output = ""
-        success = False
         while True:
             if self._terminate_installation:
                 self._install_process.terminate()
@@ -203,49 +204,48 @@ class Updater(EventDispatcher):
                 rc = proc.wait()
                 Clock.schedule_del_safe(lambda: self.dispatch("on_install_finished", rc))
                 self._install_process = None
-                success = rc == 0
                 break
             # Highlight important lines
             if line.startswith("===>"):
                 line = "[b][color=ffffff]" + line + "[/color][/b]"
             self.install_output += line
-        if not success:
-            notify = App.get_running_app().notify
-            notify.show("Installation failed", delay=60)
-
-    def terminate_installation(self):
-        self._terminate_installation = True
-
-    def on_new_releases(self, *args):
-        pass
 
     def on_install_finished(self, *args):
         pass
 
-updater = Updater()
-
 
 class SIUpdate(SetItem):
     """Entry in SettingScreen, opens UpdateScreen"""
+
+    screen_manager = ObjectProperty(None)
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        updater.bind(releases=self.show_message)
+        self.updater = None
+        Clock.schedule_once(self.late_setup, 0)
+
+    def late_setup(self, dt):
+        self.updater = self.screen_manager.get_screen("UpdateScreen").updater
+        self.updater.bind(releases=self.show_message)
         self.show_message()
 
     def show_message(self, *args):
-        if updater.current_version_idx < len(updater.releases) - 1:
+        if self.updater.current_version_idx < len(self.updater.releases) - 1:
             self.right_title = "Updates Available"
         else:
-            self.right_title = updater.current_version
+            self.right_title = self.updater.current_version
 
 
 class UpdateScreen(Screen):
     """Screen listing all releases"""
 
+    show_all_versions = BooleanProperty(False)
+
     def __init__(self, **kwargs):
         self.min_time = 0
         super().__init__(**kwargs)
-        updater.bind(on_new_releases=self.draw_releases)
+        self.updater = Updater()
+        self.updater.bind(releases=self.draw_releases)
 
     def draw_releases(self, *args):
         additional_time = self.min_time - time.time()
@@ -253,19 +253,19 @@ class UpdateScreen(Screen):
             Clock.schedule_once(self.draw_releases, additional_time)
             return
         self.ids.box.clear_widgets()
-        if updater.current_version_idx < len(updater.releases) - 1:
-            self.ids.message.text = f"An Update is available"
+        if self.updater.current_version_idx < len(self.updater.releases) - 1:
+            self.ids.message.text = "An Update is available"
             self.ids.message.state = 'transparent'
         else:
-             self.ids.message.text = f"Your System is up to Date"
+             self.ids.message.text = "Your System is up to Date"
              self.ids.message.state = 'green'
-        self.ids.version_label.text = f"Current Version: {updater.current_version}"
+        self.ids.version_label.text = f"Current Version: {self.updater.current_version}"
         self.ids.box.add_widget(Divider(pos_hint={'center_x': 0.5}))
-        if updater.show_all_versions:
-            for release in reversed(updater.releases):
+        if self.show_all_versions:
+            for release in reversed(self.updater.releases):
                 self.ids.box.add_widget(SIRelease(release))
-        elif updater.current_version_idx < (len(updater.releases) - 1):
-            self.ids.box.add_widget(SIRelease(updater.releases[-1]))
+        elif self.updater.current_version_idx < (len(self.updater.releases) - 1):
+            self.ids.box.add_widget(SIRelease(self.updater.releases[-1]))
         Clock.schedule_once(self._align, 0)
 
     def _align(self, *args):
@@ -275,19 +275,33 @@ class UpdateScreen(Screen):
         self.ids.message.text = "Checking for Updates"
         self.ids.message.state = "loading"
         self.min_time = time.time() + 2
-        updater.fetch()
+        self.updater.fetch()
 
     def show_dropdown(self, button, *args):
-        Factory.UpdateDropDown().open(button)
+        UpdateDropDown(self).open(button)
 
+    def on_show_all_versions(self, instance, value):
+        self.draw_releases()
 
-class MIShowAllVersions(MICheckbox):
-    def __init__(self, **kwargs):
-        self.active = updater.show_all_versions
-        super().__init__(**kwargs)
+# Avoid importing kivy.core.window outside Kivy thread. Also see late_define in
+# settings.py
+def late_define(dt):
+    from kivy.uix.dropdown import DropDown
 
-    def on_active(self, *args):
-        updater.show_all_versions = self.active
+    global UpdateDropDown
+    class UpdateDropDown(DropDown):
+        mi_all_versions = ObjectProperty(None)
+
+        def __init__(self, update_screen, **kwargs):
+            self.update_screen = update_screen
+            super().__init__(**kwargs)
+            self.mi_all_versions.active = self.update_screen.show_all_versions
+            self.mi_all_versions.bind(active=self.set_all_versions)
+
+        def set_all_versions(self, instance, value):
+            self.update_screen.show_all_versions = value
+
+Clock.schedule_once(late_define, 0)
 
 
 class SIRelease(Label):
@@ -295,10 +309,21 @@ class SIRelease(Label):
 
     def __init__(self, release, **kwargs):
         self.release = release
-        self.upper_title = self.release['tag_name']
-        self.lower_title = "Currently installed" if release['distance'] == 0 else ""
+        self.upper_title = self.release.version
+        status = ""
+        if release.distance == 0:
+            status = "Currently installed"
+            action = "Reinstall"
+        elif release.distance > 0:
+            action = "Install"
+        else:
+            action = "Downgrade"
+        self.lower_title = status
         super().__init__(**kwargs)
-        self.ids.btn_install.text = "Install" if release['distance'] > 0 else "Reinstall" if release['distance'] == 0 else "Downgrade"
+        self.ids.btn_install.text = action
+
+    def install(self):
+        ReleasePopup(self.release).open()
 
 
 class ReleasePopup(BasePopup):
@@ -308,15 +333,23 @@ class ReleasePopup(BasePopup):
         self.release = release
         super().__init__(**kwargs)
 
+    def download(self):
+        DownloadPopup(self.release).open()
+        self.dismiss()
+        self.release.download()
+
 
 class DownloadPopup(BasePopup):
     downloaded_bytes = NumericProperty(0)
 
     def __init__(self, release, **kwargs):
         self.release = release
-        self.updater = updater
         super().__init__(**kwargs)
-        updater.start_download(release)
+
+    def install(self):
+        InstallPopup(self.release).open()
+        self.dismiss()
+        self.release.install()
 
 
 class InstallPopup(BasePopup):
@@ -324,8 +357,8 @@ class InstallPopup(BasePopup):
 
     def __init__(self, release, **kwargs):
         self.release = release
-        updater.bind(install_output=self.update)
-        updater.bind(on_install_finished=self.on_finished)
+        self.release.bind(install_output=self.update)
+        self.release.bind(on_install_finished=self.on_finished)
         super().__init__(**kwargs)
 
     def update(self, instance, value):
@@ -352,4 +385,4 @@ class InstallPopup(BasePopup):
             self.ids.btn_cancel.text = "Close"
 
     def terminate(self):
-        updater.terminate_installation()
+        self.release.terminate_installation = True
