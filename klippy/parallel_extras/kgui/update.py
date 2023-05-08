@@ -107,17 +107,18 @@ class Updater(EventDispatcher):
 
 class Release(EventDispatcher):
 
-    downloaded_bytes = NumericProperty(0)
-    download_finished = BooleanProperty(False)
+    progress = NumericProperty(0)
     install_output = StringProperty()
 
     def __init__(self, data):
         """Read data from GitHub API into object. For Response schema see:
         https://docs.github.com/en/rest/releases/releases?apiVersion=2022-11-28
         """
+        self.register_event_type('on_download_end')
+        self.register_event_type('on_decompressed')
         self.register_event_type('on_install_finished')
-        self.abort_download = False
-        self.terminate_installation = False
+        # Aborts whatever process is currently running (download, decompression or installation)
+        self.abort_process = False
 
         self.version = data['tag_name']
         self.draft = data['draft']
@@ -127,56 +128,113 @@ class Release(EventDispatcher):
         self.distance = -1
 
         try:
-            asset = next(a for a in data['assets'] if a['name'].startswith('image'))
+            asset = next(a for a in data['assets']
+                         if a['name'].startswith('image') and
+                            a['name'].endswith('.xz'))
         except (StopIteration, LookupError):
             raise ValueError("Could not find image asset in release data") from None
         self.update_url = asset['url']
         self.update_filename = asset['name']
         self.update_path = os.path.join(location.update_dir(), self.update_filename)
-        # Download to PATH.part first
-        self.download_path = self.update_path + '.part'
         self.download_size = asset['size']
+        # Uncompressed image
+        self.image_path = self.update_path[:-3]
 
     def download(self):
-        if os.path.isfile(self.update_filename):
+        self.progress = 0
+        self.abort_process = False
+        if os.path.isfile(self.update_path):
             #TODO Verify existing file
-            self.download_finished = True
+            self.dispatch('on_download_end', True, 'Existing file found')
             return
-        self.downloaded_bytes = 0
         Thread(target=self._download_thread, name="Download-Update-Thread").start()
 
     def _download_thread(self):
         aborted = False
-        if os.path.exists(self.download_path):
-            os.remove(self.download_path)
-        with requests.get(self.update_url,
-            stream=True,
-            allow_redirects=True,
-            headers=Updater._headers | {"Accept": "application/octet-stream"},
-            timeout=10,
-        ) as r:
-            r.raise_for_status()
-            with open(self.download_path, 'wb') as f:
-                for chunk in r.iter_content(chunk_size=262144):
-                    self.downloaded_bytes += len(chunk)
-                    if self.abort_download:
-                        aborted = True
-                        break
-                    f.write(chunk)
-        if aborted:
-            os.remove(self.download_path)
-            logging.info("Aborted downloading of %s", self.update_filename)
-        else:
-            os.rename(self.download_path, self.update_path)
-            self.download_finished = True
-        #TODO Verify downloaded file
+        # Download to PATH.part first
+        download_path = self.update_path + '.part'
+        try:
+            if os.path.exists(download_path):
+                os.remove(download_path)
+            with requests.get(self.update_url,
+                stream=True,
+                allow_redirects=True,
+                headers=Updater._headers | {"Accept": "application/octet-stream"},
+                timeout=10,
+            ) as r:
+                r.raise_for_status()
+                with open(download_path, 'wb') as f:
+                    for chunk in r.iter_content(chunk_size=262144):
+                        if self.abort_process:
+                            self.abort_process = False
+                            aborted = True
+                            break
+                        f.write(chunk)
+                        self.progress += len(chunk)
+            if aborted:
+                os.remove(download_path)
+                logging.info("Aborted downloading of %s", self.update_filename)
+                Clock.schedule_del_safe(partial(self.dispatch, 'on_download_end', False, 'Download aborted'))
+            else:
+                #TODO Verify downloaded file
+                os.rename(download_path, self.update_path)
+                logging.info("Downloaded update %s", self.update_filename)
+                Clock.schedule_del_safe(partial(self.dispatch, 'on_download_end', True))
+        except (OSError, requests.RequestException) as e:
+            logging.exception("Downloading update failed")
+            Clock.schedule_del_safe(partial(self.dispatch, 'on_download_end', False, str(e)))
 
     def decompress(self):
-        """Run the installation script"""
-        with lzma.open(self.local_filename, 'rb') as compressed_file:
-            with open("/tmp/test", 'wb') as decompressed_file:
-                for chunk in iter(lambda: compressed_file.read(1024), b''):
-                    decompressed_file.write(chunk)
+        self.progress = 0
+        self.abort_process = False
+        if os.path.isfile(self.image_path):
+            self.dispatch('on_decompressed', True, 'Existing file found')
+            return
+        Thread(target=self._decompress_thread, name="Decompress-Update-Thread").start()
+
+    def _decompress_thread(self):
+        aborted = False
+        decompress_path = self.image_path + '.decomp'
+        try:
+            if os.path.exists(decompress_path):
+                os.remove(decompress_path)
+            with lzma.open(self.update_path, 'rb') as compressed_file:
+                with open(decompress_path, 'wb') as decompressed_file:
+                    while True:
+                        chunk = compressed_file.read(262144)
+                        if chunk == b'':
+                            break
+                        if self.abort_process:
+                            self.abort_process = False
+                            aborted = True
+                            break
+                        decompressed_file.write(chunk)
+                        self.progress += len(chunk)
+            if aborted:
+                os.remove(decompress_path)
+                logging.info("Aborted decompressing %s", self.update_filename)
+                Clock.schedule_del_safe(partial(self.dispatch, 'on_decompressed', False, 'Decompression aborted'))
+            else:
+                os.rename(decompress_path, self.image_path)
+                logging.info("Decompressed image %s", self.image_path)
+                Clock.schedule_del_safe(partial(self.dispatch, 'on_decompressed', True))
+        except OSError as e:
+            logging.exception("Decompressing image failed")
+            Clock.schedule_del_safe(partial(self.dispatch, 'on_decompressed', False, str(e)))
+
+    def get_uncompressed_size(self):
+        cmd = ['xz', '--list', '--robot', self.update_path]
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        except OSError:
+            return None
+        for line in proc.stdout.splitlines():
+            parts = line.split()
+            try:
+                if parts and parts[0] == 'file':
+                    return int(parts[4])
+            except (LookupError, ValueError):
+                return None
 
     def install(self):
         cmd = ['sudo', 'svup', '-h']
@@ -192,24 +250,26 @@ class Release(EventDispatcher):
         """
         self.install_output = ""
         while True:
-            if self._terminate_installation:
-                self._install_process.terminate()
+            if self.abort_process:
+                self.abort_process = False
+                proc.terminate()
                 logging.info("Update: Installation aborted!")
                 Clock.schedule_del_safe(lambda: self.dispatch("on_install_finished", None))
-                self._terminate_installation = False
-                self._install_process = None
                 break
             line = proc.stdout.readline()
             if not line:
                 rc = proc.wait()
                 Clock.schedule_del_safe(lambda: self.dispatch("on_install_finished", rc))
-                self._install_process = None
                 break
             # Highlight important lines
-            if line.startswith("===>"):
-                line = "[b][color=ffffff]" + line + "[/color][/b]"
+            #if line.startswith("===>"):
+            #    line = "[b][color=ffffff]" + line + "[/color][/b]"
             self.install_output += line
 
+    def on_download_end(self, success, reason=None, last=None):
+        pass
+    def on_decompressed(self, success, reason=None):
+        pass
     def on_install_finished(self, *args):
         pass
 
@@ -340,16 +400,64 @@ class ReleasePopup(BasePopup):
 
 
 class DownloadPopup(BasePopup):
-    downloaded_bytes = NumericProperty(0)
 
     def __init__(self, release, **kwargs):
         self.release = release
+        self.set_total(self.release.download_size)
         super().__init__(**kwargs)
+        self.msg = self.ids.msg
+        self.set_progress(None, 0)
 
     def install(self):
+        """Triggered by confirm button"""
         InstallPopup(self.release).open()
         self.dismiss()
         self.release.install()
+
+    def abort(self):
+        """Triggered by cancel button"""
+        self.dismiss()
+        self.release.abort_process = True
+
+    def set_progress(self, _instance, value):
+        self.msg.text = self.progress_fmt.format(value / 1024**2)
+
+    def set_total(self, total):
+        self.total = total
+        if total is not None:
+            self.progress_fmt = "{{:4.1f}}/{:4.1f} MiB".format(total / 1024**2)
+        else:
+            self.progress_fmt = "{:4.1f} MiB"
+
+    def on_download_end(self, instance, success, reason=None):
+        if success:
+            self.set_total(self.release.get_uncompressed_size())
+            self.title = "Decompressing " + self.release.version
+            self.release.decompress()
+        else:
+            self.msg.text = "Download failed:\n" + reason
+
+    def on_decompressed(self, instance, success, reason=None):
+        self.release.unbind(progress=self.set_progress)
+        if success:
+            self.ids.confirm.enabled = True  # Allow moving on to install
+            self.set_total(None)
+            self.title = "Acquired update " + self.release.version
+            self.msg.text = f"Press '{self.ids.confirm.text}' to apply update"
+        else:
+            self.msg.text = "Decompression failed:\n" + reason
+
+    def on_open(self):
+        super().on_open()
+        self.release.bind(on_download_end=self.on_download_end)
+        self.release.bind(on_decompressed=self.on_decompressed)
+        self.release.bind(progress=self.set_progress)
+
+    def on_dismiss(self):
+        super().on_dismiss()
+        self.release.unbind(on_download_end=self.on_download_end)
+        self.release.unbind(on_decompressed=self.on_decompressed)
+        self.release.unbind(progress=self.set_progress)
 
 
 class InstallPopup(BasePopup):

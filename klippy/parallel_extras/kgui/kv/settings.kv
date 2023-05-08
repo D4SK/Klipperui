@@ -984,25 +984,26 @@
 
 <DownloadPopup>:
     size_hint: 0.92, 0.66
-    title: "Downloading " + root.release.version
+    title: "Downloading " + self.release.version
+    auto_dismiss: False
     FloatLayout:
         canvas:
             Color:
                 rgba: p.dark_gray
             RoundedRectangle:
                 size: self.width - 2*p.padding, 10
-                pos: self.x + p.padding, self.center_y
+                pos: self.x + p.padding, self.center_y if root.total is not None else p.mars
                 radius: (4,)
             Color:
                 rgba: p.light_gray
             RoundedRectangle:
-                size: (self.width - 2*p.padding)*root.release.downloaded_bytes/float(root.release.download_size), 10
-                pos: self.x + p.padding, self.center_y
+                size:
+                    ((self.width - 2*p.padding)*root.release.progress/float(root.total)
+                    if root.total is not None else 0), 10
+                pos: self.x + p.padding, self.center_y if root.total is not None else p.mars
                 radius: (5,)
         Label:
-            text:
-                "Done" if root.release.download_finished else "{:4.1f}/{:4.1f}MiB".format(
-                root.release.downloaded_bytes/1024**2, root.release.download_size/1024**2)
+            id: msg
             size_hint: None, None
             size: root.width, dp(100)
             center_y: root.center_y
@@ -1016,11 +1017,11 @@
             id: btn_cancel
             width: root.width/2
             pos: root.pos
-            on_release: root.dismiss(); root.release.abort_download = True
+            on_release: root.abort()
         BtnPConfirm:
             id: confirm
             text: "Install"
-            enabled: root.release.download_finished
+            enabled: False
             width: root.width/2
             pos: root.center_x, root.y
             on_release: root.install()
