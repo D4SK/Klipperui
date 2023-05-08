@@ -43,8 +43,8 @@ def material_dir():
     os.makedirs(path, exist_ok=True)
     return path
 
-def log_dir():
-    path = '/tmp/'
+def default_log_dir():
+    path = os.path.join(_data_path, 'logs')
     os.makedirs(path, mode=0o700, exist_ok=True)
     return path
 
@@ -72,6 +72,13 @@ class Location:
 
     def __init__(self, config):
         self.config = config
+
+    def log_dir(self):
+        """Directory for log files, can be customized by start arguments"""
+        path = self.config.printer.get_start_args().get('log_file', '') or default_log_dir()
+        if os.path.isfile(path):
+            path = os.path.dirname(path)
+        return path
 
     def print_files(self):
         path = self.config.getsection('virtual_sdcard').get('path', '~/Klippo')
