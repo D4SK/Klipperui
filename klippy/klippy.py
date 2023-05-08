@@ -8,7 +8,7 @@ import sys, os, gc, optparse, logging, time, collections, importlib
 import util, reactor, queuelogger, msgproto
 import gcode, configfile, pins, mcu, toolhead, webhooks
 import signal, traceback, multiprocessing, datetime
-from os.path import join, exists, dirname
+from os.path import join, exists, dirname, isdir
 
 import location
 
@@ -356,7 +356,7 @@ class ExtraProcess:
         config.reactor = reactor.Reactor(process=self.name, gc_checking=True)
         config.printer.reactor = config.reactor
         config.reactor.logger = queuelogger.setup_bg_logging(
-                join(location.log_dir(), self.name.split()[-1] + ".log"),
+                join(config.location.log_dir(), self.name.split()[-1] + ".log"),
                 debuglevel)
 
     @staticmethod
@@ -441,7 +441,9 @@ def main():
         start_args.update(options.dictionary)
     bglogger = None
     if options.logfile or not sys.stdout.isatty():
-        logfile = options.logfile or join(location.log_dir(), 'klippy.log')
+        logfile = options.logfile or location.default_log_dir()
+        if isdir(logfile):
+            logfile = join(logfile, 'klippy.log')
         start_args['log_file'] = logfile
         bglogger = queuelogger.setup_bg_logging(logfile, debuglevel)
     else:
