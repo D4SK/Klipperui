@@ -297,9 +297,9 @@ def thread_exception_handler(exception):
     app = App.get_running_app()
     if app:
         Clock.schedule_del_safe(lambda: app.handle_critical_error(message=str(exception.exc_value), is_exception=True))
-        logging.exception("Thread-Exception, popup invoked \n\n" + str(exception.exc_value))
+        logging.exception(f"Thread-Exception in {exception.thread.name}, popup invoked\n\n" + str(exception.exc_value))
     else:
-        logging.exception("Exception occured while graphics are unavailable")
+        logging.exception(f"Exception occured in thread {exception.thread.name} while graphics are unavailable")
 threading.excepthook = thread_exception_handler
 
 # Load kv-files:
