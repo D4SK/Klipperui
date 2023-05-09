@@ -174,7 +174,7 @@
                 Color:
                     rgba: p.translucent_panel
                 RoundedRectangle:
-                    radius: (p.popup_radius,)
+                    radius: (p.home_radius,)
                     pos: self.pos
                     size: self.size
             id: material_box
@@ -356,7 +356,7 @@
         Color:
             rgba: p.translucent_panel
         RoundedRectangle:
-            radius: (p.popup_radius,)
+            radius: (p.home_radius,)
             pos: self.pos
             size: self.size
         Color:
@@ -368,7 +368,7 @@
         Color:
             rgba: p.translucent_white if self.pressed and self.enabled else (0,0,0,0)
         RoundedRectangle:
-            radius: (p.popup_radius,)
+            radius: (p.home_radius,)
             pos: self.pos
             size: self.size
 
