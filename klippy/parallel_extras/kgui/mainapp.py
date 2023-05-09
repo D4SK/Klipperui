@@ -166,20 +166,20 @@ class MainApp(App, threading.Thread):
         self.reactor.register_async_callback(self.reactor.end)
         self.stop()
 
-    def handle_critical_error(self, title=None, message="", exception=None, is_exception=False):
+    def handle_critical_error(self, title=None, message="", is_exception=False):
         logging.info("Kivy app.handle_critical_error")
-        if exception:
-            tr = '\n'.join(traceback.format_tb(exception.__traceback__))
-            message = tr + "\n\n" + repr(exception)
+        if is_exception:
             title = title or "Unknown Error - Restart needed"
-            is_exception = True
         else:
             title = title or "Error - Restart needed"
         self.state = "error"
         CriticalErrorPopup(message=message, title=title, is_exception=is_exception).open()
 
     def handle_error(self, message):
-        ErrorPopup(message = message).open()
+        if 'error' in self.state:
+            logging.info(f"UI already in error state - suppress error {message}")
+        else:
+            ErrorPopup(message = message).open()
 
     def handle_home_end(self, homing_state, rails):
         self.reactor.cb(printer_cmd.get_homing_state)
@@ -285,7 +285,9 @@ def kivy_callback(*args, **kwargs):
 # kgui exceptions
 class PopupExceptionHandler(ExceptionHandler):
     def handle_exception(self, exception):
-        App.get_running_app().handle_critical_error(exception=exception)
+        tr = '\n'.join(traceback.format_tb(exception.__traceback__))
+        message = tr + "\n\n" + repr(exception)
+        App.get_running_app().handle_critical_error(message=message, is_exception=True)
         logging.exception("UI-Exception, popup invoked")
         return ExceptionManager.PASS
 ExceptionManager.add_handler(PopupExceptionHandler())
@@ -295,9 +297,9 @@ def thread_exception_handler(exception):
     app = App.get_running_app()
     if app:
         Clock.schedule_del_safe(lambda: app.handle_critical_error(message=str(exception.exc_value), is_exception=True))
-        logging.exception(f"Thread-Exception in {exception.thread.name}, popup invoked\n\n" + str(exception.exc_value))
+        logging.exception("Thread-Exception, popup invoked \n\n" + str(exception.exc_value))
     else:
-        logging.exception(f"Exception occured in thread {exception.thread.name} while graphics are unavailable")
+        logging.exception("Exception occured while graphics are unavailable")
 threading.excepthook = thread_exception_handler
 
 # Load kv-files:

@@ -148,7 +148,7 @@ class PrintJob:
             try:
                 self.gcode.run_script(lines[-1])
             except Exception as e:
-                self.reactor.send_event("klippy:error", "Redundant error message \n" + str(e))
+                self.reactor.send_event("klippy:error", "Error dispatching Command \n" + str(e))
                 self.set_state('aborting')
                 logging.exception("Virtual sdcard error dispaching command: " + repr(e))
                 break
