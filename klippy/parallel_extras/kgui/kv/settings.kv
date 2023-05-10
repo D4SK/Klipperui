@@ -80,17 +80,13 @@
     ScrollView:
         always_overscroll: True
         BoxLayout:
-            orientation:'vertical'
+            orientation: 'vertical'
             height: self.minimum_height
             pos: 0, root.height - self.height
             size_hint_y: None
 
             Divider:
                 pos_hint: {'center_x': 0.5}
-            SetItem:
-                left_title: "Move Printhead"
-                enabled: app.state == "ready"
-                on_release: root.manager.current = "MoveScreen"
             SetItem:
                 left_title: "Continuous Printing"
                 right_title: "Enabled" if app.continuous_printing else "Disabled"
@@ -111,8 +107,9 @@
                 left_title: "Setup"
                 on_release: root.manager.current = "SetupScreen"
             SetItem:
-                left_title: "About"
-                on_release: root.manager.current = "AboutScreen"
+                left_title: "Move Printhead"
+                enabled: app.state == "ready"
+                on_release: root.manager.current = "MoveScreen"
             SetItem:
                 left_title: "Gcode Console"
                 on_release: root.manager.current = "ConsoleScreen"
@@ -120,8 +117,11 @@
                 hidden: not app.factory_mode
                 left_title: "Debug"
                 on_release: root.manager.current = "DebugScreen"
+            SetItem:
+                left_title: "About"
+                on_release: root.manager.current = "AboutScreen"
 
-<SetupScreen@Screen>:
+<SetupScreen@UltraScreen>:
     name: 'SetupScreen'
     ScrollView:
         always_overscroll: False
@@ -285,6 +285,15 @@
             id: btn_4x
             top: xy_field.y - 1.5*p.padding
             x: xy_field.x
+        BtnOutline:
+            id: emergency_stop
+            on_release: app.reactor.cb(printer_cmd.emergency_stop)
+            width: btn_4x.width*3/4
+            height: btn_4x.height
+            right: btn_4x.right
+            top: btn_4x.y - p.padding
+            color: p.red
+            text: "Emergency Stop"
         RoundButton:
             id: btn_off
             on_release: app.reactor.cb(printer_cmd.send_motors_off)
@@ -582,7 +591,7 @@
 <XyField>:
     mm: [0, 0, 0]
     px: [0, 0]
-    canvas.after:
+    canvas:
         Color:
             rgba: p.btn_outline
         Line:
@@ -762,7 +771,7 @@
         TextInput:
             id: pwd_input
             multiline: False
-            password: True
+            password: False
             font_size: p.normal_font
             foreground_color: (1,1,1,1)
             padding: (15,12,25,12)
@@ -775,7 +784,6 @@
         BaseButton:
             on_press:
                 pwd_input.password = not pwd_input.password
-                lb_show.text = "show" if pwd_input.password else "hide"
             on_release:
                 pwd_input.focus = True
             id: btn_s
@@ -787,7 +795,7 @@
                 size: btn_s.size
                 pos: btn_s.pos
                 text_size: self.size
-                text: "show"
+                text: "show" if pwd_input.password else "hide"
                 font_size: p.normal_font
                 halign: 'center'
                 valign: 'middle'

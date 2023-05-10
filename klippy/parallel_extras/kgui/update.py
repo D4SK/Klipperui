@@ -16,7 +16,7 @@ from kivy.uix.label import Label
 from kivy.uix.screenmanager import Screen
 from packaging.version import Version, InvalidVersion
 
-from .elements import BasePopup, Divider
+from .elements import BasePopup, Divider, UltraScreen
 from .settings import SetItem
 import location
 
@@ -280,7 +280,7 @@ class SIUpdate(SetItem):
             self.right_title = str(self.updater.current_version)
 
 
-class UpdateScreen(Screen):
+class UpdateScreen(UltraScreen):
     """Screen listing all releases"""
 
     show_all_versions = BooleanProperty(False)
@@ -302,12 +302,14 @@ class UpdateScreen(Screen):
              self.ids.message.text = "Your system is up to date"
              self.ids.message.state = 'green'
         self.ids.version_label.text = f"Current Version: {self.updater.current_version}"
-        self.ids.box.add_widget(Divider(pos_hint={'center_x': 0.5}))
         if self.show_all_versions:
+            if len(releases):
+                self.ids.box.add_widget(Divider(pos_hint={'center_x': 0.5}))
             for release in reversed(releases):
                 self.ids.box.add_widget(SIRelease(release, self.updater))
         elif self.updater.has_newer():
             # Show just the newest update
+            self.ids.box.add_widget(Divider(pos_hint={'center_x': 0.5}))
             self.ids.box.add_widget(SIRelease(releases[-1], self.updater))
         Clock.schedule_once(self._align, 0)
 

@@ -664,13 +664,6 @@
     message: "Are you sure you want to proceed, all print jobs will be aborted"
     title: ''
     FloatLayout:
-        canvas:
-            Color:
-                rgba: p.red
-            Rectangle:
-                source: p.kgui_dir+'/logos/warning.png'
-                size: dp(50*p.disp_vertical_stretch), dp(50)
-                pos: root.x + p.padding, message.top - dp(40)
         Label:
             id: message
             text: root.message
@@ -695,3 +688,24 @@
             width: root.width/2
             pos: root.center_x, root.y
             on_release: root.dismiss(), root.confirm_callback()
+        canvas:
+            Color:
+                rgba: p.red
+            Rectangle:
+                source: p.kgui_dir+'/logos/warning.png'
+                size: dp(50*p.disp_vertical_stretch), dp(50)
+                pos: root.x + p.padding, message.top - dp(40)
+
+<UltraScreen>:
+    canvas.before:
+        Color:
+            rgba: self.blanking_color
+        Rectangle:
+            size: self.size
+            pos: self.pos
+    canvas.after:
+        Color:
+            rgba: self.blanking_color
+        Rectangle:
+            size: self.size
+            pos: (p.mars, p.mars) if self.initialized else self.pos

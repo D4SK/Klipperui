@@ -17,7 +17,7 @@ from kivy.uix.screenmanager import Screen
 from kivy.uix.tabbedpanel import TabbedPanelItem
 from kivy.factory import Factory
 
-from .elements import BasePopup, RectangleButton
+from .elements import BasePopup, RectangleButton, UltraScreen
 from . import printer_cmd
 
 
@@ -50,7 +50,7 @@ class SIWifi(SetItem):
             self.right_title = "not available"
 
 
-class ConsoleScreen(Screen):
+class ConsoleScreen(UltraScreen):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.app = App.get_running_app()
@@ -213,7 +213,7 @@ class XyField(Widget):
         self.px = self.apply_bounds(*px)
 
 
-class WifiScreen(Screen):
+class WifiScreen(UltraScreen):
 
     def on_pre_enter(self):
         """Update the recycleview and trigger frequent scanning"""
@@ -368,7 +368,7 @@ class ConnectionPopup(BasePopup):
         self.dismiss()
 
 
-class ContinuousPrintingScreen(Screen):
+class ContinuousPrintingScreen(UltraScreen):
 
     def on_pre_enter(self):
         self.app = App.get_running_app()

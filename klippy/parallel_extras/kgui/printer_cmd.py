@@ -316,6 +316,9 @@ def restart(printer):
 def firmware_restart(printer):
     printer.objects['gcode'].request_restart('firmware_restart')
 
+def emergency_stop(printer):
+    printer.invoke_shutdown("Emergency stop issued by user")
+
 def format_time(seconds):
     seconds = int(seconds)
     days = seconds // 86400

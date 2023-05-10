@@ -8,11 +8,12 @@ from math import cos, radians
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.properties import (NumericProperty, BooleanProperty, StringProperty,
-                             ListProperty, DictProperty)
+                             ListProperty, DictProperty, ColorProperty)
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.vkeyboard import VKeyboard
 from kivy.uix.widget import Widget
+from kivy.uix.screenmanager import Screen
 from kivy.graphics.context_instructions import Color
 from kivy.graphics.vertex_instructions import RoundedRectangle
 
@@ -52,7 +53,7 @@ class BaseButton(Label):
         touch.ud[self] = True
         # Set pressed=True for at least this time to allow GPU to render
         # highlighting of the button. Choose lower for faster GPU.
-        self.pressed_at_least_till = time() + 0.08
+        self.pressed_at_least_till = time() + 0.07
         return True
 
     def on_touch_move(self, touch):
@@ -594,3 +595,15 @@ class UltraKeyboard(VKeyboard):
         # the keyboard, causing it to close when pressed on the edge
         return False
         #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+class UltraScreen(Screen):
+    """ A Screen that covers the widgets with blanking_color during initialization """
+    blanking_color = ColorProperty(p.background)
+    initialized = BooleanProperty(False)
+
+    def on_enter(self, *args, **kwargs):
+        Clock.schedule_once(self.show_content)
+        super().on_enter(*args, **kwargs)
+
+    def show_content(self, dt):
+        self.initialized = True
