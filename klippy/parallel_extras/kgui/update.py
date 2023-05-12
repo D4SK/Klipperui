@@ -14,6 +14,7 @@ from kivy.properties import (StringProperty, ListProperty, BooleanProperty,
     NumericProperty, ObjectProperty)
 from kivy.uix.label import Label
 from kivy.uix.screenmanager import Screen
+from packaging.version import Version, InvalidVersion
 
 from .elements import BasePopup, Divider
 from .settings import SetItem
@@ -26,15 +27,15 @@ class Updater(EventDispatcher):
     _headers = {"X-GitHub-Api-Version": "2022-11-28"}
 
     releases = ListProperty()
-    current_version_idx = NumericProperty(0)
 
     def __init__(self):
         super().__init__()
         try:
             with open(location.version_file(), 'r') as f:
-                self.current_version = f.read()
-        except OSError:
-            self.current_version = "Unknown"
+                self.current_version = Version(f.read())
+        except (OSError, InvalidVersion):
+            logging.exception("Failed to read current version")
+            self.current_version = None
         try:
             with open(os.path.expanduser("~/TOKEN"), 'r') as f:
                 token = f.read()
@@ -49,6 +50,7 @@ class Updater(EventDispatcher):
 
     def fetch(self, *args):
         # Fetch automatically every 24h = 86400s
+        self._fetch_retries = 0
         self.fetch_clock.cancel()
         self.fetch_clock = Clock.schedule_once(self.fetch, 86400)
         Thread(target=self.do_fetch).start()
@@ -63,46 +65,28 @@ class Updater(EventDispatcher):
         if requ and requ.ok:
             self._fetch_retries = 0
             raw_releases = requ.json()
-            raw_releases.sort(key=self.semantic_versioning_key)
-            Clock.schedule_del_safe(partial(self.process_releases, raw_releases))
+            releases = []
+            for release in raw_releases:
+                try:
+                    rel = Release(release)
+                except (ValueError, LookupError, TypeError, InvalidVersion) as e:
+                    logging.info("Error while reading release info: %s", str(e))
+                else:
+                    releases.append(rel)
+            releases.sort(key=lambda r: r.version_obj)
+            def _set_releases(dt):
+                self.releases = releases
+            Clock.schedule_once(_set_releases, 0)
         elif self._fetch_retries <= 3:
             self._fetch_retries += 1
             Clock.schedule_once(self.fetch, 20)
 
-    def process_releases(self, raw_releases):
-        current_version_idx = 0
-        releases = []
-        for release in raw_releases:
-            try:
-                rel = Release(release)
-            except (ValueError, LookupError, TypeError) as e:
-                logging.info("Error while reading release info: %s", str(e))
-            else:
-                releases.append(rel)
-        for i, release in enumerate(releases):
-            if release.version == self.current_version:
-                current_version_idx = i
-        for i in range(len(releases)):
-            releases[i].distance = i - current_version_idx
-        self.current_version_idx = current_version_idx
-        self.releases = releases
-
-    def semantic_versioning_key(self, release):
-        try:
-            tag = release.version
-            tag = tag.lstrip('vV')
-            tag = tag.replace('-beta.', ".")
-            tag = tag.replace('-beta', ".0")
-            tag = tag.split('.')
-            major = int(tag[0])
-            minor = int(tag[1])
-            patch = int(tag[2])
-            prerelease = int(len(tag) > 3)
-            prerelease_version = 0 if not prerelease else int(tag[3])
-            key =  major*10000000 + minor*100000 + patch*1000 - prerelease*100 + prerelease_version
-        except:
-            return 0
-        return key
+    def has_newer(self):
+        """Return True if a version newer than the currently installed one was
+        found.
+        """
+        return (self.current_version is None or
+                self.releases and self.current_version < self.releases[-1].version_obj)
 
 
 class Release(EventDispatcher):
@@ -121,11 +105,11 @@ class Release(EventDispatcher):
         self.abort_process = False
 
         self.version = data['tag_name']
+        self.version_obj = Version(self.version)
         self.draft = data['draft']
         self.prerelease = data['prerelease']
         self.title = data['name']
         self.message = data['body']
-        self.distance = -1
 
         try:
             asset = next(a for a in data['assets']
@@ -290,10 +274,10 @@ class SIUpdate(SetItem):
         self.show_message()
 
     def show_message(self, *args):
-        if self.updater.current_version_idx < len(self.updater.releases) - 1:
+        if self.updater.has_newer():
             self.right_title = "Updates Available"
         else:
-            self.right_title = self.updater.current_version
+            self.right_title = str(self.updater.current_version)
 
 
 class UpdateScreen(Screen):
@@ -302,30 +286,29 @@ class UpdateScreen(Screen):
     show_all_versions = BooleanProperty(False)
 
     def __init__(self, **kwargs):
-        self.min_time = 0
         super().__init__(**kwargs)
         self.updater = Updater()
         self.updater.bind(releases=self.draw_releases)
 
-    def draw_releases(self, *args):
-        additional_time = self.min_time - time.time()
-        if additional_time > 0:
-            Clock.schedule_once(self.draw_releases, additional_time)
-            return
+    def draw_releases(self, _instance, releases):
         self.ids.box.clear_widgets()
-        if self.updater.current_version_idx < len(self.updater.releases) - 1:
+        if self.updater.current_version is None:
+            self.ids.message.text = "Could not determine installed version"
+            self.ids.message.state = 'transparent'
+        elif self.updater.has_newer():
             self.ids.message.text = "An Update is available"
             self.ids.message.state = 'transparent'
         else:
-             self.ids.message.text = "Your System is up to Date"
+             self.ids.message.text = "Your system is up to date"
              self.ids.message.state = 'green'
         self.ids.version_label.text = f"Current Version: {self.updater.current_version}"
         self.ids.box.add_widget(Divider(pos_hint={'center_x': 0.5}))
         if self.show_all_versions:
-            for release in reversed(self.updater.releases):
-                self.ids.box.add_widget(SIRelease(release))
-        elif self.updater.current_version_idx < (len(self.updater.releases) - 1):
-            self.ids.box.add_widget(SIRelease(self.updater.releases[-1]))
+            for release in reversed(releases):
+                self.ids.box.add_widget(SIRelease(release, self.updater))
+        elif self.updater.has_newer():
+            # Show just the newest update
+            self.ids.box.add_widget(SIRelease(releases[-1], self.updater))
         Clock.schedule_once(self._align, 0)
 
     def _align(self, *args):
@@ -341,7 +324,8 @@ class UpdateScreen(Screen):
         UpdateDropDown(self).open(button)
 
     def on_show_all_versions(self, instance, value):
-        self.draw_releases()
+        self.draw_releases(None, self.updater.releases)
+
 
 # Avoid importing kivy.core.window outside Kivy thread. Also see late_define in
 # settings.py
@@ -367,15 +351,15 @@ Clock.schedule_once(late_define, 0)
 class SIRelease(Label):
     """Releases as displayed in a list on the UpdateScreen"""
 
-    def __init__(self, release, **kwargs):
+    def __init__(self, release, updater, **kwargs):
         self.release = release
-        self.upper_title = self.release.version
+        self.upper_title = str(self.release.version)
         status = ""
-        if release.distance == 0:
+        if updater.current_version is None or release.version_obj > updater.current_version:
+            action = "Install"
+        elif release.version_obj == updater.current_version:
             status = "Currently installed"
             action = "Reinstall"
-        elif release.distance > 0:
-            action = "Install"
         else:
             action = "Downgrade"
         self.lower_title = status
