@@ -332,6 +332,7 @@ class KlipperDepends(Action):
             'Jinja2=='           + self.config['jinja2-version'],
             'requests=='         + self.config['requests-version'],
             'websocket-client==' + self.config['websocket-client-version'],
+            'packaging=='        + self.config['packaging-version'],
         }
 
 
