@@ -848,29 +848,31 @@
     FloatLayout:
         Divider:
             width: root.width
-            pos: btn_restart.x, btn_restart.top
+            pos: root.x, btn_restart.top
         RectangleButton:
             id: btn_restart
             text: "Restart"
-            size: btn_poweroff.size
-            pos: btn_poweroff.x, btn_reboot.top
+            height: btn_cancel.height
+            width: root.width
+            pos: root.x, btn_reboot.top
             on_release: warn_if_printing(app.firmware_restart)
         Divider:
             width: root.width
-            pos: btn_reboot.pos
+            pos: root.x, btn_restart.y
         RectangleButton:
             id: btn_reboot
             text: "System Reboot"
-            size: btn_poweroff.size
-            pos: btn_poweroff.x, btn_poweroff.top
+            height: btn_cancel.height
+            width: root.width
+            pos: root.x, btn_poweroff.top
             on_release: warn_if_printing(app.reboot)
         Divider:
             width: root.width
-            pos: btn_restart.pos
+            pos: root.x, btn_reboot.y
         RectangleButton:
             id: btn_poweroff
             text: "Shutdown"
-            size_hint: 1, None
+            width: root.width
             height: btn_cancel.height
             pos: root.x, btn_cancel.top
             on_release: warn_if_printing(app.poweroff)
