@@ -48,6 +48,7 @@ class FilamentManager:
         self.printer.register_event_handler("klippy:ready", self.handle_ready)
         self.printer.register_event_handler("klippy:shutdown", self.handle_shutdown)
         self.printer.register_event_handler("filament_switch_sensor:runout", self.handle_runout)
+        self.parameter_callbacks = [self.update_loaded_material_amount]
 
         # [Type][Brand][Color] = guid, a dict tree for choosing filaments
         self.tbc_to_guid = {}
@@ -56,12 +57,14 @@ class FilamentManager:
 
         # json object of loaded and unloaded material
         # {'loaded': [{'guid': None if nothing is loaded,
-        #           'amount': amount in kg,
-        #           'state': loading | loaded | unloading | no material}, ...],
+        #              'amount': amount in kg,
+        #              'state': loading | loaded | unloading | no material,
+        #              'parameters: dictionary of measured parameters}],
         # 'unloaded': [{'guid': None if nothing is loaded,
-        #           'amount': amount in kg}, ...]}
+        #               'amount': amount in kg,
+        #               'parameters': dictionary of measured parameters}]}
         self.material = {
-            'loaded': [{'guid': None, 'state': "no material", 'amount': 0}] * extruder_count,
+            'loaded': [{'guid': None, 'state': "no material", 'amount': 0, 'parameters': {}}] * extruder_count,
             'unloaded': []}
         self.read_loaded_material_json()
 
@@ -71,6 +74,8 @@ class FilamentManager:
             if material['state'] in ('loading', 'unloading'):
                 material['state'] = 'loaded'
 
+    def register_parameter_callback(self, callback):
+        self.parameter_callbacks.append(callback)
 
     def handle_ready(self):
         self.heater_manager = self.printer.lookup_object('heaters')
@@ -92,7 +97,7 @@ class FilamentManager:
         self.unload(extruder_id)
 
     def handle_shutdown(self):
-        self.update_loaded_material_amount()
+        self.parameter_callbacks()
         self.write_loaded_material_json()
 
     def set_config(self, material_condition):
@@ -239,20 +244,16 @@ class FilamentManager:
         if self.material['loaded'][idx]['state'] != "no material":
             return
         finalize = False
-        material = {
-            'guid': None,
-            'amount': 0,
-            'state': 'loading',
-            'unloaded_idx': None,
-            'temp': 200}
         if extruder_id in self.preselected_material:
             finalize = True
             material = self.preselected_material[extruder_id]
         else:
+            material = {'guid': None, 'amount': 0, 'temp': 200, 'parameters': {}}
             self.printer.send_event('filament_manager:request_material_choice', extruder_id)
-        self.material['loaded'][idx].update(
-            {'guid': material['guid'],
+        self.material['loaded'][idx].update({
+            'guid': material['guid'],
             'amount': material['amount'],
+            'parameters': material['parameters'],
             'state': 'loading'})
         self.printer.send_event("filament_manager:material_changed", self.material)
         self.gcode.run_script(f"LOAD_FILAMENT TEMPERATURE={material['temp']} T={idx}")
@@ -262,9 +263,10 @@ class FilamentManager:
     def _finalize_loading(self, extruder_id):
         idx = self.idx(extruder_id)
         material = self.preselected_material[extruder_id]
-        self.material['loaded'][idx].update(
-            {'guid': material['guid'],
+        self.material['loaded'][idx].update({
+            'guid': material['guid'],
             'amount': material['amount'],
+            'parameters': material['parameters'],
             'state': 'loading'})
         self.preselected_material.pop(extruder_id)
         self.printer.send_event("filament_manager:material_changed", self.material)
@@ -276,7 +278,7 @@ class FilamentManager:
     def unload(self, extruder_id):
         idx = self.idx(extruder_id)
         if self.material['loaded'][idx]['state'] == 'loaded':
-            self.update_loaded_material_amount()
+            self.parameter_callbacks()
             temp = 200 # Default value
             if self.material['loaded'][idx]['state'] == 'loaded':
                 self.material['loaded'][idx]['state'] = 'unloading'
@@ -285,13 +287,15 @@ class FilamentManager:
                     "./m:settings/m:setting[@key='print temperature']", temp)
             self.gcode.run_script(f"UNLOAD_FILAMENT TEMPERATURE={temp} T={idx}")
             if self.material['loaded'][idx]['guid']:
-                self.material['unloaded'].insert(0,
-                    {'guid':self.material['loaded'][idx]['guid'],
-                    'amount':self.material['loaded'][idx]['amount']})
-            self.material['loaded'][idx].update(
-                {'guid': None,
+                self.material['unloaded'].insert(0, {
+                    'guid': self.material['loaded'][idx]['guid'],
+                    'amount': self.material['loaded'][idx]['amount'],
+                    'parameters': self.material['loaded'][idx]['parameters']})
+            self.material['loaded'][idx].update({
+                'guid': None,
                 'amount': 0,
-                'state': 'no material'})
+                'state': 'no material',
+                'parameters': {}})
             self.material['unloaded'] = self.material['unloaded'][:15] # only store recent materials
             self.printer.send_event("filament_manager:material_changed", self.material)
             self.write_loaded_material_json()
@@ -343,7 +347,13 @@ class FilamentManager:
                     + self.loaded_material_path, exc_info=True)
         self.printer.send_event("filament_manager:material_changed", self.material)
 
-    # only call in klipper thread else extruded_length += x can cause additional extruded_length
+    def parameter_callbacks(self):
+        for cb in self.parameter_callbacks:
+            ret = cb()
+            if ret:
+                extruder_id, parameters = ret
+                self.materials['loaded'][self.idx(extruder_id)].update(parameters)
+
     def update_loaded_material_amount(self):
         for extruder_id in self.extruders:
             idx = self.idx(extruder_id)
