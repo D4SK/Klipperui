@@ -1,5 +1,4 @@
-# Filament manager compatible with Cura material files, tracking loaded
-# material and the amount left
+# Keeps track of loaded cura materials
 #
 # Copyright (C) 2020  Konstantin Vogel <konstantin.vogel@gmx.net>
 #
@@ -21,28 +20,18 @@ class FilamentManager:
     def __init__(self, config):
         self.printer = config.get_printer()
         self.reactor = config.get_reactor()
-
         self.material_condition = config.getchoice("material_condition",
                 {"exact": "exact", "type": "type", "any": "any"}, "any")
         self.material_tolerance = config.getfloat("material_tolerance", 50)
         self.config_diameter = config.getsection("extruder").getfloat("filament_diameter", 1.75)
-
-        # Configure paths
-        self.material_dir = location.material_dir()
-        try:
-            os.makedirs(os.path.expanduser(self.material_dir), exist_ok=True)
-        except OSError:
-            logging.exception(f"Could not create material directory {self.material_dir}")
-            logging.error(f"Falling back to {self._default_material_dir}")
-            self.material_dir = self._default_material_dir
-        self.loaded_material_path = location.loaded_material()
-
         self.filament_switch_sensor = bool(config.get_prefix_sections("filament_switch_sensor"))
         self.preselected_material = {}
         for i in range(1, 10):
             if not config.has_section(f"extruder{i}"):
                 extruder_count = i
                 break
+        self.material_dir = location.material_dir()
+        self.loaded_material_path = location.loaded_material()
         self.extruders = {}
         self.distance_trackers = {}
         self.printer.register_event_handler("klippy:ready", self.handle_ready)
@@ -64,12 +53,12 @@ class FilamentManager:
         #               'amount': amount in kg,
         #               'parameters': dictionary of measured parameters}]}
         self.material = {
-            'loaded': [{'guid': None, 'state': "no material", 'amount': 0, 'parameters': {}}] * extruder_count,
-            'unloaded': []}
+            'loaded': [{'guid': None, 'state': "no material", 'amount': 0, 'parameters': {}} for _ in range(extruder_count)],
+            'unloaded': []
+        }
         self.read_loaded_material_json()
 
-        # set state for all materials to loaded in case
-        # power was lost during loading or unloading
+        # set materials to loaded if power was lost during loading or unloading
         for material in self.material['loaded']:
             if material['state'] in ('loading', 'unloading'):
                 material['state'] = 'loaded'
@@ -227,6 +216,8 @@ class FilamentManager:
         return self.tbc_to_guid
 
     def select_loading_material(self, extruder_id, material):
+        if 'parameters' not in material:
+            material['parameters'] = {}
         idx = self.idx(extruder_id)
         material['amount'] = material['amount'] or 1
         material['temp'] = float(self.get_info(material['guid'], "./m:settings/m:setting[@key='print temperature']", 200))
@@ -250,6 +241,7 @@ class FilamentManager:
         else:
             material = {'guid': None, 'amount': 0, 'temp': 200, 'parameters': {}}
             self.printer.send_event('filament_manager:request_material_choice', extruder_id)
+
         self.material['loaded'][idx].update({
             'guid': material['guid'],
             'amount': material['amount'],
@@ -352,7 +344,7 @@ class FilamentManager:
             ret = cb()
             if ret:
                 extruder_id, parameters = ret
-                self.materials['loaded'][self.idx(extruder_id)].update(parameters)
+                self.materials['loaded'][self.idx(extruder_id)]['parameters'].update(parameters)
 
     def update_loaded_material_amount(self):
         for extruder_id in self.extruders:
