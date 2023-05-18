@@ -86,7 +86,7 @@ class FilamentManager:
         self.unload(extruder_id)
 
     def handle_shutdown(self):
-        self.parameter_callbacks()
+        self.run_parameter_callbacks()
         self.write_loaded_material_json()
 
     def set_config(self, material_condition):
@@ -270,7 +270,7 @@ class FilamentManager:
     def unload(self, extruder_id):
         idx = self.idx(extruder_id)
         if self.material['loaded'][idx]['state'] == 'loaded':
-            self.parameter_callbacks()
+            self.run_parameter_callbacks()
             temp = 200 # Default value
             if self.material['loaded'][idx]['state'] == 'loaded':
                 self.material['loaded'][idx]['state'] = 'unloading'
@@ -339,12 +339,12 @@ class FilamentManager:
                     + self.loaded_material_path, exc_info=True)
         self.printer.send_event("filament_manager:material_changed", self.material)
 
-    def parameter_callbacks(self):
+    def run_parameter_callbacks(self):
         for cb in self.parameter_callbacks:
             ret = cb()
             if ret:
                 extruder_id, parameters = ret
-                self.materials['loaded'][self.idx(extruder_id)]['parameters'].update(parameters)
+                self.material['loaded'][self.idx(extruder_id)]['parameters'].update(parameters)
 
     def update_loaded_material_amount(self):
         for extruder_id in self.extruders:
