@@ -10,10 +10,9 @@ import time
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.event import EventDispatcher
-from kivy.properties import (StringProperty, ListProperty, BooleanProperty,
+from kivy.properties import (ListProperty, BooleanProperty,
     NumericProperty, ObjectProperty)
 from kivy.uix.label import Label
-from kivy.uix.screenmanager import Screen
 from packaging.version import Version, InvalidVersion
 
 from .elements import BasePopup, Divider, UltraScreen
@@ -92,7 +91,6 @@ class Updater(EventDispatcher):
 class Release(EventDispatcher):
 
     progress = NumericProperty(0)
-    install_output = StringProperty()
 
     def __init__(self, data):
         """Read data from GitHub API into object. For Response schema see:
@@ -101,8 +99,8 @@ class Release(EventDispatcher):
         self.register_event_type('on_download_end')
         self.register_event_type('on_decompressed')
         self.register_event_type('on_install_finished')
-        # Aborts whatever process is currently running (download, decompression or installation)
-        self.abort_process = False
+        self._install_proc = None
+        self._abort_process = False
 
         self.version = data['tag_name']
         self.version_obj = Version(self.version)
@@ -126,7 +124,7 @@ class Release(EventDispatcher):
 
     def download(self):
         self.progress = 0
-        self.abort_process = False
+        self._abort_process = False
         if os.path.isfile(self.update_path):
             #TODO Verify existing file
             self.dispatch('on_download_end', True, 'Existing file found')
@@ -149,8 +147,8 @@ class Release(EventDispatcher):
                 r.raise_for_status()
                 with open(download_path, 'wb') as f:
                     for chunk in r.iter_content(chunk_size=262144):
-                        if self.abort_process:
-                            self.abort_process = False
+                        if self._abort_process:
+                            self._abort_process = False
                             aborted = True
                             break
                         f.write(chunk)
@@ -170,7 +168,7 @@ class Release(EventDispatcher):
 
     def decompress(self):
         self.progress = 0
-        self.abort_process = False
+        self._abort_process = False
         if os.path.isfile(self.image_path):
             self.dispatch('on_decompressed', True, 'Existing file found')
             return
@@ -188,8 +186,8 @@ class Release(EventDispatcher):
                         chunk = compressed_file.read(262144)
                         if chunk == b'':
                             break
-                        if self.abort_process:
-                            self.abort_process = False
+                        if self._abort_process:
+                            self._abort_process = False
                             aborted = True
                             break
                         decompressed_file.write(chunk)
@@ -221,34 +219,33 @@ class Release(EventDispatcher):
                 return None
 
     def install(self):
-        cmd = ['sudo', 'svup', '-h']
-        # Capture both stderr and stdout in stdout
-        proc = subprocess.Popen(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        Thread(target=self._capture_install_output, args=(proc,),
-               name="Install-Output-Thread").start()
+        if self._install_proc is not None:
+            raise Exception("Installation already running")
+        cmd = ['sudo', 'svup', '-t', 'install', self.image_path]
+        self._install_proc = subprocess.Popen(cmd, text=True,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        Thread(target=self._wait_install, name="Install-Wait-Thread").start()
 
-    def _capture_install_output(self, proc):
-        """
-        Run in a seperate thread as proc.stdout.readline() blocks until
-        the next line is received.
-        """
-        self.install_output = ""
-        while True:
-            if self.abort_process:
-                self.abort_process = False
-                proc.terminate()
-                logging.info("Update: Installation aborted!")
-                Clock.schedule_del_safe(lambda: self.dispatch("on_install_finished", None))
-                break
-            line = proc.stdout.readline()
-            if not line:
-                rc = proc.wait()
-                Clock.schedule_del_safe(lambda: self.dispatch("on_install_finished", rc))
-                break
-            # Highlight important lines
-            #if line.startswith("===>"):
-            #    line = "[b][color=ffffff]" + line + "[/color][/b]"
-            self.install_output += line
+    def _wait_install(self):
+        rc = self._install_proc.wait()
+        subvol = None
+        if rc == 0:
+            stdout = self._install_proc.stdout.read()
+            lines = stdout.splitlines()
+            for l in lines:
+                if l.startswith('subvolume'):
+                    parts = l.split()
+                    if len(parts) == 2:
+                        subvol = parts[1]
+                        break
+        Clock.schedule_del_safe(lambda: self.dispatch("on_install_finished", rc, subvol))
+        self._install_proc = None
+
+    def abort_process(self):
+        if self._install_proc is not None:
+            self._install_proc.terminate()
+        else:
+            self._abort_process = True
 
     def on_download_end(self, success, reason=None, last=None):
         pass
@@ -256,6 +253,33 @@ class Release(EventDispatcher):
         pass
     def on_install_finished(self, *args):
         pass
+
+def stage_reboot(subvol):
+    Thread(target=_stage_reboot_thread, args=(subvol,),
+           name="Stage-Update-Thread").start()
+
+def _stage_reboot_thread(subvol):
+    #TODO Verify that this is an appropriate time to reboot
+    proc = stage(subvol)
+    if proc.returncode == 0:
+        #TODO Go through klipper shutdown process instead
+        tryboot()
+    else:
+        def error_msg(dt):
+            notify = App.get_running_app().notify
+            notify.show(f"Error while staging {subvol}",
+                        f"'svup stage' returned exit code {proc.returncode}",
+                        level="error")
+            logging.error(proc.stdout)
+        Clock.schedule_once(error_msg, 0)
+
+def stage(subvol):
+    return subprocess.run(['sudo', 'svup', '-v', 'stage', '-f', subvol],
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+def tryboot():
+    subprocess.Popen(['sudo', 'svup', 'reboot'],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 class SIUpdate(SetItem):
@@ -380,12 +404,12 @@ class ReleasePopup(BasePopup):
         super().__init__(**kwargs)
 
     def download(self):
-        DownloadPopup(self.release).open()
+        InstallPopup(self.release).open()
         self.dismiss()
         self.release.download()
 
 
-class DownloadPopup(BasePopup):
+class InstallPopup(BasePopup):
 
     def __init__(self, release, **kwargs):
         self.release = release
@@ -393,17 +417,21 @@ class DownloadPopup(BasePopup):
         super().__init__(**kwargs)
         self.msg = self.ids.msg
         self.set_progress(None, 0)
-
-    def install(self):
-        """Triggered by confirm button"""
-        InstallPopup(self.release).open()
-        self.dismiss()
-        self.release.install()
+        # Name of the subvolume that was created in installation
+        #TODO Figure out if this is the best place to store that
+        self.subvol = None
 
     def abort(self):
         """Triggered by cancel button"""
         self.dismiss()
-        self.release.abort_process = True
+        #TODO Trying to abort 'svup install' leads to breakage
+        self.release.abort_process()
+
+    def finalize(self):
+        if not self.subvol:
+            raise Exception("Updater: Subvolume is not set while calling finalize()")
+        self.msg.txt = "Staging for reboot..."
+        stage_reboot(self.subvol)
 
     def set_progress(self, _instance, value):
         self.msg.text = self.progress_fmt.format(value / 1024**2)
@@ -426,57 +454,37 @@ class DownloadPopup(BasePopup):
     def on_decompressed(self, instance, success, reason=None):
         self.release.unbind(progress=self.set_progress)
         if success:
-            self.ids.confirm.enabled = True  # Allow moving on to install
             self.set_total(None)
-            self.title = "Acquired update " + self.release.version
-            self.msg.text = f"Press '{self.ids.confirm.text}' to apply update"
+            self.title = "Installing " + self.release.version
+            self.msg.text = "Installing..."
+            self.release.install()
         else:
             self.msg.text = "Decompression failed:\n" + reason
+
+    def on_finished(self, instance, returncode, subvol):
+        if returncode == 0 and subvol:
+            self.subvol = subvol
+            self.ids.confirm.enabled = True
+            self.msg.text = "Installation successful\nPress '{}' to try out update".format(
+                    self.ids.confirm.text)
+        elif returncode == 0:
+            self.msg.text = "Installation failed\nCould not determine subvolume"
+        elif returncode == -15:  # Stopped by SIGTERM
+            notify = App.get_running_app().notify
+            notify.show("Installation aborted", delay=3)
+        else:
+            self.msg.text = f"Installation failed\n\nInstaller exited with returncode {returncode}"
 
     def on_open(self):
         super().on_open()
         self.release.bind(on_download_end=self.on_download_end)
         self.release.bind(on_decompressed=self.on_decompressed)
+        self.release.bind(on_install_finished=self.on_finished)
         self.release.bind(progress=self.set_progress)
 
     def on_dismiss(self):
         super().on_dismiss()
         self.release.unbind(on_download_end=self.on_download_end)
         self.release.unbind(on_decompressed=self.on_decompressed)
+        self.release.unbind(on_install_finished=self.on_finished)
         self.release.unbind(progress=self.set_progress)
-
-
-class InstallPopup(BasePopup):
-    """Popup shown while installing with live stdout display"""
-
-    def __init__(self, release, **kwargs):
-        self.release = release
-        self.release.bind(install_output=self.update)
-        self.release.bind(on_install_finished=self.on_finished)
-        super().__init__(**kwargs)
-
-    def update(self, instance, value):
-        self.ids.output_label.text = value
-
-    def on_finished(self, instance, returncode):
-        """Replace the abort button with reboot prompt"""
-        self.ids.content.remove_widget(self.ids.btn_abort)
-        if returncode == 0:
-            # Theses buttons were previously on mars
-            self.ids.btn_cancel.y = self.y
-            self.ids.btn_reboot.y = self.y
-        else:
-            notify = App.get_running_app().notify
-            if returncode is None:
-                notify.show("Installation aborted", delay=3)
-            elif returncode > 0:
-                notify.show("Installation failed",
-                        f"Installer exited with returncode {returncode}",
-                        level="error")
-            # Repurpose the "Reboot later" button for exiting
-            self.ids.btn_cancel.y = self.y
-            self.ids.btn_cancel.width = self.width
-            self.ids.btn_cancel.text = "Close"
-
-    def terminate(self):
-        self.release.terminate_installation = True

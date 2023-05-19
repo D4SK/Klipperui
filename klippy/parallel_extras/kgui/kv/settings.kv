@@ -990,7 +990,7 @@
             pos: btn_cancel.right, root.y
             on_release: root.download()
 
-<DownloadPopup>:
+<InstallPopup>:
     size_hint: 0.92, 0.66
     title: "Downloading " + self.release.version
     auto_dismiss: False
@@ -1028,57 +1028,11 @@
             on_release: root.abort()
         BtnPConfirm:
             id: confirm
-            text: "Install"
+            text: "Reboot"
             enabled: False
             width: root.width/2
             pos: root.center_x, root.y
-            on_release: root.install()
-
-<InstallPopup>:
-    size_hint: 0.92, 0.66
-    title: "Install"
-    auto_dismiss: False
-    FloatLayout:
-        id: content
-        ScrollView:
-            id: output_scroll
-            size_hint: 1, None
-            pos_hint: {'x': 0}
-            y: btn_abort.top
-            height: content.height - btn_abort.height
-            do_scroll_x: False
-            Label:
-                id: output_label
-                markup: True
-                halign: 'left'
-                valign: 'top'
-                padding: p.small_padding, p.small_padding
-                text_size: output_scroll.width, None
-                size_hint_y: None
-                width: output_scroll.width
-                pos: output_scroll.pos
-                height: self.texture_size[1]
-                font_size: p.small_font
-                color: p.light_gray
-        BtnPCancel:
-            id: btn_abort
-            text: "Abort"
-            width: root.width
-            pos: root.pos
-            on_release: root.terminate()
-        BtnPCancel:
-            id: btn_cancel
-            text: "Reboot later"
-            width: root.width/2
-            pos: root.x, p.mars
-            on_release: root.dismiss()
-        BtnPConfirm:
-            id: btn_reboot
-            enabled: True
-            text: "Reboot now"
-            width: root.width/2
-            pos: btn_cancel.right, p.mars
-            on_release: app.reboot()
+            on_release: root.finalize()
 
 <HostnamePopup>:
     txt_input: hostname_input
