@@ -289,6 +289,7 @@ class Printer:
     def send_event(self, event, *params):
         return self.reactor.send_event(event, *params)
     def request_exit(self, result):
+        self.reactor.send_event("klippy:exit")
         if self.run_result is None:
             self.run_result = result
         self.reactor.end()

@@ -34,8 +34,8 @@ class FilamentManager:
         self.loaded_material_path = location.loaded_material()
         self.extruders = {}
         self.distance_trackers = {}
-        self.printer.register_event_handler("klippy:ready", self.handle_ready)
-        self.printer.register_event_handler("klippy:shutdown", self.handle_shutdown)
+        self.printer.register_event_handler("klippy:connect", self.handle_connect)
+        self.reactor.register_event_handler("klippy:exit", self.handle_exit)
         self.printer.register_event_handler("filament_switch_sensor:runout", self.handle_runout)
         self.parameter_callbacks = [self.update_loaded_material_amount]
 
@@ -66,7 +66,7 @@ class FilamentManager:
     def register_parameter_callback(self, callback):
         self.parameter_callbacks.append(callback)
 
-    def handle_ready(self):
+    def handle_connect(self):
         self.heater_manager = self.printer.lookup_object('heaters')
         self.toolhead = self.printer.lookup_object('toolhead')
         self.gcode = self.printer.lookup_object('gcode')
@@ -85,7 +85,7 @@ class FilamentManager:
             self.reactor.pause(self.reactor.monotonic() + 0.05)
         self.unload(extruder_id)
 
-    def handle_shutdown(self):
+    def handle_exit(self, *args):
         self.run_parameter_callbacks()
         self.write_loaded_material_json()
 
