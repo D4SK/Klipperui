@@ -56,7 +56,7 @@ class Printer:
     command_error = gcode.CommandError
 
     def __init__(self, main_reactor, bglogger, start_args):
-        signal.signal(signal.SIGTERM, lambda signum, frame: self.request_exit('exit'))
+        signal.signal(signal.SIGTERM, self.handle_sigterm)
         self.bglogger = bglogger
         self.start_args = start_args
         self.reactor = main_reactor
@@ -293,7 +293,8 @@ class Printer:
         if self.run_result is None:
             self.run_result = result
         self.reactor.end()
-
+    def handle_sigterm(self, signum, frame):
+        self.reactor.register_async_callback(lambda e: self.request_exit('exit'))
 
 class ExtraProcess:
 
