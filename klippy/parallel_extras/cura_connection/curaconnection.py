@@ -70,8 +70,7 @@ class CuraConnectionModule:
         try:
             self.sock.connect(("10.255.255.255", 1))
         except OSError:
-            self.reactor.register_callback(self.wait_for_network,
-                                           self.reactor.monotonic() + 2)
+            self.reactor.register_callback(self.wait_for_network, self.reactor.monotonic() + 2)
         else:
             self.ADDRESS = self.sock.getsockname()[0]
             self.sock.close()

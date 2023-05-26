@@ -338,3 +338,8 @@ class Server(srv.ThreadingHTTPServer, threading.Thread):
 
 def get_server(module):
     return Server((module.ADDRESS, 8008), Handler, module)
+
+def thread_exception_handler(exception):
+    logging.exception(f"Exception occured in thread {exception.thread.name}")
+
+threading.excepthook = thread_exception_handler
