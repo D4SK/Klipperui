@@ -62,7 +62,6 @@ class Kivy(Action):
     def __init__(self, config: Config) -> None:
         super().__init__(config)
         self.version = self.config.get('version')
-        # Not using X11 requires kivy to be compiled from source
         self.from_source = self.config.getboolean('from-source')
         self.cython_version = self.config.get('cython-version')
 
