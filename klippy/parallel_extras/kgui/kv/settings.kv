@@ -992,23 +992,21 @@
 
 <InstallPopup>:
     size_hint: 0.92, 0.66
-    title: "Downloading " + self.release.version
+    title: self.release.version
     auto_dismiss: False
     FloatLayout:
         canvas:
             Color:
-                rgba: p.dark_gray
+                rgba: p.dark_gray if root.total else (0, 0, 0, 0)
             RoundedRectangle:
                 size: self.width - 2*p.padding, 10
-                pos: self.x + p.padding, self.center_y if root.total is not None else p.mars
+                pos: self.x + p.padding, self.center_y
                 radius: (4,)
             Color:
-                rgba: p.light_gray
+                rgba: p.light_gray if root.total else (0, 0, 0, 0)
             RoundedRectangle:
-                size:
-                    ((self.width - 2*p.padding)*root.release.progress/float(root.total)
-                    if root.total is not None else 0), 10
-                pos: self.x + p.padding, self.center_y if root.total is not None else p.mars
+                size: (self.width - 2*p.padding)*root.installer.progress/float(root.total) if root.total else 0, 10
+                pos: self.x + p.padding, self.center_y
                 radius: (5,)
         Label:
             id: msg
@@ -1023,6 +1021,7 @@
             text_size: self.size
         BtnPCancel:
             id: btn_cancel
+            text: "Abort"
             width: root.width/2
             pos: root.pos
             on_release: root.abort()

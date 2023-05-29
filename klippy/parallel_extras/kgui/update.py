@@ -1,8 +1,10 @@
+from enum import Enum, auto
 from functools import partial
 import logging
 import lzma
 import os
 import requests
+from signal import SIGINT
 import subprocess
 from threading import Thread
 import time
@@ -11,7 +13,7 @@ from kivy.app import App
 from kivy.clock import Clock
 from kivy.event import EventDispatcher
 from kivy.properties import (ListProperty, BooleanProperty,
-    NumericProperty, ObjectProperty)
+    NumericProperty, ObjectProperty, OptionProperty)
 from kivy.uix.label import Label
 from packaging.version import Version, InvalidVersion
 
@@ -88,20 +90,12 @@ class Updater(EventDispatcher):
                 self.releases and self.current_version < self.releases[-1].version_obj)
 
 
-class Release(EventDispatcher):
-
-    progress = NumericProperty(0)
+class Release():
 
     def __init__(self, data):
         """Read data from GitHub API into object. For Response schema see:
         https://docs.github.com/en/rest/releases/releases?apiVersion=2022-11-28
         """
-        self.register_event_type('on_download_end')
-        self.register_event_type('on_decompressed')
-        self.register_event_type('on_install_finished')
-        self._install_proc = None
-        self._abort_process = False
-
         self.version = data['tag_name']
         self.version_obj = Version(self.version)
         self.draft = data['draft']
@@ -116,29 +110,71 @@ class Release(EventDispatcher):
         except (StopIteration, LookupError):
             raise ValueError("Could not find image asset in release data") from None
         self.update_url = asset['url']
-        self.update_filename = asset['name']
-        self.update_path = os.path.join(location.update_dir(), self.update_filename)
+        self.update_path = os.path.join(location.update_dir(), asset['name'])
         self.download_size = asset['size']
         # Uncompressed image
         self.image_path = self.update_path[:-3]
 
+    def get_uncompressed_size(self):
+        cmd = ['xz', '--list', '--robot', self.update_path]
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        except OSError:
+            return None
+        for line in proc.stdout.splitlines():
+            parts = line.split()
+            try:
+                if parts and parts[0] == 'file':
+                    return int(parts[4])
+            except (LookupError, ValueError):
+                return None
+
+
+class IState(Enum):
+    IDLE = auto()
+    DOWNLOADING = auto()
+    DOWNLOADED = auto()
+    DECOMPRESSING = auto()
+    DECOMPRESSED = auto()
+    INSTALLING = auto()
+    INSTALLED = auto()
+    ABORTING = auto()
+    ABORTED = auto()
+    FAILED = auto()
+
+class Installer(EventDispatcher):
+
+    progress = NumericProperty(0)
+    state = OptionProperty(IState.IDLE, options=list(IState))
+
+    def __init__(self, release):
+        self.release = release
+        self._install_proc = None
+        self._abort_process = False
+        # Name of the subvolume that is created in installation
+        self.subvol = None
+
+    def set_state(self, state):
+        self.state = state
+
     def download(self):
         self.progress = 0
         self._abort_process = False
-        if os.path.isfile(self.update_path):
+        if os.path.isfile(self.release.update_path):
             #TODO Verify existing file
-            self.dispatch('on_download_end', True, 'Existing file found')
+            self.state = IState.DOWNLOADED
             return
+        self.state = IState.DOWNLOADING
         Thread(target=self._download_thread, name="Download-Update-Thread").start()
 
     def _download_thread(self):
         aborted = False
         # Download to PATH.part first
-        download_path = self.update_path + '.part'
+        download_path = self.release.update_path + '.part'
         try:
             if os.path.exists(download_path):
                 os.remove(download_path)
-            with requests.get(self.update_url,
+            with requests.get(self.release.update_url,
                 stream=True,
                 allow_redirects=True,
                 headers=Updater._headers | {"Accept": "application/octet-stream"},
@@ -155,32 +191,34 @@ class Release(EventDispatcher):
                         self.progress += len(chunk)
             if aborted:
                 os.remove(download_path)
-                logging.info("Aborted downloading of %s", self.update_filename)
-                Clock.schedule_del_safe(partial(self.dispatch, 'on_download_end', False, 'Download aborted'))
+                logging.info("Aborted downloading of %s", self.release.update_path)
+                Clock.schedule_del_safe(partial(self.set_state, IState.ABORTED))
             else:
                 #TODO Verify downloaded file
-                os.rename(download_path, self.update_path)
-                logging.info("Downloaded update %s", self.update_filename)
-                Clock.schedule_del_safe(partial(self.dispatch, 'on_download_end', True))
-        except (OSError, requests.RequestException) as e:
+                os.rename(download_path, self.release.update_path)
+                logging.info("Downloaded update %s", self.release.update_path)
+                Clock.schedule_del_safe(partial(self.set_state, IState.DOWNLOADED))
+        except (OSError, requests.RequestException):
             logging.exception("Downloading update failed")
-            Clock.schedule_del_safe(partial(self.dispatch, 'on_download_end', False, str(e)))
+            #TODO Something like: self.error_msg = str(e)
+            Clock.schedule_del_safe(partial(self.set_state, IState.FAILED))
 
     def decompress(self):
         self.progress = 0
         self._abort_process = False
-        if os.path.isfile(self.image_path):
-            self.dispatch('on_decompressed', True, 'Existing file found')
+        if os.path.isfile(self.release.image_path):
+            self.state = IState.DECOMPRESSED
             return
+        self.state = IState.DECOMPRESSING
         Thread(target=self._decompress_thread, name="Decompress-Update-Thread").start()
 
     def _decompress_thread(self):
         aborted = False
-        decompress_path = self.image_path + '.decomp'
+        decompress_path = self.release.image_path + '.decomp'
         try:
             if os.path.exists(decompress_path):
                 os.remove(decompress_path)
-            with lzma.open(self.update_path, 'rb') as compressed_file:
+            with lzma.open(self.release.update_path, 'rb') as compressed_file:
                 with open(decompress_path, 'wb') as decompressed_file:
                     while True:
                         chunk = compressed_file.read(262144)
@@ -194,65 +232,73 @@ class Release(EventDispatcher):
                         self.progress += len(chunk)
             if aborted:
                 os.remove(decompress_path)
-                logging.info("Aborted decompressing %s", self.update_filename)
-                Clock.schedule_del_safe(partial(self.dispatch, 'on_decompressed', False, 'Decompression aborted'))
+                logging.info("Aborted decompressing %s", self.release.update_path)
+                Clock.schedule_del_safe(partial(self.set_state, IState.ABORTED))
             else:
-                os.rename(decompress_path, self.image_path)
-                logging.info("Decompressed image %s", self.image_path)
-                Clock.schedule_del_safe(partial(self.dispatch, 'on_decompressed', True))
-        except OSError as e:
-            logging.exception("Decompressing image failed")
-            Clock.schedule_del_safe(partial(self.dispatch, 'on_decompressed', False, str(e)))
-
-    def get_uncompressed_size(self):
-        cmd = ['xz', '--list', '--robot', self.update_path]
-        try:
-            proc = subprocess.run(cmd, capture_output=True, text=True, check=True)
+                os.rename(decompress_path, self.release.image_path)
+                logging.info("Decompressed image %s", self.release.image_path)
+                Clock.schedule_del_safe(partial(self.set_state, IState.DECOMPRESSED))
         except OSError:
-            return None
-        for line in proc.stdout.splitlines():
-            parts = line.split()
-            try:
-                if parts and parts[0] == 'file':
-                    return int(parts[4])
-            except (LookupError, ValueError):
-                return None
+            logging.exception("Decompressing image failed")
+            Clock.schedule_del_safe(partial(self.set_state, IState.FAILED))
 
     def install(self):
         if self._install_proc is not None:
             raise Exception("Installation already running")
-        cmd = ['sudo', 'svup', '-t', 'install', self.image_path]
+        self._abort_process = False
+        cmd = ['sudo', 'svup', '-t', 'install', self.release.image_path]
+        def _preexec_install():
+            os.setpgid(0, 0)
+            os.nice(16)
         self._install_proc = subprocess.Popen(cmd, text=True,
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                preexec_fn=_preexec_install,
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        self.state = IState.INSTALLING
         Thread(target=self._wait_install, name="Install-Wait-Thread").start()
 
     def _wait_install(self):
-        rc = self._install_proc.wait()
-        subvol = None
+        proc = self._install_proc
+        while True:
+            try:
+                stdout, _stderr = proc.communicate(timeout=1)
+            except subprocess.TimeoutExpired:
+                # Keep punching it until it's dead
+                if self._abort_process:
+                    proc.send_signal(SIGINT)
+            else:
+                break
+        self._abort_process = False
+        rc = proc.returncode
         if rc == 0:
-            stdout = self._install_proc.stdout.read()
             lines = stdout.splitlines()
+            subvol = None
             for l in lines:
                 if l.startswith('subvolume'):
                     parts = l.split()
                     if len(parts) == 2:
                         subvol = parts[1]
                         break
-        Clock.schedule_del_safe(lambda: self.dispatch("on_install_finished", rc, subvol))
+            self.subvol = subvol
+            Clock.schedule_del_safe(partial(self.set_state, IState.INSTALLED))
+        # 20: rsync stopped by signal. negative or > 128: svup stopped by signal
+        elif rc == 20 or rc < 0 or rc > 128:
+            Clock.schedule_del_safe(partial(self.set_state, IState.ABORTED))
+        else:
+            logging.error("svup installed failed with exit code %s. Output:\n\n%s\n", rc, stdout)
+            Clock.schedule_del_safe(partial(self.set_state, IState.FAILED))
         self._install_proc = None
 
     def abort_process(self):
-        if self._install_proc is not None:
-            self._install_proc.terminate()
-        else:
+        if self.state is IState.DOWNLOADING or self.state is IState.DECOMPRESSING:
+            self.state = IState.ABORTING
             self._abort_process = True
+        elif self.state is IState.INSTALLING and self._install_proc is not None:
+            logging.info("Terminating install process")
+            self.state = IState.ABORTING
+            self._abort_process = True
+            # Stop with SIGINT because sudo has trouble forwarding SIGTERM
+            self._install_proc.send_signal(SIGINT)
 
-    def on_download_end(self, success, reason=None, last=None):
-        pass
-    def on_decompressed(self, success, reason=None):
-        pass
-    def on_install_finished(self, *args):
-        pass
 
 def stage_reboot(subvol):
     Thread(target=_stage_reboot_thread, args=(subvol,),
@@ -404,87 +450,85 @@ class ReleasePopup(BasePopup):
         super().__init__(**kwargs)
 
     def download(self):
-        InstallPopup(self.release).open()
+        installer = Installer(self.release)
+        InstallPopup(installer).open()
         self.dismiss()
-        self.release.download()
 
 
 class InstallPopup(BasePopup):
 
-    def __init__(self, release, **kwargs):
-        self.release = release
-        self.set_total(self.release.download_size)
+    # Used in progress display. Set to 0 to hide progress bar.
+    total = NumericProperty(0)
+
+    def __init__(self, installer, **kwargs):
+        self.installer = installer
+        self.release = installer.release
+        self.installer.bind(state=self.state_change)
+        self.installer.bind(progress=self.set_progress)
+        self.progress_fmt = "{}"
         super().__init__(**kwargs)
         self.msg = self.ids.msg
-        self.set_progress(None, 0)
-        # Name of the subvolume that was created in installation
-        #TODO Figure out if this is the best place to store that
-        self.subvol = None
+        installer.download()
 
     def abort(self):
         """Triggered by cancel button"""
-        self.dismiss()
-        #TODO Trying to abort 'svup install' leads to breakage
-        self.release.abort_process()
+        if self.installer.state in {IState.DOWNLOADING, IState.DECOMPRESSING, IState.INSTALLING}:
+            self.installer.abort_process()
+        elif self.installer.state in {IState.IDLE, IState.INSTALLED, IState.ABORTED, IState.FAILED}:
+            self.dismiss()
 
     def finalize(self):
-        if not self.subvol:
+        self.ids.confirm.enabled = False
+        if not self.installer.subvol:
             raise Exception("Updater: Subvolume is not set while calling finalize()")
-        self.msg.txt = "Staging for reboot..."
-        stage_reboot(self.subvol)
+        self.msg.text = "Staging for reboot..."
+        stage_reboot(self.installer.subvol)
 
     def set_progress(self, _instance, value):
         self.msg.text = self.progress_fmt.format(value / 1024**2)
 
     def set_total(self, total):
+        """Set total to 0 disables the progress bar"""
         self.total = total
-        if total is not None:
+        if total:
             self.progress_fmt = "{{:4.1f}}/{:4.1f} MiB".format(total / 1024**2)
         else:
             self.progress_fmt = "{:4.1f} MiB"
+        # Update display
+        self.set_progress(None, self.installer.progress)
 
-    def on_download_end(self, instance, success, reason=None):
-        if success:
-            self.set_total(self.release.get_uncompressed_size())
+    def state_change(self, instance, state):
+        if state is IState.DOWNLOADING:
+            self.title = "Downloading " + self.release.version
+            self.set_total(self.release.download_size)
+        elif state is IState.DOWNLOADED:
+            self.installer.decompress()
+        elif state is IState.DECOMPRESSING:
             self.title = "Decompressing " + self.release.version
-            self.release.decompress()
-        else:
-            self.msg.text = "Download failed:\n" + reason
-
-    def on_decompressed(self, instance, success, reason=None):
-        self.release.unbind(progress=self.set_progress)
-        if success:
-            self.set_total(None)
+            self.set_total(self.release.get_uncompressed_size() or 0)
+        elif state is IState.DECOMPRESSED:
+            self.set_total(0)
+            self.installer.install()
+        elif state is IState.INSTALLING:
             self.title = "Installing " + self.release.version
             self.msg.text = "Installing..."
-            self.release.install()
-        else:
-            self.msg.text = "Decompression failed:\n" + reason
-
-    def on_finished(self, instance, returncode, subvol):
-        if returncode == 0 and subvol:
-            self.subvol = subvol
-            self.ids.confirm.enabled = True
-            self.msg.text = "Installation successful\nPress '{}' to try out update".format(
-                    self.ids.confirm.text)
-        elif returncode == 0:
-            self.msg.text = "Installation failed\nCould not determine subvolume"
-        elif returncode == -15:  # Stopped by SIGTERM
-            notify = App.get_running_app().notify
-            notify.show("Installation aborted", delay=3)
-        else:
-            self.msg.text = f"Installation failed\n\nInstaller exited with returncode {returncode}"
-
-    def on_open(self):
-        super().on_open()
-        self.release.bind(on_download_end=self.on_download_end)
-        self.release.bind(on_decompressed=self.on_decompressed)
-        self.release.bind(on_install_finished=self.on_finished)
-        self.release.bind(progress=self.set_progress)
-
-    def on_dismiss(self):
-        super().on_dismiss()
-        self.release.unbind(on_download_end=self.on_download_end)
-        self.release.unbind(on_decompressed=self.on_decompressed)
-        self.release.unbind(on_install_finished=self.on_finished)
-        self.release.unbind(progress=self.set_progress)
+        elif state is IState.INSTALLED:
+            if self.installer.subvol:
+                self.ids.confirm.enabled = True
+                self.ids.btn_cancel.text = "Cancel"
+                self.msg.text = "Successfully installed"
+                self.title = "Installed " + self.release.version
+            else:
+                self.msg.text = "Installation failed\nCould not determine subvolume"
+                self.ids.btn_cancel.text = "Close"
+        elif state is IState.ABORTING:
+            self.title = "Aborting..."
+        elif state is IState.ABORTED:
+            self.title = "Aborted"
+            self.msg.text = "Installation aborted"
+            self.ids.btn_cancel.text = "Close"
+        elif state is IState.FAILED:
+            self.title = "Error"
+            #TODO More useful error messages
+            self.msg.text = "Installation failed"
+            self.ids.btn_cancel.text = "Close"
