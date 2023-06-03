@@ -96,7 +96,7 @@ class BaseParser:
         return "gcode"
 
     def get_extruder_count(self):
-        """Return the number of extruders the file was spliced for"""
+        """Return the number of extruders the file was sliced for"""
         return 1
 
     def get_print_dimensions(self):

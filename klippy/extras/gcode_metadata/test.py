@@ -22,13 +22,13 @@ from extras import filament_manager
 class DummyPrinter:
     class Reactor:
         process_name = "printer"
+        def register_event_handler(*args): pass
     reactor = Reactor()
-    def register_event_handler(*args):
-        pass
+    def register_event_handler(*args): pass
 
-test_config = {
+test_config: dict[str, dict[str, str]] = {
     "extruder": {
-        "filament_diameter": 1.75
+        "filament_diameter": "1.75"
     },
     "filament_manager": {}
 }

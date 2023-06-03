@@ -22,9 +22,7 @@ class CuraMarlinParser(BaseParser):
         The number of extruders can be determined by the number of
         filament figures.
         """
-        filament = self.options.get("Filament used")
-        if filament is None:
-            return None
+        filament = self.options.get("Filament used", "")
         return filament.count(",") + 1
 
     def get_print_dimensions(self):

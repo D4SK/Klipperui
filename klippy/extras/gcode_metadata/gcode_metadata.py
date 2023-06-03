@@ -1,17 +1,14 @@
-#!/usr/bin/env python3
-
 """
 IMPORTANT NOTES FOR MULTIPROCESSING:
 
 Using this module in an extra process works mostly like in the main printer
 process. Obtaining the module is done through printer.load_object(). The module
-returned when doing that outside of the main process is slightly different
-and any calls to get_metadata() get delegated to the main process so that all
-processes can utilize the same cache. Additionally the module in extra processes
-uses a local cache to minimize inter-process communication.
+returned when doing that outside of the main process is slightly different.
+A filesystem cache is always used first. On cache misses the metadata is
+created in the main process but can then be used locally.
 
-The returned metadata object is picklable and all of its methods are called
-locally. The filament_manager calls are handled specially by MPMetadata.
+Metadata objects are picklable and all their methods are called locally
+except for calls to filament_manager, which are handled in the main process.
 """
 
 import hashlib
@@ -34,7 +31,6 @@ from .prusaslicer_parser import PrusaSlicerParser
 class MetadataBase:
 
     def get_cached(self, path):
-        #TODO: Compare mtimes
         cfile = self._cache_file(path)
         if os.path.isfile(cfile):
             try:
@@ -177,10 +173,6 @@ class GCodeMetadata(MetadataBase):
         """
         Parse the Metadata for the G-Code and return an object describing
         the file.
-
-        gcode_file can either be a path to the .gcode file or an open
-        file pointer. If a stream is provided, be aware that it gets closed
-        in this function.
         """
         with open(path, "rb") as gcode_file:
             head = self._get_head_md(gcode_file)
