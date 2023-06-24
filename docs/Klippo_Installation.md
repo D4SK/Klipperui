@@ -49,6 +49,7 @@ git clone -b stable https://github.com/D4SK/klippo
 ## Additional Config Sections ##
 ```
 [virtual_sdcard]
+path: /home/print/Files/
 
 # (optional) allow continuous printing
 [collision]
@@ -63,11 +64,11 @@ gantry_orientation: y
 padding: 2
 continuous_printing: True
 reposition: False
-condition: any # exact | type | any
 
 # The Filament Manager provides automatic material loading and unloading, and tracking of material usage and type.
 # This module works together with the cura_connection plugin
 [filament_manager]
+condition: any # exact | type | any
 
 # This module allows controlling your printer from cura within the local network
 [cura_connection]
@@ -75,6 +76,9 @@ condition: any # exact | type | any
 # Main UI module
 # set [stepper_z] to allow for at least 0.5mm of additional movement
 [kgui]
+nice: 10
+#xy_homing_controls: True
+#led_controls: led
 
 # Provide these Gcode macros when using filament_manager.
 # The FORCE parameter is needed for all G1 moves to
